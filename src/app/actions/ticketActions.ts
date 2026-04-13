@@ -1,0 +1,169 @@
+"use server";
+
+import { z } from "zod";
+import { createAdminClient } from "@/utils/supabase/admin";
+
+// ── Zod 유효성 검사 스키마 ──
+const ticketFormSchema = z.object({
+  name: z
+    .string()
+    .min(1, "이름을 입력해 주세요.")
+    .max(50, "이름은 50자 이내로 입력해 주세요."),
+  phone: z
+    .string()
+    .min(1, "연락처를 입력해 주세요.")
+    .regex(
+      /^01[016789]-?\d{3,4}-?\d{4}$/,
+      "올바른 휴대폰 번호를 입력해 주세요. (예: 010-1234-5678)"
+    ),
+  address: z.string().optional().default(""),
+  receiptType: z.enum(["WALK_IN", "VISIT", "DELIVERY"], {
+    message: "접수 방식을 선택해 주세요.",
+  }),
+  deviceBrand: z
+    .string()
+    .min(1, "브랜드를 입력해 주세요.")
+    .max(50, "브랜드명은 50자 이내로 입력해 주세요."),
+  deviceModel: z.string().optional().default(""),
+  symptoms: z
+    .string()
+    .min(5, "고장 증상을 5자 이상 입력해 주세요.")
+    .max(2000, "고장 증상은 2000자 이내로 입력해 주세요."),
+});
+
+export type TicketFormState = {
+  success: boolean;
+  message: string;
+  errors?: Record<string, string>;
+};
+
+/**
+ * 대고객 홈페이지 접수 폼 Server Action
+ *
+ * 1) customers 테이블에서 phone으로 고객 조회 → 없으면 INSERT
+ * 2) repair_tickets 테이블에 새 접수건 INSERT (status: NEW)
+ *
+ * RLS를 우회하기 위해 service_role 클라이언트를 사용합니다.
+ */
+export async function submitTicketAction(
+  _prevState: TicketFormState,
+  formData: FormData
+): Promise<TicketFormState> {
+  // ── 1. 폼 데이터 파싱 ──
+  const raw = {
+    name: formData.get("name") as string | null,
+    phone: formData.get("phone") as string | null,
+    address: formData.get("address") as string | null,
+    receiptType: formData.get("receiptType") as string | null,
+    deviceBrand: formData.get("deviceBrand") as string | null,
+    deviceModel: formData.get("deviceModel") as string | null,
+    symptoms: formData.get("symptoms") as string | null,
+  };
+
+  // ── 2. Zod 유효성 검사 ──
+  const result = z.safeParse(ticketFormSchema, {
+    name: raw.name?.trim() ?? "",
+    phone: raw.phone?.trim().replace(/\s/g, "") ?? "",
+    address: raw.address?.trim() ?? "",
+    receiptType: raw.receiptType ?? "",
+    deviceBrand: raw.deviceBrand?.trim() ?? "",
+    deviceModel: raw.deviceModel?.trim() ?? "",
+    symptoms: raw.symptoms?.trim() ?? "",
+  });
+
+  if (!result.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of result.error.issues) {
+      const key = String(issue.path[0]);
+      if (!fieldErrors[key]) {
+        fieldErrors[key] = issue.message;
+      }
+    }
+    return {
+      success: false,
+      message: "입력 정보를 확인해 주세요.",
+      errors: fieldErrors,
+    };
+  }
+
+  const data = result.data;
+
+  // ── 3. Supabase Admin 클라이언트 (RLS 우회) ──
+  const supabase = createAdminClient();
+
+  try {
+    // ── 4. 고객 조회 또는 생성 (phone 기준) ──
+    const { data: existingCustomer, error: selectError } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("phone", data.phone)
+      .maybeSingle();
+
+    if (selectError) {
+      console.error("Customer lookup failed:", selectError);
+      return {
+        success: false,
+        message: "접수 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      };
+    }
+
+    let customerId: string;
+
+    if (existingCustomer) {
+      customerId = existingCustomer.id;
+    } else {
+      const { data: newCustomer, error: insertError } = await supabase
+        .from("customers")
+        .insert({
+          name: data.name,
+          phone: data.phone,
+          address: data.address || null,
+        })
+        .select("id")
+        .single();
+
+      if (insertError || !newCustomer) {
+        console.error("Customer insert failed:", insertError);
+        return {
+          success: false,
+          message:
+            "고객 정보 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        };
+      }
+
+      customerId = newCustomer.id;
+    }
+
+    // ── 5. 접수건 생성 (status: NEW) ──
+    const { error: ticketError } = await supabase
+      .from("repair_tickets")
+      .insert({
+        customer_id: customerId,
+        status: "NEW",
+        receipt_type: data.receiptType,
+        device_brand: data.deviceBrand,
+        device_model: data.deviceModel || null,
+        symptoms: data.symptoms,
+      });
+
+    if (ticketError) {
+      console.error("Ticket insert failed:", ticketError);
+      return {
+        success: false,
+        message:
+          "접수건 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      };
+    }
+
+    return {
+      success: true,
+      message: "접수가 완료되었습니다. 담당자가 곧 연락드리겠습니다.",
+    };
+  } catch (err) {
+    console.error("Unexpected error in submitTicketAction:", err);
+    return {
+      success: false,
+      message: "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    };
+  }
+}
