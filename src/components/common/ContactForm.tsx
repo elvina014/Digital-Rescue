@@ -37,11 +37,14 @@ export function ContactForm() {
   );
   const formRef = useRef<HTMLFormElement>(null);
   const [showToast, setShowToast] = useState(false);
+  // state가 바뀔 때마다 formKey를 갱신하여 폼을 재마운트 → defaultValue 반영
+  const [formKey, setFormKey] = useState(0);
 
-  // 성공 시 폼 초기화 + 토스트
+  // state가 바뀔 때마다 formKey를 갱신하여 폼을 재마운트 → defaultValue 반영
   useEffect(() => {
+    setFormKey((k) => k + 1);
+
     if (state.success) {
-      formRef.current?.reset();
       setShowToast(true);
       const timer = setTimeout(() => setShowToast(false), 5000);
       return () => clearTimeout(timer);
@@ -109,6 +112,7 @@ export function ContactForm() {
           )}
 
           <form
+            key={formKey}
             ref={formRef}
             action={formAction}
             className="mx-auto mt-10 max-w-lg space-y-5"
@@ -127,6 +131,7 @@ export function ContactForm() {
                   name="name"
                   type="text"
                   required
+                  defaultValue={state.values?.name}
                   placeholder="홍길동"
                   className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 />
@@ -148,6 +153,7 @@ export function ContactForm() {
                   name="phone"
                   type="tel"
                   required
+                  defaultValue={state.values?.phone}
                   placeholder="010-1234-5678"
                   className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 />
@@ -174,6 +180,7 @@ export function ContactForm() {
                 id="address"
                 name="address"
                 type="text"
+                defaultValue={state.values?.address}
                 placeholder="서울시 강남구 ..."
                 className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
@@ -192,7 +199,7 @@ export function ContactForm() {
                   id="receiptType"
                   name="receiptType"
                   required
-                  defaultValue=""
+                  defaultValue={state.values?.receiptType ?? ""}
                   className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="" disabled>
@@ -221,7 +228,7 @@ export function ContactForm() {
                   id="deviceBrand"
                   name="deviceBrand"
                   required
-                  defaultValue=""
+                  defaultValue={state.values?.deviceBrand ?? ""}
                   className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="" disabled>
@@ -254,6 +261,7 @@ export function ContactForm() {
                 id="deviceModel"
                 name="deviceModel"
                 type="text"
+                defaultValue={state.values?.deviceModel}
                 placeholder="예: 갤럭시북 프로 360, 그램 17Z90R"
                 className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
@@ -272,6 +280,7 @@ export function ContactForm() {
                 name="symptoms"
                 rows={4}
                 required
+                defaultValue={state.values?.symptoms}
                 placeholder={
                   "고장 증상을 자세히 알려주세요.\n예: 전원이 켜지지 않음, 화면에 줄이 생김, 충전이 안됨 등"
                 }

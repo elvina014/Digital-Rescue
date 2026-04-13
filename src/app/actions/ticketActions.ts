@@ -35,6 +35,7 @@ export type TicketFormState = {
   success: boolean;
   message: string;
   errors?: Record<string, string>;
+  values?: Record<string, string>;
 };
 
 /**
@@ -79,10 +80,26 @@ export async function submitTicketAction(
         fieldErrors[key] = issue.message;
       }
     }
+
+    // 에러 난 필드는 값을 비우고, 나머지는 유지
+    const preserved: Record<string, string> = {
+      name: raw.name?.trim() ?? "",
+      phone: raw.phone?.trim() ?? "",
+      address: raw.address?.trim() ?? "",
+      receiptType: raw.receiptType ?? "",
+      deviceBrand: raw.deviceBrand?.trim() ?? "",
+      deviceModel: raw.deviceModel?.trim() ?? "",
+      symptoms: raw.symptoms?.trim() ?? "",
+    };
+    for (const key of Object.keys(fieldErrors)) {
+      preserved[key] = "";
+    }
+
     return {
       success: false,
       message: "입력 정보를 확인해 주세요.",
       errors: fieldErrors,
+      values: preserved,
     };
   }
 
