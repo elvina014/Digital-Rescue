@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentEmployee } from "@/lib/auth";
 import { TicketStatusBadge } from "@/components/common/TicketStatusBadge";
+import { EmployeeRole } from "@/types";
 import type { TicketStatus } from "@/types";
 
 /**
@@ -55,6 +57,14 @@ export default async function TicketsPage() {
             총 {tickets?.length ?? 0}건
           </p>
         </div>
+        {[EmployeeRole.ADMIN, EmployeeRole.MANAGER, EmployeeRole.RECEPTION].includes(employee.role) && (
+          <Link
+            href="/tickets/new"
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            + 신규 접수
+          </Link>
+        )}
       </div>
 
       {/* 테이블 */}
@@ -101,7 +111,12 @@ export default async function TicketsPage() {
                     className="transition-colors hover:bg-gray-50"
                   >
                     <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-900">
-                      {customer?.name ?? "-"}
+                      <Link
+                        href={`/tickets/${ticket.id}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {customer?.name ?? "-"}
+                      </Link>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                       {customer?.phone ?? "-"}
