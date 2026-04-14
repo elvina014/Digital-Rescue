@@ -26,8 +26,9 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     .select(
       `
       id, status, receipt_type, device_brand, device_model,
-      symptoms, initial_estimate, final_price, is_approved,
-      payment_status, created_at, updated_at,
+      symptoms, initial_estimate, expected_estimate, material_cost,
+      material_cost_details, final_price, is_approved,
+      payment_status, payment_method, created_at, updated_at,
       customers ( name, phone, address ),
       employees:assignee_id ( id, name )
     `
@@ -46,6 +47,13 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     .in("role", ["TECHNICIAN", "EXPERT_REPAIR"])
     .order("name");
 
+  // 처리 현황 로그 조회 (타임라인)
+  const { data: logs } = await supabase
+    .from("ticket_logs")
+    .select("id, message, created_at, employees:employee_id ( name )")
+    .eq("ticket_id", id)
+    .order("created_at", { ascending: true });
+
   // Supabase 조인 결과 타입 정리
   const ticketData = {
     id: ticket.id,
@@ -55,9 +63,13 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     device_model: ticket.device_model,
     symptoms: ticket.symptoms,
     initial_estimate: ticket.initial_estimate,
+    expected_estimate: ticket.expected_estimate,
+    material_cost: ticket.material_cost,
+    material_cost_details: (ticket.material_cost_details ?? []) as { description: string; amount: number }[],
     final_price: ticket.final_price,
     is_approved: ticket.is_approved,
     payment_status: ticket.payment_status,
+    payment_method: ticket.payment_method ?? null,
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
     customer: ticket.customers as unknown as {
@@ -88,6 +100,15 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
         ticket={ticketData}
         currentEmployee={employee}
         technicians={technicians ?? []}
+        logs={
+          (logs ?? []).map((log) => ({
+            id: log.id,
+            message: log.message,
+            created_at: log.created_at,
+            employee_name:
+              (log.employees as unknown as { name: string } | null)?.name ?? "알 수 없음",
+          }))
+        }
       />
     </div>
   );

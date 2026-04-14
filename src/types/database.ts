@@ -39,11 +39,19 @@ export interface RepairTicket {
   symptoms: string;
   /** 시스템 산출 최소 견적 (감가상각 반영) */
   initial_estimate: number;
+  /** 예상 견적 (기사가 고객과 조율한 수리 예상 금액) */
+  expected_estimate: number;
+  /** 자재비 (수리에 사용된 부품 구매 금액) */
+  material_cost: number;
+  /** 자재비 상세 내역 (비용내용, 금액의 배열) */
+  material_cost_details: { description: string; amount: number }[];
   /** 최종 확정 견적 (담당자 입력) */
   final_price: number;
   /** 회사(팀장/관리자) 최종 승인 여부 */
   is_approved: boolean;
   payment_status: PaymentStatus;
+  /** 결제 방식 (CARD, BANK_TRANSFER, E_PAYMENT) */
+  payment_method: string | null;
   created_at: string;
   updated_at: string;
 }
