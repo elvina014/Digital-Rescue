@@ -1,24 +1,43 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Suspense } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentEmployee } from "@/lib/auth";
 import { TicketStatusBadge } from "@/components/common/TicketStatusBadge";
 import { EmployeeRole } from "@/types";
 import type { TicketStatus } from "@/types";
+import TicketFilters from "./TicketFilters";
 
 /**
  * 접수건 목록 페이지
  * repair_tickets + customers + employees(담당기사) 조인하여 테이블 표시
  * RLS 정책에 의해 직급별로 조회 범위가 자동 제한됨
  */
-export default async function TicketsPage() {
+export default async function TicketsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const employee = await getCurrentEmployee();
   if (!employee) redirect("/login");
 
+  const params = await searchParams;
+  const statusFilter = typeof params.status === "string" ? params.status : undefined;
+  const startDate = typeof params.startDate === "string" ? params.startDate : undefined;
+  const endDate = typeof params.endDate === "string" ? params.endDate : undefined;
+  const assigneeFilter = typeof params.assignee === "string" ? params.assignee : undefined;
+
   const supabase = await createClient();
 
+  // 담당기사 목록 (필터 드롭다운용)
+  const { data: technicians } = await supabase
+    .from("employees")
+    .select("id, name")
+    .in("role", [EmployeeRole.TECHNICIAN, EmployeeRole.EXPERT_REPAIR])
+    .order("name");
+
   // repair_tickets에 고객명, 담당기사명을 조인하여 조회
-  const { data: tickets, error } = await supabase
+  let query = supabase
     .from("repair_tickets")
     .select(
       `
@@ -29,15 +48,32 @@ export default async function TicketsPage() {
       device_model,
       symptoms,
       initial_estimate,
+      material_cost,
       final_price,
       is_approved,
       payment_status,
       created_at,
+      updated_at,
       customers ( name, phone ),
       employees:assignee_id ( name )
     `
     )
     .order("created_at", { ascending: false });
+
+  if (statusFilter) {
+    query = query.eq("status", statusFilter);
+  }
+  if (startDate) {
+    query = query.gte("created_at", `${startDate}T00:00:00`);
+  }
+  if (endDate) {
+    query = query.lte("created_at", `${endDate}T23:59:59`);
+  }
+  if (assigneeFilter) {
+    query = query.eq("assignee_id", assigneeFilter);
+  }
+
+  const { data: tickets, error } = await query;
 
   if (error) {
     return (
@@ -67,6 +103,11 @@ export default async function TicketsPage() {
         )}
       </div>
 
+      {/* 필터 */}
+      <Suspense fallback={null}>
+        <TicketFilters technicians={technicians ?? []} />
+      </Suspense>
+
       {/* 테이블 */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <div className="overflow-x-auto">
@@ -80,15 +121,17 @@ export default async function TicketsPage() {
                 <th className="px-4 py-3">증상</th>
                 <th className="px-4 py-3">상태</th>
                 <th className="px-4 py-3">담당기사</th>
+                <th className="px-4 py-3 text-right">자재비</th>
                 <th className="px-4 py-3 text-right">최종 견적</th>
                 <th className="px-4 py-3">접수일</th>
+                <th className="px-4 py-3">최종 수정일</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {(!tickets || tickets.length === 0) && (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={11}
                     className="px-4 py-12 text-center text-gray-400"
                   >
                     접수건이 없습니다.
@@ -138,13 +181,21 @@ export default async function TicketsPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                       {assignee?.name ?? "미배정"}
                     </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-gray-600">
+                      {ticket.material_cost > 0
+                        ? `${ticket.material_cost.toLocaleString()}원`
+                        : "-"}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-gray-900">
                       {ticket.final_price > 0
                         ? `${ticket.final_price.toLocaleString()}원`
                         : "-"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-gray-500">
-                      {new Date(ticket.created_at).toLocaleDateString("ko-KR")}
+                      {new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(ticket.created_at))}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-500">
+                      {new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(ticket.updated_at))}
                     </td>
                   </tr>
                 );
