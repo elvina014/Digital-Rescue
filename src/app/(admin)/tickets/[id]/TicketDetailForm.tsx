@@ -67,6 +67,9 @@ export default function TicketDetailForm({
 }: TicketDetailFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [expectedEstimateInput, setExpectedEstimateInput] = useState<number | "">(
+    ticket.expected_estimate > 0 ? ticket.expected_estimate : ""
+  );
 
   const formatDate = (iso: string) =>
     new Intl.DateTimeFormat("ko-KR", {
@@ -252,10 +255,10 @@ export default function TicketDetailForm({
           <h2 className="mb-4 text-base font-semibold text-gray-800">수리 시작</h2>
           <form
             action={(fd) => handleAction(startRepairAction, fd)}
-            className="flex items-end gap-3"
+            className="space-y-3"
           >
             <input type="hidden" name="ticketId" value={ticket.id} />
-            <div className="flex-1">
+            <div>
               <label htmlFor="expectedEstimate" className="mb-1 block text-sm font-medium text-gray-700">
                 예상 견적 (원)
               </label>
@@ -264,17 +267,28 @@ export default function TicketDetailForm({
                 name="expectedEstimate"
                 type="number"
                 min={0}
+                value={expectedEstimateInput}
+                onChange={(e) =>
+                  setExpectedEstimateInput(e.target.value === "" ? "" : Number(e.target.value))
+                }
                 placeholder="고객과 조율한 예상 금액"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="whitespace-nowrap rounded-lg bg-yellow-500 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-600 disabled:opacity-50"
-            >
-              수리 진행 시작
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                disabled={isLoading || !expectedEstimateInput || expectedEstimateInput <= 0}
+                className="whitespace-nowrap rounded-lg bg-yellow-500 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:opacity-50"
+              >
+                수리 진행 시작
+              </button>
+              {(!expectedEstimateInput || expectedEstimateInput <= 0) && (
+                <p className="text-xs text-gray-400">
+                  예상 견적 금액을 입력해야 수리를 시작할 수 있습니다.
+                </p>
+              )}
+            </div>
           </form>
         </section>
       )}

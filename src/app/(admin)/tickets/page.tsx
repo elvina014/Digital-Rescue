@@ -26,6 +26,7 @@ export default async function TicketsPage({
   const startDate = typeof params.startDate === "string" ? params.startDate : undefined;
   const endDate = typeof params.endDate === "string" ? params.endDate : undefined;
   const assigneeFilter = typeof params.assignee === "string" ? params.assignee : undefined;
+  const searchQuery = typeof params.search === "string" ? params.search.trim() : undefined;
 
   const supabase = await createClient();
 
@@ -37,6 +38,11 @@ export default async function TicketsPage({
     .order("name");
 
   // repair_tickets에 고객명, 담당기사명을 조인하여 조회
+  // 검색어가 있으면 customers!inner 조인으로 부모행 필터링
+  const customerJoin = searchQuery
+    ? "customers!inner ( name, phone )"
+    : "customers ( name, phone )";
+
   let query = supabase
     .from("repair_tickets")
     .select(
@@ -54,11 +60,19 @@ export default async function TicketsPage({
       payment_status,
       created_at,
       updated_at,
-      customers ( name, phone ),
+      ${customerJoin},
       employees:assignee_id ( name )
     `
     )
     .order("created_at", { ascending: false });
+
+  if (searchQuery) {
+    const safeTerm = searchQuery.replace(/,/g, "");
+    query = query.or(
+      `name.ilike.%${safeTerm}%,phone.ilike.%${safeTerm}%`,
+      { referencedTable: "customers" }
+    );
+  }
 
   if (statusFilter) {
     query = query.eq("status", statusFilter);

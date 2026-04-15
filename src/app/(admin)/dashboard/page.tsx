@@ -52,8 +52,8 @@ export default async function DashboardPage() {
   if (!employee) redirect("/login");
 
   const [stats, recentLogs] = await Promise.all([
-    getDashboardStats(),
-    getRecentLogs(),
+    getDashboardStats(employee.id, employee.role),
+    getRecentLogs(employee.id, employee.role),
   ]);
 
   const roleLabel = ROLE_LABEL[employee.role] ?? employee.role;
@@ -62,6 +62,8 @@ export default async function DashboardPage() {
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
   const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const monthEnd = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-01`;
+
+  const isTech = employee.role === "TECHNICIAN" || employee.role === "EXPERT_REPAIR";
 
   const summaryCards = [
     {
@@ -74,22 +76,26 @@ export default async function DashboardPage() {
       href: "/tickets",
     },
     {
-      label: "신규 접수",
-      value: stats.statusCounts["NEW"] ?? 0,
+      label: isTech ? "배정된 신규" : "신규 접수",
+      value: isTech ? stats.myNewCount : (stats.statusCounts["NEW"] ?? 0),
       icon: PlusCircle,
       bg: "bg-sky-50",
       iconColor: "text-sky-600",
       textColor: "text-sky-900",
-      href: "/tickets?status=NEW",
+      href: isTech
+        ? `/tickets?status=ASSIGNED&assignee=${employee.id}`
+        : "/tickets?status=NEW",
     },
     {
-      label: "수리 진행 중",
-      value: stats.statusCounts["IN_PROGRESS"] ?? 0,
+      label: isTech ? "내 수리 진행" : "수리 진행 중",
+      value: isTech ? stats.myInProgressCount : (stats.statusCounts["IN_PROGRESS"] ?? 0),
       icon: Wrench,
       bg: "bg-yellow-50",
       iconColor: "text-yellow-600",
       textColor: "text-yellow-900",
-      href: "/tickets?status=IN_PROGRESS",
+      href: isTech
+        ? `/tickets?status=IN_PROGRESS&assignee=${employee.id}`
+        : "/tickets?status=IN_PROGRESS",
     },
     {
       label: "승인 대기",

@@ -6,6 +6,10 @@ export interface DashboardStats {
   receiptTypeCounts: Record<string, number>;
   monthlyRevenue: number;
   monthlyProfit: number;
+  /** TECHNICIAN/EXPERT_REPAIR 전용: 본인 배정 ASSIGNED 건수 */
+  myNewCount: number;
+  /** TECHNICIAN/EXPERT_REPAIR 전용: 본인 배정 IN_PROGRESS 건수 */
+  myInProgressCount: number;
 }
 
 export interface RecentLog {
@@ -18,14 +22,18 @@ export interface RecentLog {
 
 /**
  * 대시보드 통계 데이터 집계
+ * TECHNICIAN/EXPERT_REPAIR인 경우 본인 배정 건수를 별도 집계
  */
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(
+  employeeId?: string,
+  role?: string
+): Promise<DashboardStats> {
   const supabase = await createClient();
 
   // 전체 티켓 조회 (status, receipt_type, final_price, material_cost)
   const { data: tickets } = await supabase
     .from("repair_tickets")
-    .select("status, receipt_type, final_price, material_cost, created_at");
+    .select("status, receipt_type, final_price, material_cost, created_at, assignee_id");
 
   const all = tickets ?? [];
 
@@ -64,33 +72,86 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     0
   );
 
+  // 6) TECHNICIAN/EXPERT_REPAIR 전용: 본인 배정 건수
+  const isTech = role === "TECHNICIAN" || role === "EXPERT_REPAIR";
+  const myNewCount = isTech && employeeId
+    ? all.filter((t) => t.status === "ASSIGNED" && t.assignee_id === employeeId).length
+    : 0;
+  const myInProgressCount = isTech && employeeId
+    ? all.filter((t) => t.status === "IN_PROGRESS" && t.assignee_id === employeeId).length
+    : 0;
+
   return {
     totalTickets,
     statusCounts,
     receiptTypeCounts,
     monthlyRevenue,
     monthlyProfit,
+    myNewCount,
+    myInProgressCount,
   };
 }
 
 /**
  * 최근 활동 로그 10건 조회
+ * ADMIN/MANAGER: 전체 로그
+ * 기타 직급: 본인이 작성했거나 본인에게 배정된 티켓의 로그만 조회
  */
-export async function getRecentLogs(): Promise<RecentLog[]> {
+export async function getRecentLogs(
+  employeeId?: string,
+  role?: string
+): Promise<RecentLog[]> {
   const supabase = await createClient();
 
-  const { data: logs } = await supabase
-    .from("ticket_logs")
-    .select("id, message, created_at, ticket_id, employees:employee_id ( name )")
-    .order("created_at", { ascending: false })
-    .limit(10);
+  const isAdmin = role === "ADMIN" || role === "MANAGER";
 
+  if (isAdmin || !employeeId) {
+    // 관리자/팀장: 전체 로그
+    const { data: logs } = await supabase
+      .from("ticket_logs")
+      .select("id, message, created_at, ticket_id, employees:employee_id ( name )")
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    return mapLogs(logs);
+  }
+
+  // 일반 직원: 본인 작성 로그 + 본인 배정 티켓 로그
+  const [{ data: myLogs }, { data: assignedLogs }] = await Promise.all([
+    // 내가 작성한 로그
+    supabase
+      .from("ticket_logs")
+      .select("id, message, created_at, ticket_id, employees:employee_id ( name )")
+      .eq("employee_id", employeeId)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    // 나에게 배정된 티켓의 로그 (다른 사람이 작성한 것)
+    supabase
+      .from("ticket_logs")
+      .select(
+        "id, message, created_at, ticket_id, employees:employee_id ( name ), repair_tickets!inner ( assignee_id )"
+      )
+      .eq("repair_tickets.assignee_id", employeeId)
+      .neq("employee_id", employeeId)
+      .order("created_at", { ascending: false })
+      .limit(10),
+  ]);
+
+  // 병합 후 최신순 정렬, 10건 제한
+  return [...mapLogs(myLogs), ...mapLogs(assignedLogs)]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10);
+}
+
+function mapLogs(
+  logs: { id: string; message: string; created_at: string; ticket_id: string; employees: unknown }[] | null
+): RecentLog[] {
   return (logs ?? []).map((log) => ({
     id: log.id,
     message: log.message,
     created_at: log.created_at,
     ticket_id: log.ticket_id,
     employee_name:
-      (log.employees as unknown as { name: string } | null)?.name ?? "알 수 없음",
+      (log.employees as { name: string } | null)?.name ?? "알 수 없음",
   }));
 }

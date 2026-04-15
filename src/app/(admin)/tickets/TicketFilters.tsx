@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { TicketStatus } from "@/types";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -25,6 +25,7 @@ export default function TicketFilters({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [searchInput, setSearchInput] = useState(searchParams.get("search") ?? "");
 
   const updateParams = useCallback(
     (key: string, value: string) => {
@@ -41,6 +42,22 @@ export default function TicketFilters({
 
   return (
     <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white p-4">
+      {/* 검색 */}
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-gray-500">고객 검색</label>
+        <input
+          type="text"
+          placeholder="이름 또는 연락처"
+          className="w-48 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") updateParams("search", searchInput.trim());
+          }}
+          onBlur={() => updateParams("search", searchInput.trim())}
+        />
+      </div>
+
       {/* 상태 */}
       <div className="flex flex-col gap-1">
         <label className="text-xs font-medium text-gray-500">상태</label>
