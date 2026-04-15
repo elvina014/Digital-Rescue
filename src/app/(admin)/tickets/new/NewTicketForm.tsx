@@ -6,7 +6,8 @@ import { createTicketAction } from "../actions";
 const RECEIPT_TYPE_OPTIONS = [
   { value: "WALK_IN", label: "내방" },
   { value: "VISIT", label: "방문" },
-  { value: "DELIVERY", label: "퀵/택배" },
+  { value: "QUICK", label: "퀵" },
+  { value: "PARCEL", label: "택배" },
 ] as const;
 
 const BRAND_OPTIONS = [

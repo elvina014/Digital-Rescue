@@ -17,7 +17,7 @@ const ticketFormSchema = z.object({
       "올바른 휴대폰 번호를 입력해 주세요. (예: 010-1234-5678)"
     ),
   address: z.string().optional().default(""),
-  receiptType: z.enum(["WALK_IN", "VISIT", "DELIVERY"], {
+  receiptType: z.enum(["WALK_IN", "VISIT", "QUICK", "PARCEL"], {
     message: "접수 방식을 선택해 주세요.",
   }),
   deviceBrand: z

@@ -20,8 +20,10 @@ interface Technician {
 
 export default function TicketFilters({
   technicians,
+  showAssigneeFilter = true,
 }: {
   technicians: Technician[];
+  showAssigneeFilter?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -98,21 +100,23 @@ export default function TicketFilters({
       </div>
 
       {/* 담당기사 */}
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-500">담당기사</label>
-        <select
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-          value={searchParams.get("assignee") ?? ""}
-          onChange={(e) => updateParams("assignee", e.target.value)}
-        >
-          <option value="">전체</option>
-          {technicians.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {showAssigneeFilter && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-500">담당기사</label>
+          <select
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            value={searchParams.get("assignee") ?? ""}
+            onChange={(e) => updateParams("assignee", e.target.value)}
+          >
+            <option value="">전체</option>
+            {technicians.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* 초기화 */}
       <button

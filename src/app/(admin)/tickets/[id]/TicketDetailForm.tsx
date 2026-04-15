@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import type { EmployeeRole, TicketStatus } from "@/types";
 import { TicketStatusBadge } from "@/components/common/TicketStatusBadge";
 import {
@@ -11,7 +11,10 @@ import {
   updateTicketStatusAction,
   approveTicketAction,
   addTicketLogAction,
+  dismissAdminMessageAction,
 } from "../actions";
+
+import { formatDateTime } from "@/lib/date";
 
 interface TicketData {
   id: string;
@@ -26,6 +29,7 @@ interface TicketData {
   material_cost_details: { description: string; amount: number }[];
   final_price: number;
   is_approved: boolean;
+  has_admin_message: boolean;
   payment_status: string;
   payment_method: string | null;
   created_at: string;
@@ -54,9 +58,10 @@ interface TicketDetailFormProps {
 }
 
 const RECEIPT_LABEL: Record<string, string> = {
-  VISIT: "방문",
-  DELIVERY: "퀵/택배",
   WALK_IN: "내방",
+  VISIT: "방문",
+  QUICK: "퀵",
+  PARCEL: "택배",
 };
 
 export default function TicketDetailForm({
@@ -66,20 +71,10 @@ export default function TicketDetailForm({
   logs,
 }: TicketDetailFormProps) {
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [expectedEstimateInput, setExpectedEstimateInput] = useState<number | "">(
     ticket.expected_estimate > 0 ? ticket.expected_estimate : ""
   );
-
-  const formatDate = (iso: string) =>
-    new Intl.DateTimeFormat("ko-KR", {
-      timeZone: "Asia/Seoul",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(iso));
 
   const role = currentEmployee.role;
   const isAdmin = role === "ADMIN";
@@ -118,13 +113,13 @@ export default function TicketDetailForm({
     (isAdmin || isManager) && ticket.status === "WAITING_APPROVAL" && !ticket.is_approved;
 
   async function handleAction(action: (formData: FormData) => Promise<{ error: string } | undefined>, formData: FormData) {
-    setIsLoading(true);
-    setError(null);
-    const result = await action(formData);
-    if (result?.error) {
-      setError(result.error);
-    }
-    setIsLoading(false);
+    startTransition(async () => {
+      setError(null);
+      const result = await action(formData);
+      if (result?.error) {
+        setError(result.error);
+      }
+    });
   }
 
   return (
@@ -138,6 +133,25 @@ export default function TicketDetailForm({
       {ticket.is_approved && (
         <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
           이 접수건은 승인 완료되었습니다. {isAdmin ? "관리자 권한으로 수정 가능합니다." : isManager ? "팀장 권한으로 일부 수정 가능합니다." : "수정이 불가합니다."}
+        </div>
+      )}
+
+      {/* 관리자 메시지 경고 배너 (TECHNICIAN/EXPERT_REPAIR에게만 표시) */}
+      {ticket.has_admin_message && (isTechnician || isExpertRepair) && (
+        <div className="flex items-center justify-between rounded-lg border border-red-300 bg-red-50 p-3">
+          <p className="text-sm font-medium text-red-700">
+            ⚠ 관리자가 남긴 메시지가 있습니다. 아래 작업 로그를 확인해 주세요.
+          </p>
+          <form action={(fd) => handleAction(dismissAdminMessageAction, fd)}>
+            <input type="hidden" name="ticketId" value={ticket.id} />
+            <button
+              type="submit"
+              disabled={isPending}
+              className="whitespace-nowrap rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              메시지 확인 완료
+            </button>
+          </form>
         </div>
       )}
 
@@ -167,7 +181,7 @@ export default function TicketDetailForm({
           </div>
           <div>
             <dt className="text-xs font-medium text-gray-500">접수일</dt>
-            <dd className="mt-0.5 text-sm text-gray-900">{formatDate(ticket.created_at)}</dd>
+            <dd className="mt-0.5 text-sm text-gray-900">{formatDateTime(ticket.created_at)}</dd>
           </div>
           <div className="sm:col-span-2">
             <dt className="text-xs font-medium text-gray-500">고장 증상</dt>
@@ -232,7 +246,7 @@ export default function TicketDetailForm({
             </div>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isPending}
               className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700 disabled:opacity-50"
             >
               {ticket.assignee ? "기사 변경" : "기사 배정"}
@@ -278,7 +292,7 @@ export default function TicketDetailForm({
             <div className="flex items-center gap-3">
               <button
                 type="submit"
-                disabled={isLoading || !expectedEstimateInput || expectedEstimateInput <= 0}
+                disabled={isPending || !expectedEstimateInput || expectedEstimateInput <= 0}
                 className="whitespace-nowrap rounded-lg bg-yellow-500 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:opacity-50"
               >
                 수리 진행 시작
@@ -333,7 +347,7 @@ export default function TicketDetailForm({
             </div>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isPending}
               className="whitespace-nowrap rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
             >
               비용 추가
@@ -432,7 +446,7 @@ export default function TicketDetailForm({
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isPending}
                 className="rounded-lg bg-orange-500 px-5 py-2 text-sm font-semibold text-white hover:bg-orange-600 disabled:opacity-50"
               >
                 승인 요청
@@ -518,7 +532,7 @@ export default function TicketDetailForm({
             <input type="hidden" name="ticketId" value={ticket.id} />
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isPending}
               className="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
             >
               최종 승인
@@ -532,10 +546,10 @@ export default function TicketDetailForm({
         <h2 className="mb-4 text-base font-semibold text-gray-800">메모 추가</h2>
         <form
           action={(fd) => handleAction(addTicketLogAction, fd)}
-          className="flex items-end gap-3"
+          className="space-y-3"
         >
           <input type="hidden" name="ticketId" value={ticket.id} />
-          <div className="flex-1">
+          <div>
             <label htmlFor="logMessage" className="mb-1 block text-sm font-medium text-gray-700">
               작업 내용 / 메모
             </label>
@@ -548,13 +562,26 @@ export default function TicketDetailForm({
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
-          >
-            등록
-          </button>
+          <div className="flex items-center justify-between">
+            {(isAdmin || isManager || isReception) && (
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  name="notifyAssignee"
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                담당자 대시보드에 알림 띄우기
+              </label>
+            )}
+            {!(isAdmin || isManager || isReception) && <div />}
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+            >
+              등록
+            </button>
+          </div>
         </form>
       </section>
 
@@ -570,7 +597,7 @@ export default function TicketDetailForm({
                 <span className="absolute -left-[31px] top-1 h-3 w-3 rounded-full border-2 border-blue-500 bg-white" />
                 <div className="flex items-baseline gap-2 text-xs text-gray-500">
                   <span className="font-semibold text-gray-700">{log.employee_name}</span>
-                  <time>{formatDate(log.created_at)}</time>
+                  <time>{formatDateTime(log.created_at)}</time>
                 </div>
                 <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-900">{log.message}</p>
               </li>

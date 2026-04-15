@@ -35,12 +35,14 @@ export enum TicketStatus {
 
 /** 접수 방식 */
 export enum ReceiptType {
-  /** 방문 서비스 */
-  VISIT = "VISIT",
-  /** 퀵/택배 서비스 */
-  DELIVERY = "DELIVERY",
   /** 내방 서비스 */
   WALK_IN = "WALK_IN",
+  /** 방문 서비스 */
+  VISIT = "VISIT",
+  /** 퀵 서비스 */
+  QUICK = "QUICK",
+  /** 택배 서비스 */
+  PARCEL = "PARCEL",
 }
 
 /** 재고 상태 */

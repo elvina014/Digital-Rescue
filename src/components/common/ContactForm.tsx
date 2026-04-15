@@ -7,9 +7,10 @@ import {
 } from "@/app/actions/ticketActions";
 
 const RECEIPT_TYPES = [
-  { value: "WALK_IN", label: "내방 (매장 방문)" },
-  { value: "VISIT", label: "방문 수거" },
-  { value: "DELIVERY", label: "택배 접수" },
+  { value: "WALK_IN", label: "내방 (센터 방문)" },
+  { value: "VISIT", label: "방문 수거 요청" },
+  { value: "QUICK", label: "퀵 서비스" },
+  { value: "PARCEL", label: "택배 서비스" },
 ] as const;
 
 const BRANDS = [
@@ -173,7 +174,7 @@ export function ContactForm() {
               >
                 주소{" "}
                 <span className="text-xs text-slate-400">
-                  (방문/택배 시 필요)
+                  (방문/퀵/택배 시 필요)
                 </span>
               </label>
               <input

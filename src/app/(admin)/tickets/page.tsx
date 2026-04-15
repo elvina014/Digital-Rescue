@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentEmployee } from "@/lib/auth";
+import { formatDateTime } from "@/lib/date";
 import { TicketStatusBadge } from "@/components/common/TicketStatusBadge";
 import { EmployeeRole } from "@/types";
 import type { TicketStatus } from "@/types";
@@ -27,6 +28,7 @@ export default async function TicketsPage({
   const endDate = typeof params.endDate === "string" ? params.endDate : undefined;
   const assigneeFilter = typeof params.assignee === "string" ? params.assignee : undefined;
   const searchQuery = typeof params.search === "string" ? params.search.trim() : undefined;
+  const adminMessageFilter = params.has_admin_message === "true";
 
   const supabase = await createClient();
 
@@ -86,6 +88,9 @@ export default async function TicketsPage({
   if (assigneeFilter) {
     query = query.eq("assignee_id", assigneeFilter);
   }
+  if (adminMessageFilter) {
+    query = query.eq("has_admin_message", true);
+  }
 
   const { data: tickets, error } = await query;
 
@@ -119,7 +124,10 @@ export default async function TicketsPage({
 
       {/* 필터 */}
       <Suspense fallback={null}>
-        <TicketFilters technicians={technicians ?? []} />
+        <TicketFilters
+          technicians={technicians ?? []}
+          showAssigneeFilter={![EmployeeRole.TECHNICIAN, EmployeeRole.EXPERT_REPAIR].includes(employee.role)}
+        />
       </Suspense>
 
       {/* 테이블 */}
@@ -206,10 +214,10 @@ export default async function TicketsPage({
                         : "-"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-gray-500">
-                      {new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(ticket.created_at))}
+                      {formatDateTime(ticket.created_at)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-gray-500">
-                      {new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Seoul" }).format(new Date(ticket.updated_at))}
+                      {formatDateTime(ticket.updated_at)}
                     </td>
                   </tr>
                 );

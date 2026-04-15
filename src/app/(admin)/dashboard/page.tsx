@@ -15,7 +15,10 @@ import {
   Building2,
   MapPin,
   Activity,
+  Bell,
 } from "lucide-react";
+
+import { formatShortDateTime } from "@/lib/date";
 
 /** 직급 한글 매핑 */
 const ROLE_LABEL: Record<EmployeeRole, string> = {
@@ -28,20 +31,12 @@ const ROLE_LABEL: Record<EmployeeRole, string> = {
 };
 
 const RECEIPT_LABEL: Record<string, { label: string; icon: typeof Truck }> = {
-  DELIVERY: { label: "퀵/택배", icon: Truck },
   WALK_IN: { label: "내방", icon: Building2 },
   VISIT: { label: "방문", icon: MapPin },
+  QUICK: { label: "퀵", icon: Truck },
+  PARCEL: { label: "택배", icon: Truck },
 };
 
-function formatDate(iso: string) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
 
 /**
  * 관리자 대시보드
@@ -177,6 +172,31 @@ export default async function DashboardPage() {
         })}
       </div>
 
+      {/* 관리자 메시지 알림 카드 (TECHNICIAN/EXPERT_REPAIR 전용) */}
+      {isTech && stats.adminMessageTicketIds.length > 0 && (
+        <Link
+          href={
+            stats.adminMessageTicketIds.length === 1
+              ? `/tickets/${stats.adminMessageTicketIds[0]}`
+              : "/tickets?has_admin_message=true"
+          }
+          className="flex items-center gap-4 rounded-xl border border-red-300 bg-red-50 p-4 shadow-sm transition-shadow hover:shadow-md"
+        >
+          <div className="rounded-lg bg-red-100 p-2.5">
+            <Bell className="h-6 w-6 text-red-600" />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-red-500">관리자 메시지</p>
+            <p className="text-2xl font-bold tabular-nums text-red-900">
+              {stats.adminMessageTicketIds.length}건
+            </p>
+          </div>
+          <p className="ml-auto text-sm font-medium text-red-600">
+            확인하러 가기 &rarr;
+          </p>
+        </Link>
+      )}
+
       {/* 매출/수익 + 접수 방식 */}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* 매출/수익 카드 */}
@@ -258,7 +278,7 @@ export default async function DashboardPage() {
                   >
                     {log.ticket_id.slice(0, 8)}...
                   </Link>
-                  <time>{formatDate(log.created_at)}</time>
+                  <time>{formatShortDateTime(log.created_at)}</time>
                 </div>
                 <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-900">{log.message}</p>
               </li>

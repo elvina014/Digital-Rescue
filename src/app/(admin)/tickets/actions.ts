@@ -462,6 +462,7 @@ export async function addTicketLogAction(formData: FormData) {
 
   const ticketId = formData.get("ticketId") as string;
   const message = (formData.get("message") as string)?.trim();
+  const notifyAssignee = formData.get("notifyAssignee") === "on";
 
   if (!ticketId || !message) {
     return { error: "로그 내용을 입력해 주세요." };
@@ -494,5 +495,38 @@ export async function addTicketLogAction(formData: FormData) {
     return { error: "로그 저장에 실패했습니다: " + error.message };
   }
 
+  // 알림 플래그 설정 (ADMIN/MANAGER/RECEPTION만)
+  if (notifyAssignee && ["ADMIN", "MANAGER", "RECEPTION"].includes(employee.role)) {
+    await supabase
+      .from("repair_tickets")
+      .update({ has_admin_message: true })
+      .eq("id", ticketId);
+  }
+
   revalidatePath(`/tickets/${ticketId}`);
+}
+
+/**
+ * 관리자 메시지 확인 완료 (has_admin_message → false)
+ */
+export async function dismissAdminMessageAction(formData: FormData) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  const ticketId = formData.get("ticketId") as string;
+  if (!ticketId) return { error: "접수건 ID가 필요합니다." };
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("repair_tickets")
+    .update({ has_admin_message: false })
+    .eq("id", ticketId);
+
+  if (error) {
+    return { error: "메시지 확인 처리에 실패했습니다." };
+  }
+
+  revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath("/dashboard");
 }

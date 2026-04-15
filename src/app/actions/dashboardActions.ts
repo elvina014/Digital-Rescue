@@ -10,6 +10,8 @@ export interface DashboardStats {
   myNewCount: number;
   /** TECHNICIAN/EXPERT_REPAIR 전용: 본인 배정 IN_PROGRESS 건수 */
   myInProgressCount: number;
+  /** TECHNICIAN/EXPERT_REPAIR 전용: 관리자 메시지가 있는 본인 배정 티켓 ID 목록 */
+  adminMessageTicketIds: string[];
 }
 
 export interface RecentLog {
@@ -33,7 +35,7 @@ export async function getDashboardStats(
   // 전체 티켓 조회 (status, receipt_type, final_price, material_cost)
   const { data: tickets } = await supabase
     .from("repair_tickets")
-    .select("status, receipt_type, final_price, material_cost, created_at, assignee_id");
+    .select("status, receipt_type, final_price, material_cost, created_at, assignee_id, has_admin_message, id");
 
   const all = tickets ?? [];
 
@@ -81,6 +83,13 @@ export async function getDashboardStats(
     ? all.filter((t) => t.status === "IN_PROGRESS" && t.assignee_id === employeeId).length
     : 0;
 
+  // 7) TECHNICIAN/EXPERT_REPAIR 전용: 관리자 메시지가 있는 본인 배정 티켓 ID
+  const adminMessageTicketIds = isTech && employeeId
+    ? all
+        .filter((t) => t.has_admin_message === true && t.assignee_id === employeeId)
+        .map((t) => t.id as string)
+    : [];
+
   return {
     totalTickets,
     statusCounts,
@@ -89,6 +98,7 @@ export async function getDashboardStats(
     monthlyProfit,
     myNewCount,
     myInProgressCount,
+    adminMessageTicketIds,
   };
 }
 
