@@ -62,9 +62,10 @@ const NAV_ITEMS: NavItem[] = [
 interface AdminSidebarProps {
   employeeName: string;
   employeeRole: EmployeeRole;
+  onLinkClick?: () => void;
 }
 
-export function AdminSidebar({ employeeName, employeeRole }: AdminSidebarProps) {
+export function AdminSidebar({ employeeName, employeeRole, onLinkClick }: AdminSidebarProps) {
   const pathname = usePathname();
 
   // 현재 직급에 맞는 메뉴만 필터링
@@ -94,6 +95,7 @@ export function AdminSidebar({ employeeName, employeeRole }: AdminSidebarProps) 
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={onLinkClick}
                   className={`block rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                     isActive
                       ? "bg-blue-50 text-blue-700"
