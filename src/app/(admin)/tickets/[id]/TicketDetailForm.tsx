@@ -12,6 +12,7 @@ import {
   approveTicketAction,
   addTicketLogAction,
   dismissAdminMessageAction,
+  cancelTicketAction,
 } from "../actions";
 
 import { formatDateTime } from "@/lib/date";
@@ -584,6 +585,29 @@ export default function TicketDetailForm({
           </div>
         </form>
       </section>
+
+      {/* 접수 취소 */}
+      {ticket.status !== "COMPLETED" && ticket.status !== "CANCELED" && (
+        <section className="flex justify-end">
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => {
+              const msg =
+                ticket.status === "IN_PROGRESS"
+                  ? "주의: 진행 중인 건의 취소입니다. 사용된 자재 및 경비에 주의해주세요. 취소 하시겠습니까?"
+                  : "정말 이 접수건을 취소하시겠습니까?";
+              if (!confirm(msg)) return;
+              const fd = new FormData();
+              fd.set("ticketId", ticket.id);
+              handleAction(cancelTicketAction, fd);
+            }}
+            className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50"
+          >
+            접수 취소
+          </button>
+        </section>
+      )}
 
       {/* 작업 로그 타임라인 */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">

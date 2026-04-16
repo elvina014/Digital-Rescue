@@ -12,6 +12,10 @@ export interface DashboardStats {
   myInProgressCount: number;
   /** TECHNICIAN/EXPERT_REPAIR 전용: 관리자 메시지가 있는 본인 배정 티켓 ID 목록 */
   adminMessageTicketIds: string[];
+  /** 전체 취소 건수 */
+  canceledCount: number;
+  /** 전체 대비 취소율 (소수점 1자리) */
+  cancelRate: number;
 }
 
 export interface RecentLog {
@@ -90,6 +94,12 @@ export async function getDashboardStats(
         .map((t) => t.id as string)
     : [];
 
+  // 8) 취소 통계
+  const canceledCount = statusCounts["CANCELED"] ?? 0;
+  const cancelRate = totalTickets > 0
+    ? Math.round((canceledCount / totalTickets) * 1000) / 10
+    : 0;
+
   return {
     totalTickets,
     statusCounts,
@@ -99,6 +109,8 @@ export async function getDashboardStats(
     myNewCount,
     myInProgressCount,
     adminMessageTicketIds,
+    canceledCount,
+    cancelRate,
   };
 }
 

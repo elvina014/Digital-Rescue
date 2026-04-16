@@ -530,3 +530,59 @@ export async function dismissAdminMessageAction(formData: FormData) {
   revalidatePath(`/tickets/${ticketId}`);
   revalidatePath("/dashboard");
 }
+
+/**
+ * 접수 취소 Server Action
+ * 상태를 CANCELED로 변경하고 시스템 로그를 남김
+ */
+export async function cancelTicketAction(formData: FormData) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  const ticketId = formData.get("ticketId") as string;
+  if (!ticketId) return { error: "접수건 ID가 필요합니다." };
+
+  const supabase = await createClient();
+
+  const { data: ticket } = await supabase
+    .from("repair_tickets")
+    .select("status, is_approved")
+    .eq("id", ticketId)
+    .single();
+
+  if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
+
+  if (ticket.status === "COMPLETED") {
+    return { error: "완료된 접수건은 취소할 수 없습니다." };
+  }
+
+  if (ticket.status === "CANCELED") {
+    return { error: "이미 취소된 접수건입니다." };
+  }
+
+  // 승인 완료 후 ADMIN 외 취소 불가
+  if (ticket.is_approved && employee.role !== EmployeeRole.ADMIN) {
+    return { error: "승인 완료된 접수건은 관리자만 취소할 수 있습니다." };
+  }
+
+  const { error } = await supabase
+    .from("repair_tickets")
+    .update({ status: "CANCELED" })
+    .eq("id", ticketId);
+
+  if (error) {
+    return { error: "취소 처리에 실패했습니다: " + error.message };
+  }
+
+  // 시스템 로그 기록
+  await supabase.from("ticket_logs").insert({
+    ticket_id: ticketId,
+    employee_id: employee.id,
+    message: "시스템: 접수가 취소되었습니다.",
+  });
+
+  revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath("/tickets");
+  revalidatePath("/dashboard");
+  redirect(`/tickets/${ticketId}`);
+}

@@ -16,6 +16,7 @@ import {
   MapPin,
   Activity,
   Bell,
+  XCircle,
 } from "lucide-react";
 
 import { formatShortDateTime } from "@/lib/date";
@@ -110,6 +111,16 @@ export default async function DashboardPage() {
       textColor: "text-green-900",
       href: `/tickets?status=COMPLETED&startDate=${monthStart}&endDate=${monthEnd}`,
     },
+    {
+      label: "접수 취소",
+      value: stats.canceledCount,
+      icon: XCircle,
+      bg: "bg-red-50",
+      iconColor: "text-red-600",
+      textColor: "text-red-900",
+      href: "/tickets?status=CANCELED",
+      sub: `취소율 ${stats.cancelRate}%`,
+    },
   ];
 
   const financeCards = [
@@ -149,7 +160,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* 접수건 통계 카드 */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         {summaryCards.map((card) => {
           const Icon = card.icon;
           return (
@@ -166,6 +177,9 @@ export default async function DashboardPage() {
                 <p className={`text-2xl font-bold tabular-nums ${card.textColor}`}>
                   {card.value}
                 </p>
+                {"sub" in card && card.sub && (
+                  <p className="text-xs text-gray-400">{card.sub}</p>
+                )}
               </div>
             </Link>
           );
