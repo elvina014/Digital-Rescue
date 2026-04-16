@@ -2,6 +2,15 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+import { headers } from "next/headers";
+
+/** 현재 요청의 Host 헤더에서 origin을 구성 */
+async function getAdminOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  return `${proto}://${host}`;
+}
 
 /**
  * 이메일/비밀번호 로그인 Server Action
@@ -26,7 +35,8 @@ export async function loginAction(formData: FormData) {
     return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
   }
 
-  redirect(redirectTo);
+  const origin = await getAdminOrigin();
+  redirect(`${origin}${redirectTo}`);
 }
 
 /**
@@ -35,5 +45,6 @@ export async function loginAction(formData: FormData) {
 export async function logoutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/login");
+  const origin = await getAdminOrigin();
+  redirect(`${origin}/login`);
 }

@@ -1,8 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback } from "react";
 import type { EmployeeRole, TicketStatus } from "@/types";
 import { TicketStatusBadge } from "@/components/common/TicketStatusBadge";
+import ImageUploader from "@/components/common/ImageUploader";
+import Lightbox from "@/components/common/Lightbox";
+import { compressAndUploadSingle, MAX_IMAGES_PER_TICKET, type TicketImage } from "@/lib/imageUpload";
 import {
   assignTechnicianAction,
   startRepairAction,
@@ -13,6 +16,8 @@ import {
   addTicketLogAction,
   dismissAdminMessageAction,
   cancelTicketAction,
+  addTicketImagesAction,
+  removeTicketImageAction,
 } from "../actions";
 
 import { formatDateTime } from "@/lib/date";
@@ -31,6 +36,7 @@ interface TicketData {
   final_price: number;
   is_approved: boolean;
   has_admin_message: boolean;
+  images: TicketImage[];
   payment_status: string;
   payment_method: string | null;
   created_at: string;
@@ -113,6 +119,20 @@ export default function TicketDetailForm({
   const canApprove =
     (isAdmin || isManager) && ticket.status === "WAITING_APPROVAL" && !ticket.is_approved;
 
+  const canUpload =
+    !isLocked &&
+    (isAdmin ||
+      isManager ||
+      isReception ||
+      ((isTechnician || isExpertRepair) && ticket.assignee?.id === currentEmployee.id));
+
+  const canDeleteImage = isAdmin || isManager;
+
+  // 이미지를 고객/직원으로 분리
+  const customerImages = ticket.images.filter((img) => img.is_customer === true);
+  const employeeImages = ticket.images.filter((img) => img.is_customer !== true);
+  const totalImageCount = ticket.images.length;
+
   async function handleAction(action: (formData: FormData) => Promise<{ error: string } | undefined>, formData: FormData) {
     startTransition(async () => {
       setError(null);
@@ -188,6 +208,19 @@ export default function TicketDetailForm({
             <dt className="text-xs font-medium text-gray-500">고장 증상</dt>
             <dd className="mt-0.5 whitespace-pre-wrap text-sm text-gray-900">{ticket.symptoms}</dd>
           </div>
+          {/* 고객 업로드 이미지 (접수 정보 카드 내부) */}
+          {customerImages.length > 0 && (
+            <div className="sm:col-span-2">
+              <dt className="text-xs font-medium text-gray-500 mb-2">고객 첨부 사진</dt>
+              <dd>
+                <CustomerImageGallery
+                  images={customerImages}
+                  canDelete={canDeleteImage}
+                  ticketId={ticket.id}
+                />
+              </dd>
+            </div>
+          )}
         </dl>
       </section>
 
@@ -307,6 +340,16 @@ export default function TicketDetailForm({
           </form>
         </section>
       )}
+
+      {/* 연관 이미지 (직원 업로드) — 담당기사/수리 시작 카드와 자재비 카드 사이 */}
+      <EmployeeImageSection
+        ticketId={ticket.id}
+        employeeImages={employeeImages}
+        totalImageCount={totalImageCount}
+        canUpload={canUpload}
+        canDelete={canDeleteImage}
+        currentEmployee={currentEmployee}
+      />
 
       {/* 자재비 추가 및 목록 (IN_PROGRESS 상태, 견적 수정 권한자) */}
       {canEditEstimate && ticket.status === "IN_PROGRESS" && (
@@ -630,5 +673,199 @@ export default function TicketDetailForm({
         )}
       </section>
     </div>
+  );
+}
+
+// ─── 고객 이미지 갤러리 (접수 정보 카드 내부) ───
+
+function CustomerImageGallery({
+  images,
+  canDelete,
+  ticketId,
+}: {
+  images: TicketImage[];
+  canDelete: boolean;
+  ticketId: string;
+}) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  async function handleDelete(path: string) {
+    if (!confirm("이 이미지를 삭제하시겠습니까?")) return;
+    await removeTicketImageAction(ticketId, path);
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+        {images.map((img, i) => (
+          <div key={img.path} className="group relative">
+            <button
+              type="button"
+              onClick={() => setLightboxIndex(i)}
+              className="block w-full"
+            >
+              <img
+                src={img.url}
+                alt={img.description || `고객 이미지 ${i + 1}`}
+                className="h-20 w-full rounded-lg border border-gray-200 object-cover transition-transform hover:scale-105"
+              />
+            </button>
+            {img.description && (
+              <p className="mt-0.5 truncate text-[10px] text-gray-400">{img.description}</p>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => handleDelete(img.path)}
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={images}
+          currentIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={setLightboxIndex}
+        />
+      )}
+    </>
+  );
+}
+
+// ─── 직원 이미지 섹션 (연관 이미지 카드) ───
+
+function EmployeeImageSection({
+  ticketId,
+  employeeImages,
+  totalImageCount,
+  canUpload,
+  canDelete,
+  currentEmployee,
+}: {
+  ticketId: string;
+  employeeImages: TicketImage[];
+  totalImageCount: number;
+  canUpload: boolean;
+  canDelete: boolean;
+  currentEmployee: { id: string; name: string };
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const remaining = MAX_IMAGES_PER_TICKET - totalImageCount;
+
+  const handleUpload = useCallback(async (file: File, description: string) => {
+    setUploading(true);
+    setUploadError(null);
+
+    const { uploaded, error } = await compressAndUploadSingle(ticketId, file, totalImageCount, {
+      description,
+      uploaded_by: currentEmployee.id,
+      uploader_name: currentEmployee.name,
+      is_customer: false,
+    });
+
+    if (error) {
+      setUploadError(error);
+      setUploading(false);
+      return;
+    }
+
+    if (uploaded) {
+      const result = await addTicketImagesAction(ticketId, [uploaded]);
+      if (result?.error) {
+        setUploadError(result.error);
+      }
+    }
+    setUploading(false);
+  }, [ticketId, totalImageCount, currentEmployee]);
+
+  async function handleDelete(path: string) {
+    if (!confirm("이 이미지를 삭제하시겠습니까?")) return;
+    const result = await removeTicketImageAction(ticketId, path);
+    if (result?.error) {
+      setUploadError(result.error);
+    }
+  }
+
+  return (
+    <section className="rounded-xl border border-gray-200 bg-white p-5">
+      <h2 className="mb-4 text-base font-semibold text-gray-800">
+        연관 이미지 ({employeeImages.length}장 · 전체 {totalImageCount}/{MAX_IMAGES_PER_TICKET})
+      </h2>
+
+      {/* 업로드 영역 */}
+      {canUpload && remaining > 0 && (
+        <div className="mb-4">
+          <ImageUploader
+            onUpload={handleUpload}
+            disabled={remaining <= 0}
+            uploading={uploading}
+            label={`이미지 추가 (남은 ${remaining}장)`}
+          />
+        </div>
+      )}
+
+      {uploadError && (
+        <p className="mb-3 text-xs text-red-500">{uploadError}</p>
+      )}
+
+      {/* 직원 업로드 이미지 갤러리 */}
+      {employeeImages.length > 0 ? (
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {employeeImages.map((img, i) => (
+            <div key={img.path} className="group relative">
+              <button
+                type="button"
+                onClick={() => setLightboxIndex(i)}
+                className="block w-full"
+              >
+                <img
+                  src={img.url}
+                  alt={img.description || `직원 이미지 ${i + 1}`}
+                  className="h-24 w-full rounded-lg border border-gray-200 object-cover transition-transform hover:scale-105"
+                />
+              </button>
+              <div className="mt-1 space-y-0.5">
+                {img.description && (
+                  <p className="truncate text-[11px] text-gray-600">{img.description}</p>
+                )}
+                <p className="text-[10px] text-gray-400">
+                  {img.uploader_name ?? "직원"}
+                </p>
+              </div>
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(img.path)}
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-gray-400">등록된 연관 이미지가 없습니다.</p>
+      )}
+
+      {/* 라이트박스 */}
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={employeeImages}
+          currentIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={setLightboxIndex}
+        />
+      )}
+    </section>
   );
 }

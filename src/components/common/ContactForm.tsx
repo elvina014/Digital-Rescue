@@ -6,6 +6,8 @@ import {
   type TicketFormState,
 } from "@/app/actions/ticketActions";
 
+const MAX_CUSTOMER_IMAGES = 2;
+
 const RECEIPT_TYPES = [
   { value: "WALK_IN", label: "내방 (센터 방문)" },
   { value: "VISIT", label: "방문 수거 요청" },
@@ -38,6 +40,8 @@ export function ContactForm() {
   );
   const formRef = useRef<HTMLFormElement>(null);
   const [showToast, setShowToast] = useState(false);
+  const [imageEntries, setImageEntries] = useState<{ file: File; description: string }[]>([]);
+
   // state가 바뀔 때마다 formKey를 갱신하여 폼을 재마운트 → defaultValue 반영
   const [formKey, setFormKey] = useState(0);
 
@@ -47,6 +51,7 @@ export function ContactForm() {
 
     if (state.success) {
       setShowToast(true);
+      setImageEntries([]);
       const timer = setTimeout(() => setShowToast(false), 5000);
       return () => clearTimeout(timer);
     }
@@ -115,7 +120,14 @@ export function ContactForm() {
           <form
             key={formKey}
             ref={formRef}
-            action={formAction}
+            action={(formData) => {
+              // 이미지 파일 + 설명을 FormData에 추가
+              for (const entry of imageEntries) {
+                formData.append("images", entry.file);
+                formData.append("imageDescriptions", entry.description);
+              }
+              formAction(formData);
+            }}
             className="mx-auto mt-10 max-w-lg space-y-5"
           >
             {/* 이름 · 연락처 */}
@@ -294,6 +306,45 @@ export function ContactForm() {
               )}
             </div>
 
+            {/* 사진 첨부 (최대 2장, 설명 포함) */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                고장 사진 첨부{" "}
+                <span className="text-xs text-slate-400">(선택, 최대 {MAX_CUSTOMER_IMAGES}장)</span>
+              </label>
+
+              {/* 등록된 이미지 미리보기 */}
+              {imageEntries.map((entry, idx) => (
+                <div key={idx} className="mb-2 flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-2">
+                  <img
+                    src={URL.createObjectURL(entry.file)}
+                    alt={`첨부 ${idx + 1}`}
+                    className="h-16 w-16 shrink-0 rounded-md border object-cover"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-xs text-slate-600">{entry.file.name}</p>
+                    {entry.description && (
+                      <p className="mt-0.5 text-xs text-slate-400">{entry.description}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setImageEntries((prev) => prev.filter((_, i) => i !== idx))}
+                    className="shrink-0 text-slate-400 hover:text-red-500"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+
+              {/* 새 이미지 추가 입력 */}
+              {imageEntries.length < MAX_CUSTOMER_IMAGES && (
+                <CustomerImageAdder onAdd={(file, desc) => setImageEntries((prev) => [...prev, { file, description: desc }])} />
+              )}
+            </div>
+
             {/* 제출 버튼 */}
             <button
               type="submit"
@@ -335,5 +386,80 @@ export function ContactForm() {
         </div>
       </section>
     </>
+  );
+}
+
+// ─── 고객용 이미지 추가 (파일 선택 → 설명 입력 → 추가) ───
+
+function CustomerImageAdder({ onAdd }: { onAdd: (file: File, description: string) => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [description, setDescription] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0];
+    if (selected && selected.type.startsWith("image/")) {
+      setFile(selected);
+    }
+    e.target.value = "";
+  }
+
+  function handleAdd() {
+    if (!file) return;
+    onAdd(file, description.trim());
+    setFile(null);
+    setDescription("");
+  }
+
+  if (!file) {
+    return (
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500 transition-colors hover:border-blue-400 hover:text-blue-500"
+      >
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        사진 추가
+        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleSelect} />
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-2">
+      <div className="flex items-center gap-3">
+        <img
+          src={URL.createObjectURL(file)}
+          alt="미리보기"
+          className="h-16 w-16 shrink-0 rounded-md border object-cover"
+        />
+        <p className="flex-1 truncate text-xs text-slate-600">{file.name}</p>
+      </div>
+      <input
+        type="text"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="사진 설명 (선택사항)"
+        className="w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-200"
+      />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={handleAdd}
+          className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+        >
+          추가
+        </button>
+        <button
+          type="button"
+          onClick={() => { setFile(null); setDescription(""); }}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
+        >
+          취소
+        </button>
+      </div>
+    </div>
   );
 }

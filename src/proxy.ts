@@ -19,15 +19,16 @@ const ADMIN_PATHS = ["/dashboard", "/editor", "/tickets", "/inventory", "/employ
 const LOGIN_PATH = "/login";
 
 /** hostname이 admin 서브도메인인지 판별 */
-function isAdminHost(hostname: string): boolean {
-  return hostname.startsWith("login.");
+function isAdminHost(request: NextRequest): boolean {
+  const host = request.headers.get("host") ?? "";
+  return host.startsWith("login.");
 }
 
 export async function proxy(request: NextRequest) {
-  const { pathname, hostname } = request.nextUrl;
+  const { pathname } = request.nextUrl;
   const { user, supabaseResponse } = await updateSession(request);
 
-  const onAdmin = isAdminHost(hostname);
+  const onAdmin = isAdminHost(request);
 
   // ── 메인 도메인 가드: 관리자 전용 경로 차단 ──
   if (!onAdmin) {

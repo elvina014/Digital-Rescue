@@ -152,7 +152,7 @@ export async function submitTicketAction(
     }
 
     // ── 5. 접수건 생성 (status: NEW) ──
-    const { error: ticketError } = await supabase
+    const { data: newTicket, error: ticketError } = await supabase
       .from("repair_tickets")
       .insert({
         customer_id: customerId,
@@ -161,15 +161,78 @@ export async function submitTicketAction(
         device_brand: data.deviceBrand,
         device_model: data.deviceModel || null,
         symptoms: data.symptoms,
-      });
+      })
+      .select("id")
+      .single();
 
-    if (ticketError) {
+    if (ticketError || !newTicket) {
       console.error("Ticket insert failed:", ticketError);
       return {
         success: false,
         message:
           "접수건 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
       };
+    }
+
+    // ── 6. 이미지 업로드 (최대 2장) ──
+    const imageFiles = formData.getAll("images") as File[];
+    const imageDescriptions = formData.getAll("imageDescriptions") as string[];
+    console.log("[submitTicketAction] imageFiles count:", imageFiles.length, imageFiles.map(f => ({ name: f?.name, size: f?.size, type: f?.type })));
+    const validImages = imageFiles.filter(
+      (f) => f instanceof File && f.size > 0 && f.type.startsWith("image/")
+    ).slice(0, 2);
+    console.log("[submitTicketAction] validImages count:", validImages.length);
+
+    if (validImages.length > 0) {
+      const uploaded: { path: string; url: string; description: string; uploaded_by: string; uploader_name: string; uploaded_at: string; is_customer: boolean }[] = [];
+
+      for (let i = 0; i < validImages.length; i++) {
+        const file = validImages[i];
+        const desc = imageDescriptions[i] ?? "";
+        const timestamp = Date.now();
+        const safeName = file.name
+          .replace(/\.[^.]+$/, "")
+          .replace(/[^a-zA-Z0-9_-]/g, "_")
+          .replace(/_+/g, "_")
+          .slice(0, 40);
+        const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+        const filePath = `${newTicket.id}/${timestamp}_${safeName}.${ext}`;
+
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        const { error: uploadError } = await supabase.storage
+          .from("ticket-images")
+          .upload(filePath, buffer, {
+            contentType: file.type,
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error("[submitTicketAction] Upload failed:", uploadError);
+        } else {
+          const { data: urlData } = supabase.storage
+            .from("ticket-images")
+            .getPublicUrl(filePath);
+          uploaded.push({
+            path: filePath,
+            url: urlData.publicUrl,
+            description: desc,
+            uploaded_by: "customer",
+            uploader_name: data.name,
+            uploaded_at: new Date().toISOString(),
+            is_customer: true,
+          });
+        }
+      }
+
+      console.log("[submitTicketAction] uploaded:", uploaded.length);
+      if (uploaded.length > 0) {
+        await supabase
+          .from("repair_tickets")
+          .update({ images: uploaded })
+          .eq("id", newTicket.id);
+      }
     }
 
     return {

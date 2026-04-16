@@ -1,1 +1,12 @@
-데이터베이스 스키마 설계 (Database Schema)1. 개요본 문서는 Digital-Rescue 프로젝트의 Supabase(PostgreSQL) 데이터베이스 구조를 정의한다.직원 권한(Role), 수리 접수건(Ticket), 부품 재고(Inventory), 모델별 견적(Device Model) 데이터를 효율적으로 관리하고 무결성을 유지하는 것을 목표로 한다.2. 공통 Enum (열거형) 타입(이전과 동일)3. 핵심 테이블 명세 (Tables)3.1 employees (직원 테이블)(이전과 동일)3.2 customers (고객 테이블)(이전과 동일)3.3 repair_tickets (수리 접수건 테이블)필드명타입제약 조건설명idUUIDPK접수건 고유 IDcustomer_idUUIDFK(customers.id)접수 고객assignee_idUUIDFK(employees.id), NULL배정된 담당기사statusTicketStatusDEFAULT 'NEW'현재 처리 상태receipt_typeReceiptTypeNOT NULL접수 방식 (내방, 방문, 퀵, 택배)device_brandVARCHARNOT NULL브랜드명 (예: samsung, msi)device_modelVARCHARNULL기기 모델명symptomsTEXTNOT NULL고장 증상 및 문의 내용initial_estimateINTEGERDEFAULT 0시스템 산출 최소 견적expected_estimateINTEGERDEFAULT 0예상 견적material_costINTEGERDEFAULT 0자재비 총합material_cost_detailsJSONBDEFAULT '[]'자재비 상세 내역final_priceINTEGERDEFAULT 0최종 확정 견적is_approvedBOOLEANDEFAULT FALSE회사 최종 승인 여부payment_statusVARCHARDEFAULT 'PENDING'결제 상태 (PENDING, PAID)payment_methodVARCHARNULL결제 방식 (CARD, BANK_TRANSFER, E_PAYMENT 등)has_admin_messageBOOLEANDEFAULT FALSE[추가] 관리자 그룹 메시지 존재 여부 (알림용 플래그)created_atTIMESTAMPTZDEFAULT NOW()접수 일시updated_atTIMESTAMPTZDEFAULT NOW()마지막 수정 일시(이하 3.4 ~ 3.6 및 4번 항목 생략 - 이전과 동일)
+데이터베이스 스키마 설계 (Database Schema)(중략... 이전 1~2, 3.1~3.2 항목 동일)3.3 repair_tickets (수리 접수건 테이블)필드명타입제약 조건설명idUUIDPK접수건 고유 IDcustomer_idUUIDFK(customers.id)접수 고객assignee_idUUIDFK(employees.id), NULL배정된 담당기사statusTicketStatusDEFAULT 'NEW'현재 처리 상태receipt_typeReceiptTypeNOT NULL접수 방식device_brandVARCHARNOT NULL브랜드명device_modelVARCHARNULL기기 모델명symptomsTEXTNOT NULL고장 증상 및 문의 내용initial_estimateINTEGERDEFAULT 0시스템 산출 최소 견적expected_estimateINTEGERDEFAULT 0예상 견적material_costINTEGERDEFAULT 0자재비 총합material_cost_detailsJSONBDEFAULT '[]'자재비 상세 내역final_priceINTEGERDEFAULT 0최종 확정 견적is_approvedBOOLEANDEFAULT FALSE회사 최종 승인 여부payment_statusVARCHARDEFAULT 'PENDING'결제 상태payment_methodVARCHARNULL결제 방식has_admin_messageBOOLEANDEFAULT FALSE관리자 메시지 여부imagesJSONBDEFAULT '[]'[수정] 업로드된 이미지 정보 목록 (최대 12장). 상세 구조는 아래 참조created_atTIMESTAMPTZDEFAULT NOW()접수 일시updated_atTIMESTAMPTZDEFAULT NOW()마지막 수정 일시images JSONB 배열의 객체 구조 정의:[
+  {
+    "url": "https://...",
+    "path": "ticket-images/...",
+    "description": "액정 파손 부위", 
+    "uploaded_by": "uuid_or_customer",
+    "uploader_name": "홍길동 기사",
+    "uploaded_at": "2024-05-20T10:30:00Z",
+    "is_customer": false
+  }
+]
+(이하 생략)

@@ -30,7 +30,7 @@ export default async function NewTicketPage() {
           고객 정보와 고장 증상을 입력하여 새 접수건을 생성합니다.
         </p>
       </div>
-      <NewTicketForm />
+      <NewTicketForm currentEmployee={{ id: employee.id, name: employee.name }} />
     </div>
   );
 }

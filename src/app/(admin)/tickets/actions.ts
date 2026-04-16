@@ -70,20 +70,24 @@ export async function createTicketAction(formData: FormData) {
   }
 
   // 2) 접수건 생성
-  const { error: ticketError } = await supabase.from("repair_tickets").insert({
-    customer_id: customerId,
-    receipt_type: receiptType,
-    device_brand: deviceBrand,
-    device_model: deviceModel,
-    symptoms,
-  });
+  const { data: newTicket, error: ticketError } = await supabase
+    .from("repair_tickets")
+    .insert({
+      customer_id: customerId,
+      receipt_type: receiptType,
+      device_brand: deviceBrand,
+      device_model: deviceModel,
+      symptoms,
+    })
+    .select("id")
+    .single();
 
-  if (ticketError) {
-    return { error: "접수 등록에 실패했습니다: " + ticketError.message };
+  if (ticketError || !newTicket) {
+    return { error: "접수 등록에 실패했습니다: " + (ticketError?.message ?? "") };
   }
 
   revalidatePath("/tickets");
-  redirect("/tickets");
+  return { ticketId: newTicket.id };
 }
 
 // ----- 담당기사 배정/변경 (RECEPTION, MANAGER, ADMIN) -----
@@ -581,8 +585,111 @@ export async function cancelTicketAction(formData: FormData) {
     message: "시스템: 접수가 취소되었습니다.",
   });
 
+  // 연결된 이미지 스토리지 삭제
+  const { data: ticketForImages } = await supabase
+    .from("repair_tickets")
+    .select("images")
+    .eq("id", ticketId)
+    .single();
+
+  const imgs = (ticketForImages?.images ?? []) as { path: string }[];
+  if (imgs.length > 0) {
+    const paths = imgs.map((img) => img.path);
+    await supabase.storage.from("ticket-images").remove(paths);
+    await supabase
+      .from("repair_tickets")
+      .update({ images: [] })
+      .eq("id", ticketId);
+  }
+
   revalidatePath(`/tickets/${ticketId}`);
   revalidatePath("/tickets");
   revalidatePath("/dashboard");
   redirect(`/tickets/${ticketId}`);
+}
+
+/**
+ * 티켓에 이미지 URL 추가 Server Action
+ * 클라이언트에서 Storage 업로드 완료 후 DB에 메타 저장
+ */
+export async function addTicketImagesAction(
+  ticketId: string,
+  newImages: { path: string; url: string; description?: string; uploaded_by?: string; uploader_name?: string; uploaded_at?: string; is_customer?: boolean }[]
+) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  if (!ticketId || newImages.length === 0) {
+    return { error: "업로드 데이터가 없습니다." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: ticket } = await supabase
+    .from("repair_tickets")
+    .select("images")
+    .eq("id", ticketId)
+    .single();
+
+  if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
+
+  const existing = (ticket.images ?? []) as { path: string; url: string }[];
+  const total = existing.length + newImages.length;
+
+  if (total > 12) {
+    return { error: `이미지는 최대 12장까지 등록 가능합니다. (현재 ${existing.length}장)` };
+  }
+
+  const merged = [...existing, ...newImages];
+
+  const { error } = await supabase
+    .from("repair_tickets")
+    .update({ images: merged })
+    .eq("id", ticketId);
+
+  if (error) {
+    return { error: "이미지 저장에 실패했습니다: " + error.message };
+  }
+
+  revalidatePath(`/tickets/${ticketId}`);
+  return { success: true };
+}
+
+/**
+ * 티켓 이미지 삭제 Server Action
+ */
+export async function removeTicketImageAction(
+  ticketId: string,
+  imagePath: string
+) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  const supabase = await createClient();
+
+  const { data: ticket } = await supabase
+    .from("repair_tickets")
+    .select("images")
+    .eq("id", ticketId)
+    .single();
+
+  if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
+
+  const existing = (ticket.images ?? []) as { path: string; url: string }[];
+  const filtered = existing.filter((img) => img.path !== imagePath);
+
+  // Storage 파일 삭제
+  await supabase.storage.from("ticket-images").remove([imagePath]);
+
+  const { error } = await supabase
+    .from("repair_tickets")
+    .update({ images: filtered })
+    .eq("id", ticketId);
+
+  if (error) {
+    return { error: "이미지 삭제에 실패했습니다." };
+  }
+
+  revalidatePath(`/tickets/${ticketId}`);
+  return { success: true };
 }

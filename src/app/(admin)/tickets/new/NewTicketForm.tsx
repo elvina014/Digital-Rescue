@@ -1,7 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { createTicketAction } from "../actions";
+import { addTicketImagesAction } from "../actions";
+import ImageUploader from "@/components/common/ImageUploader";
+import { compressAndUploadSingle } from "@/lib/imageUpload";
+import type { TicketImage } from "@/lib/imageUpload";
 
 const RECEIPT_TYPE_OPTIONS = [
   { value: "WALK_IN", label: "내방" },
@@ -14,9 +19,12 @@ const BRAND_OPTIONS = [
   "Samsung", "LG", "MSI", "ASUS", "Lenovo", "HP", "Dell", "Acer", "Apple", "기타",
 ] as const;
 
-export default function NewTicketForm() {
+export default function NewTicketForm({ currentEmployee }: { currentEmployee: { id: string; name: string } }) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [pendingImages, setPendingImages] = useState<{ file: File; description: string }[]>([]);
 
   async function handleSubmit(formData: FormData) {
     setIsLoading(true);
@@ -25,7 +33,28 @@ export default function NewTicketForm() {
     if (result?.error) {
       setError(result.error);
       setIsLoading(false);
+      return;
     }
+
+    // 이미지 업로드 (접수건 생성 성공 후, 1장씩)
+    if (result?.ticketId && pendingImages.length > 0) {
+      const allUploaded: TicketImage[] = [];
+      for (let i = 0; i < pendingImages.length; i++) {
+        const { file, description } = pendingImages[i];
+        const { uploaded } = await compressAndUploadSingle(result.ticketId, file, i, {
+          description,
+          uploaded_by: currentEmployee.id,
+          uploader_name: currentEmployee.name,
+          is_customer: false,
+        });
+        if (uploaded) allUploaded.push(uploaded);
+      }
+      if (allUploaded.length > 0) {
+        await addTicketImagesAction(result.ticketId, allUploaded);
+      }
+    }
+
+    router.push("/tickets");
   }
 
   return (
@@ -145,6 +174,50 @@ export default function NewTicketForm() {
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
+        </div>
+      </fieldset>
+
+      {/* 이미지 첨부 */}
+      <fieldset className="rounded-xl border border-gray-200 bg-white p-5">
+        <legend className="px-2 text-sm font-semibold text-gray-700">기기 사진</legend>
+        <div className="mt-2">
+          {/* 등록 대기 이미지 목록 */}
+          {pendingImages.length > 0 && (
+            <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {pendingImages.map((entry, i) => (
+                <div key={i} className="group relative">
+                  <img
+                    src={URL.createObjectURL(entry.file)}
+                    alt={entry.description || `이미지 ${i + 1}`}
+                    className="h-24 w-full rounded-lg border border-gray-200 object-cover"
+                  />
+                  {entry.description && (
+                    <p className="mt-0.5 truncate text-[10px] text-gray-500">{entry.description}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setPendingImages((prev) => prev.filter((_, idx) => idx !== i))}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {pendingImages.length < 12 && (
+            <ImageUploader
+              onUpload={async (file, description) => {
+                setPendingImages((prev) => [...prev, { file, description }]);
+              }}
+              disabled={pendingImages.length >= 12}
+              label={`접수 시 기기 사진을 첨부하세요 (${pendingImages.length}/12)`}
+            />
+          )}
+          <p className="mt-2 text-xs text-gray-400">
+            * 이미지는 접수 등록 후 상세 페이지에서도 추가할 수 있습니다.
+          </p>
         </div>
       </fieldset>
 
