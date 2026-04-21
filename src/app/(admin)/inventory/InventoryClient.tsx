@@ -1,0 +1,329 @@
+"use client";
+
+import { useState, useTransition, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { deleteInventoryItem } from "@/app/actions/inventoryActions";
+import { ItemCondition, EmployeeRole } from "@/types";
+
+// ─── 상수 ───
+
+const CONDITION_LABELS: Record<ItemCondition, string> = {
+  [ItemCondition.NEW]: "신품",
+  [ItemCondition.USED]: "중고",
+};
+
+const CONDITION_COLORS: Record<ItemCondition, string> = {
+  [ItemCondition.NEW]: "bg-green-100 text-green-700",
+  [ItemCondition.USED]: "bg-yellow-100 text-yellow-700",
+};
+
+const LOW_STOCK_THRESHOLD = 3;
+
+// ─── 타입 ───
+
+interface InventoryItemRow {
+  id: string;
+  category_id: string;
+  spec_id: string;
+  product_id: string;
+  capacity: string | null;
+  condition: ItemCondition;
+  quantity: number;
+  base_estimate: number;
+  created_at: string;
+  updated_at: string;
+  inventory_categories: { name: string } | null;
+  inventory_specs: { name: string } | null;
+  inventory_products: { name: string } | null;
+}
+
+interface Props {
+  items: InventoryItemRow[];
+  currentEmployee: { id: string; name: string; role: EmployeeRole };
+}
+
+// ─── 메인 컴포넌트 ───
+
+export default function InventoryClient({ items: initialItems, currentEmployee }: Props) {
+  const router = useRouter();
+  const [items, setItems] = useState(initialItems);
+  const [isPending, startTransition] = useTransition();
+
+  const isAdmin = currentEmployee.role === EmployeeRole.ADMIN;
+
+  // 필터 상태
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCondition, setFilterCondition] = useState<ItemCondition | "">("");
+
+  // 알림
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  function showToast(message: string, type: "success" | "error" = "success") {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }
+
+  // ─── 통계 ───
+  const stats = useMemo(() => {
+    const totalItems = items.length;
+    const totalQuantity = items.reduce((sum, i) => sum + i.quantity, 0);
+    const lowStock = items.filter((i) => i.quantity > 0 && i.quantity <= LOW_STOCK_THRESHOLD).length;
+    const outOfStock = items.filter((i) => i.quantity === 0).length;
+    return { totalItems, totalQuantity, lowStock, outOfStock };
+  }, [items]);
+
+  // ─── 필터링 ───
+  const filtered = useMemo(() => {
+    return items.filter((item) => {
+      if (filterCondition && item.condition !== filterCondition) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const catName = item.inventory_categories?.name ?? "";
+        const specName = item.inventory_specs?.name ?? "";
+        const prodName = item.inventory_products?.name ?? "";
+        const capacity = item.capacity ?? "";
+        if (
+          !catName.toLowerCase().includes(q) &&
+          !specName.toLowerCase().includes(q) &&
+          !prodName.toLowerCase().includes(q) &&
+          !capacity.toLowerCase().includes(q)
+        )
+          return false;
+      }
+      return true;
+    });
+  }, [items, filterCondition, searchQuery]);
+
+  // ─── 삭제 ───
+  async function handleDelete(item: InventoryItemRow) {
+    const prodName = item.inventory_products?.name ?? "이 품목";
+    if (!confirm(`"${prodName}" 품목을 삭제하시겠습니까?`)) return;
+
+    startTransition(async () => {
+      const result = await deleteInventoryItem(item.id);
+      if (result.error) {
+        showToast(result.error, "error");
+        return;
+      }
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      showToast("품목이 삭제되었습니다.");
+    });
+  }
+
+  return (
+    <>
+      {/* 토스트 */}
+      {toast && (
+        <div className="fixed right-4 top-4 z-50 animate-slide-in">
+          <div
+            className={`rounded-xl border px-5 py-3 text-sm font-medium shadow-lg ${
+              toast.type === "success"
+                ? "border-green-200 bg-white text-green-700"
+                : "border-red-200 bg-white text-red-700"
+            }`}
+          >
+            {toast.message}
+          </div>
+        </div>
+      )}
+
+      {/* 헤더 */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">재고 관리</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            전체 {stats.totalItems}개 품목 · 총 {stats.totalQuantity.toLocaleString()}개 재고
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => router.push("/inventory/settings")}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              분류 설정
+            </button>
+          )}
+          <button
+            onClick={() => router.push("/inventory/new")}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            + 신규 등록
+          </button>
+        </div>
+      </div>
+
+      {/* 통계 카드 */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="전체 품목" value={stats.totalItems} unit="종" color="bg-blue-50" />
+        <StatCard label="총 재고 수량" value={stats.totalQuantity} unit="개" color="bg-green-50" />
+        <StatCard
+          label="부족 재고"
+          value={stats.lowStock}
+          unit="종"
+          color="bg-yellow-50"
+          highlight={stats.lowStock > 0}
+        />
+        <StatCard
+          label="재고 없음"
+          value={stats.outOfStock}
+          unit="종"
+          color="bg-red-50"
+          highlight={stats.outOfStock > 0}
+        />
+      </div>
+
+      {/* 검색 + 필터 */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <input
+          type="text"
+          placeholder="카테고리, 사양, 제품, 용량 검색..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:w-64"
+        />
+        <select
+          value={filterCondition}
+          onChange={(e) => setFilterCondition(e.target.value as ItemCondition | "")}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        >
+          <option value="">전체 상태</option>
+          {Object.entries(CONDITION_LABELS).map(([val, label]) => (
+            <option key={val} value={val}>{label}</option>
+          ))}
+        </select>
+        {(searchQuery || filterCondition) && (
+          <button
+            onClick={() => {
+              setSearchQuery("");
+              setFilterCondition("");
+            }}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            필터 초기화
+          </button>
+        )}
+      </div>
+
+      {/* 테이블 */}
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-gray-200 bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 font-semibold text-gray-600">카테고리</th>
+                <th className="px-4 py-3 font-semibold text-gray-600">사양</th>
+                <th className="px-4 py-3 font-semibold text-gray-600">제품명</th>
+                <th className="px-4 py-3 font-semibold text-gray-600">용량</th>
+                <th className="px-4 py-3 font-semibold text-gray-600">상태</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-600">수량</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-600">기초견적</th>
+                <th className="px-4 py-3 font-semibold text-gray-600">최종 수정</th>
+                {isAdmin && (
+                  <th className="px-4 py-3 text-center font-semibold text-gray-600">관리</th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={isAdmin ? 9 : 8} className="px-4 py-12 text-center text-gray-400">
+                    {items.length === 0 ? "등록된 재고 품목이 없습니다." : "검색 결과가 없습니다."}
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((item) => (
+                  <tr
+                    key={item.id}
+                    className={`transition-colors hover:bg-gray-50/50 ${
+                      item.quantity === 0 ? "bg-red-50/30" : item.quantity <= LOW_STOCK_THRESHOLD ? "bg-yellow-50/30" : ""
+                    }`}
+                  >
+                    <td className="px-4 py-3 text-gray-600">
+                      {item.inventory_categories?.name ?? "-"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {item.inventory_specs?.name ?? "-"}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      {item.inventory_products?.name ?? "-"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{item.capacity ?? "-"}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                          CONDITION_COLORS[item.condition] ?? "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {CONDITION_LABELS[item.condition] ?? item.condition}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      <span
+                        className={`font-semibold ${
+                          item.quantity === 0
+                            ? "text-red-600"
+                            : item.quantity <= LOW_STOCK_THRESHOLD
+                              ? "text-yellow-600"
+                              : "text-gray-900"
+                        }`}
+                      >
+                        {item.quantity}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-gray-600">
+                      {item.base_estimate.toLocaleString()}원
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-400">
+                      {new Date(item.updated_at).toLocaleDateString("ko-KR")}
+                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleDelete(item)}
+                            disabled={isPending}
+                            className="rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-40"
+                            title="삭제"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── 서브 컴포넌트 ───
+
+function StatCard({
+  label,
+  value,
+  unit,
+  color,
+  highlight,
+}: {
+  label: string;
+  value: number;
+  unit: string;
+  color: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className={`rounded-xl border border-gray-200 p-4 shadow-sm ${color}`}>
+      <span className="text-xs font-medium text-gray-500">{label}</span>
+      <p className={`mt-2 text-2xl font-bold tabular-nums ${highlight ? "text-red-600" : "text-gray-900"}`}>
+        {value.toLocaleString()}
+        <span className="ml-1 text-sm font-normal text-gray-400">{unit}</span>
+      </p>
+    </div>
+  );
+}

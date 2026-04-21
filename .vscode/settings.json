@@ -2,6 +2,10 @@
     "chat.tools.terminal.autoApprove": {
         "npx next": true,
         "npm install": true,
-        "Rename-Item": true
+        "Rename-Item": true,
+        "/^node -e \"const r = require\\('@hookform/resolvers/zod'\\); console\\.log\\(typeof r\\.zodResolver\\);\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
     }
 }

@@ -54,6 +54,101 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     .eq("ticket_id", id)
     .order("created_at", { ascending: true });
 
+  // 재고 카테고리 조회
+  const { data: categories } = await supabase
+    .from("inventory_categories")
+    .select("id, name")
+    .order("name");
+
+  // 재고 아이템 조회 (카테고리/스펙/제품명 포함)
+  const { data: inventoryItems } = await supabase
+    .from("inventory_items")
+    .select(`
+      id, category_id, spec_id, product_id,
+      capacity, condition, quantity, base_estimate,
+      inventory_categories ( name ),
+      inventory_specs ( name ),
+      inventory_products ( name )
+    `)
+    .order("created_at", { ascending: false });
+
+  // 글로벌 설정 조회
+  const { data: globalSettings } = await supabase
+    .from("global_settings")
+    .select("base_service_cost, value_reference_amount, discount_surcharge_rate")
+    .eq("id", true)
+    .single();
+
+  // 해당 티켓의 ticket_materials 조회
+  const { data: ticketMaterialsRaw } = await supabase
+    .from("ticket_materials")
+    .select(`
+      id, inventory_item_id, quantity, request_status, request_type, notes,
+      is_return_registered, return_spec, return_name, return_condition, return_status,
+      inventory_items (
+        category_id, base_estimate, capacity, condition,
+        inventory_categories ( name ),
+        inventory_specs ( name ),
+        inventory_products ( name )
+      )
+    `)
+    .eq("ticket_id", id)
+    .order("created_at", { ascending: true });
+
+  // 재고 아이템 데이터 정리
+  const inventoryItemRows = (inventoryItems ?? []).map((item) => ({
+    id: item.id,
+    category_id: item.category_id,
+    spec_id: item.spec_id,
+    product_id: item.product_id,
+    capacity: item.capacity,
+    condition: item.condition,
+    quantity: item.quantity,
+    base_estimate: item.base_estimate,
+    category_name: (item.inventory_categories as unknown as { name: string })?.name ?? "",
+    spec_name: (item.inventory_specs as unknown as { name: string })?.name ?? "",
+    product_name: (item.inventory_products as unknown as { name: string })?.name ?? "",
+  }));
+
+  const globalSettingsData = globalSettings ?? {
+    base_service_cost: 0,
+    value_reference_amount: 1,
+    discount_surcharge_rate: 100,
+  };
+
+  // ticket_materials 정리
+  const ticketMaterialRows = (ticketMaterialsRaw ?? []).map((tm) => {
+    const inv = tm.inventory_items as unknown as {
+      base_estimate: number;
+      capacity: string | null;
+      condition: string;
+      category_id?: string;
+      inventory_categories: { name: string } | null;
+      inventory_specs: { name: string } | null;
+      inventory_products: { name: string } | null;
+    } | null;
+    return {
+      id: tm.id,
+      inventory_item_id: tm.inventory_item_id,
+      quantity: tm.quantity,
+      request_status: tm.request_status,
+      request_type: (tm.request_type as string) ?? "dispatch",
+      notes: tm.notes,
+      category_id: inv?.category_id ?? null,
+      category_name: inv?.inventory_categories?.name ?? "",
+      spec_name: inv?.inventory_specs?.name ?? "",
+      product_name: inv?.inventory_products?.name ?? "",
+      capacity: inv?.capacity ?? null,
+      condition: inv?.condition ?? "중고",
+      base_estimate: inv?.base_estimate ?? 0,
+      is_return_registered: (tm as Record<string, unknown>).is_return_registered as boolean ?? false,
+      return_spec: (tm as Record<string, unknown>).return_spec as string | null ?? null,
+      return_name: (tm as Record<string, unknown>).return_name as string | null ?? null,
+      return_condition: (tm as Record<string, unknown>).return_condition as string | null ?? null,
+      return_status: (tm as Record<string, unknown>).return_status as string | null ?? null,
+    };
+  });
+
   // Supabase 조인 결과 타입 정리
   const ticketData = {
     id: ticket.id,
@@ -111,6 +206,10 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
               (log.employees as unknown as { name: string } | null)?.name ?? "알 수 없음",
           }))
         }
+        inventoryItems={inventoryItemRows}
+        inventoryCategories={categories ?? []}
+        globalSettings={globalSettingsData}
+        ticketMaterials={ticketMaterialRows}
       />
     </div>
   );

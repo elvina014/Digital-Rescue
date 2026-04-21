@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import { useState, useEffect, useTransition, useCallback } from "react";
 import type { EmployeeRole, TicketStatus } from "@/types";
 import { TicketStatusBadge } from "@/components/common/TicketStatusBadge";
 import ImageUploader from "@/components/common/ImageUploader";
@@ -8,7 +8,6 @@ import Lightbox from "@/components/common/Lightbox";
 import { compressAndUploadSingle, MAX_IMAGES_PER_TICKET, type TicketImage } from "@/lib/imageUpload";
 import {
   assignTechnicianAction,
-  startRepairAction,
   addMaterialCostAction,
   submitEstimateAction,
   updateTicketStatusAction,
@@ -18,7 +17,12 @@ import {
   cancelTicketAction,
   addTicketImagesAction,
   removeTicketImageAction,
+  requestMaterialDispatchAction,
+  cancelMaterialDispatchAction,
+  registerReturnMaterialAction,
 } from "../actions";
+import EstimateCard from "./EstimateCard";
+
 
 import { formatDateTime } from "@/lib/date";
 
@@ -45,6 +49,52 @@ interface TicketData {
   assignee: { id: string; name: string } | null;
 }
 
+interface InventoryItemRow {
+  id: string;
+  category_id: string;
+  spec_id: string;
+  product_id: string;
+  capacity: string | null;
+  condition: string;
+  quantity: number;
+  base_estimate: number;
+  category_name: string;
+  spec_name: string;
+  product_name: string;
+}
+
+interface CategoryOption {
+  id: string;
+  name: string;
+}
+
+interface GlobalSettingsData {
+  base_service_cost: number;
+  value_reference_amount: number;
+  discount_surcharge_rate: number;
+}
+
+interface TicketMaterialRow {
+  id: string;
+  inventory_item_id: string;
+  quantity: number;
+  request_status: string;
+  request_type: string;
+  notes: string | null;
+  category_id: string | null;
+  category_name: string;
+  spec_name: string;
+  product_name: string;
+  capacity: string | null;
+  condition: string;
+  base_estimate: number;
+  is_return_registered: boolean;
+  return_spec: string | null;
+  return_name: string | null;
+  return_condition: string | null;
+  return_status: string | null;
+}
+
 interface TechnicianOption {
   id: string;
   name: string;
@@ -62,6 +112,10 @@ interface TicketDetailFormProps {
   currentEmployee: { id: string; name: string; role: EmployeeRole };
   technicians: TechnicianOption[];
   logs: LogEntry[];
+  inventoryItems: InventoryItemRow[];
+  inventoryCategories: CategoryOption[];
+  globalSettings: GlobalSettingsData;
+  ticketMaterials: TicketMaterialRow[];
 }
 
 const RECEIPT_LABEL: Record<string, string> = {
@@ -76,12 +130,19 @@ export default function TicketDetailForm({
   currentEmployee,
   technicians,
   logs,
+  inventoryItems,
+  inventoryCategories,
+  globalSettings,
+  ticketMaterials: initialMaterials,
 }: TicketDetailFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [expectedEstimateInput, setExpectedEstimateInput] = useState<number | "">(
-    ticket.expected_estimate > 0 ? ticket.expected_estimate : ""
-  );
+  const [materials, setMaterials] = useState(initialMaterials);
+
+  // 서버 데이터 재검증 시 props 변경을 동기화
+  useEffect(() => {
+    setMaterials(initialMaterials);
+  }, [initialMaterials]);
 
   const role = currentEmployee.role;
   const isAdmin = role === "ADMIN";
@@ -297,48 +358,17 @@ export default function TicketDetailForm({
         </section>
       )}
 
-      {/* 수리 시작 + 예상 견적 입력 (TECHNICIAN / EXPERT_REPAIR, ASSIGNED 상태) */}
+      {/* 수리 시작 · 견적 산출 카드 (ASSIGNED 상태, 상태변경 가능자) */}
       {canChangeStatus && ticket.status === "ASSIGNED" && (
-        <section className="rounded-xl border border-gray-200 bg-white p-5">
-          <h2 className="mb-4 text-base font-semibold text-gray-800">수리 시작</h2>
-          <form
-            action={(fd) => handleAction(startRepairAction, fd)}
-            className="space-y-3"
-          >
-            <input type="hidden" name="ticketId" value={ticket.id} />
-            <div>
-              <label htmlFor="expectedEstimate" className="mb-1 block text-sm font-medium text-gray-700">
-                예상 견적 (원)
-              </label>
-              <input
-                id="expectedEstimate"
-                name="expectedEstimate"
-                type="number"
-                min={0}
-                value={expectedEstimateInput}
-                onChange={(e) =>
-                  setExpectedEstimateInput(e.target.value === "" ? "" : Number(e.target.value))
-                }
-                placeholder="고객과 조율한 예상 금액"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                disabled={isPending || !expectedEstimateInput || expectedEstimateInput <= 0}
-                className="whitespace-nowrap rounded-lg bg-yellow-500 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-600 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:opacity-50"
-              >
-                수리 진행 시작
-              </button>
-              {(!expectedEstimateInput || expectedEstimateInput <= 0) && (
-                <p className="text-xs text-gray-400">
-                  예상 견적 금액을 입력해야 수리를 시작할 수 있습니다.
-                </p>
-              )}
-            </div>
-          </form>
-        </section>
+        <EstimateCard
+          ticketId={ticket.id}
+          currentDeviceBrand={ticket.device_brand}
+          currentDeviceModel={ticket.device_model}
+          categories={inventoryCategories}
+          inventoryItems={inventoryItems}
+          globalSettings={globalSettings}
+          onError={(msg) => setError(msg)}
+        />
       )}
 
       {/* 연관 이미지 (직원 업로드) — 담당기사/수리 시작 카드와 자재비 카드 사이 */}
@@ -351,12 +381,167 @@ export default function TicketDetailForm({
         currentEmployee={currentEmployee}
       />
 
+
+
       {/* 자재비 추가 및 목록 (IN_PROGRESS 상태, 견적 수정 권한자) */}
       {canEditEstimate && ticket.status === "IN_PROGRESS" && (
         <section className="rounded-xl border border-gray-200 bg-white p-5">
           <h2 className="mb-4 text-base font-semibold text-gray-800">자재비 관리</h2>
 
-          {/* 자재비 추가 폼 */}
+          {/* ticket_materials 목록 (재고 자재) */}
+          {materials.length > 0 && (
+            <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <h3 className="mb-2 text-sm font-semibold text-gray-600">재고 자재</h3>
+              <ul className="divide-y divide-gray-200 text-sm">
+                {materials.map((m) => {
+                  const label = [m.category_name, m.spec_name, m.product_name, m.capacity].filter(Boolean).join(" / ");
+                  const subtotal = m.base_estimate * m.quantity;
+                  const isPurchase = m.request_type === "purchase";
+                  const isSoftware = m.category_name === "소프트웨어";
+                  const canShowReturn = !isSoftware &&
+                    (m.request_status === "approved" || m.request_status === "cancel_requested" || m.request_status === "cancelled");
+                  return (
+                    <li key={m.id} className="py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-gray-700">{label}</span>
+                          <span className="ml-2 text-xs text-gray-400">× {m.quantity}</span>
+                          {isPurchase && (
+                            <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700">구매</span>
+                          )}
+                          {m.notes && <span className="ml-2 text-xs text-gray-400">({m.notes})</span>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="tabular-nums font-medium text-gray-900 whitespace-nowrap">
+                            {subtotal.toLocaleString()}원
+                          </span>
+                        {m.request_status === "pending" && (
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => {
+                              // Optimistic UI: 즉시 상태 변경
+                              setMaterials((prev) =>
+                                prev.map((x) => (x.id === m.id ? { ...x, request_status: "requested" } : x))
+                              );
+                              startTransition(async () => {
+                                setError(null);
+                                const res = await requestMaterialDispatchAction(m.id);
+                                if (res?.error) {
+                                  // 실패 시 롤백
+                                  setMaterials((prev) =>
+                                    prev.map((x) => (x.id === m.id ? { ...x, request_status: "pending" } : x))
+                                  );
+                                  setError(res.error);
+                                }
+                              });
+                            }}
+                            className={`whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50 ${
+                              isPurchase
+                                ? "bg-purple-600 hover:bg-purple-700"
+                                : "bg-blue-600 hover:bg-blue-700"
+                            }`}
+                          >
+                            {isPurchase ? "자재구매요청" : "자재출고요청"}
+                          </button>
+                        )}
+                        {m.request_status === "requested" && (
+                          <span className={`whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-semibold ${
+                            isPurchase
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}>
+                            {isPurchase ? "구매요청중" : "출고요청중"}
+                          </span>
+                        )}
+                        {m.request_status === "approved" && (
+                          <>
+                            <span className="whitespace-nowrap rounded-md bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-800">
+                              승인완료
+                            </span>
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() => {
+                                if (!confirm("출고 취소를 요청하시겠습니까? 관리자 반환 확인 후 재고가 복구됩니다.")) return;
+                                setMaterials((prev) =>
+                                  prev.map((x) => (x.id === m.id ? { ...x, request_status: "cancel_requested" } : x))
+                                );
+                                startTransition(async () => {
+                                  setError(null);
+                                  const res = await cancelMaterialDispatchAction(m.id);
+                                  if (res?.error) {
+                                    setMaterials((prev) =>
+                                      prev.map((x) => (x.id === m.id ? { ...x, request_status: "approved" } : x))
+                                    );
+                                    setError(res.error);
+                                  }
+                                });
+                              }}
+                              className="whitespace-nowrap rounded-md bg-red-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+                            >
+                              출고 취소
+                            </button>
+                          </>
+                        )}
+                        {m.request_status === "cancel_requested" && (
+                          <span className="whitespace-nowrap rounded-md bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                            반환 대기중
+                          </span>
+                        )}
+                        {m.request_status === "rejected" && (
+                          <span className="whitespace-nowrap rounded-md bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-800">
+                            거부됨
+                          </span>
+                        )}
+                        {m.request_status === "cancelled" && (
+                          <span className="whitespace-nowrap rounded-md bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                            취소됨
+                          </span>
+                        )}
+                      </div>
+                      </div>
+                      {/* 반환 자재 등록 섹션 */}
+                      {canShowReturn && !m.is_return_registered && (
+                        <ReturnMaterialForm
+                          materialId={m.id}
+                          defaultCategoryId={m.category_id}
+                          categories={inventoryCategories}
+                          inventoryItems={inventoryItems}
+                          onUpdate={(updated) => {
+                            setMaterials((prev) => prev.map((x) => x.id === m.id ? { ...x, ...updated } : x));
+                          }}
+                          onError={setError}
+                        />
+                      )}
+                      {m.is_return_registered && (
+                        <div className="mt-1.5 rounded bg-indigo-50 px-2.5 py-1.5 text-xs text-indigo-700">
+                          <span className="font-semibold">적출품 등록:</span> {m.return_spec} / {m.return_name} / {m.return_condition}
+                          {m.return_status === "pending" && (
+                            <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-700 font-semibold">입고 대기</span>
+                          )}
+                          {m.return_status === "approved" && (
+                            <span className="ml-2 rounded bg-green-100 px-1.5 py-0.5 text-green-700 font-semibold">입고 완료</span>
+                          )}
+                          {m.return_status === "rejected" && (
+                            <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-red-700 font-semibold">입고 거부</span>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-2 flex items-center justify-between border-t border-gray-300 pt-2">
+                <span className="text-sm font-semibold text-gray-700">자재 합계</span>
+                <span className="tabular-nums text-sm font-bold text-gray-900">
+                  {materials.reduce((s, m) => s + m.base_estimate * m.quantity, 0).toLocaleString()}원
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* 수동 자재비 추가 폼 */}
           <form
             action={(fd) => handleAction(addMaterialCostAction, fd)}
             className="mb-4 flex items-end gap-3"
@@ -364,20 +549,20 @@ export default function TicketDetailForm({
             <input type="hidden" name="ticketId" value={ticket.id} />
             <div className="flex-1">
               <label htmlFor="mcDescription" className="mb-1 block text-sm font-medium text-gray-700">
-                비용 내용
+                추가 비용 내용
               </label>
               <input
                 id="mcDescription"
                 name="description"
                 type="text"
                 required
-                placeholder="예: DDR4 8GB RAM"
+                placeholder="예: 부품 수급비"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
             <div className="w-36">
               <label htmlFor="mcAmount" className="mb-1 block text-sm font-medium text-gray-700">
-                자재비 (원)
+                금액 (원)
               </label>
               <input
                 id="mcAmount"
@@ -398,9 +583,10 @@ export default function TicketDetailForm({
             </button>
           </form>
 
-          {/* 자재비 목록 */}
+          {/* 수동 자재비 목록 */}
           {ticket.material_cost_details.length > 0 && (
             <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <h3 className="mb-2 text-sm font-semibold text-gray-600">수동 추가 비용</h3>
               <ul className="divide-y divide-gray-200 text-sm">
                 {ticket.material_cost_details.map((item, idx) => (
                   <li key={idx} className="flex items-center justify-between py-1.5">
@@ -409,23 +595,41 @@ export default function TicketDetailForm({
                   </li>
                 ))}
               </ul>
-              <div className="mt-2 flex items-center justify-between border-t border-gray-300 pt-2">
-                <span className="text-sm font-semibold text-gray-700">합계</span>
-                <span className="tabular-nums text-sm font-bold text-gray-900">{ticket.material_cost.toLocaleString()}원</span>
-              </div>
             </div>
           )}
 
-          {ticket.material_cost_details.length === 0 && (
+          {materials.length === 0 && ticket.material_cost_details.length === 0 && (
             <p className="text-sm text-gray-400">아직 추가된 자재비가 없습니다.</p>
           )}
         </section>
       )}
 
       {/* 고객 결제 & 승인 요청 (IN_PROGRESS 상태, 견적 수정 권한자) */}
-      {canEditEstimate && ticket.status === "IN_PROGRESS" && (
+      {canEditEstimate && ticket.status === "IN_PROGRESS" && (() => {
+        // 적출품 미등록 실물 자재 확인
+        const unregisteredPhysicalMaterials = materials.filter(
+          (m) =>
+            m.category_name !== "소프트웨어" &&
+            !m.is_return_registered &&
+            (m.request_status === "approved" || m.request_status === "cancel_requested" || m.request_status === "cancelled")
+        );
+        const hasUnregistered = unregisteredPhysicalMaterials.length > 0;
+
+        return (
         <section className="rounded-xl border border-orange-200 bg-orange-50 p-5">
           <h2 className="mb-4 text-base font-semibold text-orange-900">고객 결제 및 승인 요청</h2>
+
+          {/* ⚠️ 적출품 미등록 경고 */}
+          {hasUnregistered && (
+            <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3">
+              <p className="text-sm font-bold text-red-700">⚠️ 적출품 등록안됨</p>
+              <p className="mt-1 text-xs text-red-600">
+                출고된 실물 자재 중 {unregisteredPhysicalMaterials.length}건의 적출품이 아직 등록되지 않았습니다.
+                결제 요청 전에 먼저 적출품 등록을 완료해 주세요.
+              </p>
+            </div>
+          )}
+
           {ticket.initial_estimate > 0 && (
             <p className="mb-3 text-sm text-orange-700">
               시스템 최소 견적: <span className="font-semibold">{ticket.initial_estimate.toLocaleString()}원</span>
@@ -445,6 +649,9 @@ export default function TicketDetailForm({
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              if (hasUnregistered) {
+                if (!window.confirm(`⚠️ 적출품이 ${unregisteredPhysicalMaterials.length}건 미등록 상태입니다.\n그래도 승인 요청을 진행하시겠습니까?`)) return;
+              }
               if (!window.confirm("본 건을 마무리 하시겠습니까? 이후에는 내용 수정을 할 수 없습니다.")) return;
               const fd = new FormData(e.currentTarget);
               handleAction(submitEstimateAction, fd);
@@ -498,7 +705,8 @@ export default function TicketDetailForm({
             </div>
           </form>
         </section>
-      )}
+        );
+      })()}
 
       {/* 견적 정보 표시 (읽기 전용) */}
       {(isLocked || ticket.status === "WAITING_APPROVAL" || ticket.status === "COMPLETED") && (
@@ -672,6 +880,152 @@ export default function TicketDetailForm({
           </ol>
         )}
       </section>
+    </div>
+  );
+}
+
+// ─── 적출/반환 자재 등록 폼 (카테고리별 상품 리스트 드롭다운) ───
+
+function ReturnMaterialForm({
+  materialId,
+  defaultCategoryId,
+  categories,
+  inventoryItems,
+  onUpdate,
+  onError,
+}: {
+  materialId: string;
+  defaultCategoryId: string | null;
+  categories: CategoryOption[];
+  inventoryItems: InventoryItemRow[];
+  onUpdate: (fields: { is_return_registered: boolean; return_spec: string; return_name: string; return_condition: string; return_status: string }) => void;
+  onError: (msg: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(defaultCategoryId ?? "");
+  const [selectedItemId, setSelectedItemId] = useState("");
+  const [condition, setCondition] = useState<"중고품" | "불량품">("중고품");
+  const [isPending, startTransition] = useTransition();
+
+  // 선택된 카테고리에 해당하는 재고 아이템 목록
+  const filteredItems = inventoryItems.filter((i) => i.category_id === selectedCategoryId);
+
+  const selectedItem = inventoryItems.find((i) => i.id === selectedItemId);
+
+  function itemLabel(item: InventoryItemRow) {
+    const parts = [item.spec_name, item.product_name];
+    if (item.capacity) parts.push(item.capacity);
+    parts.push(`(${item.condition === "NEW" ? "신품" : "중고"})`);
+    parts.push(`— ${item.base_estimate.toLocaleString()}원`);
+    parts.push(`[재고: ${item.quantity}]`);
+    return parts.join(" ");
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+      >
+        + 적출품 등록
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+      <p className="mb-2 text-xs font-semibold text-indigo-700">적출/반환 자재 등록</p>
+      <div className="space-y-2">
+        {/* 카테고리 선택 */}
+        <div>
+          <label className="mb-0.5 block text-[11px] text-gray-500">카테고리</label>
+          <select
+            value={selectedCategoryId}
+            onChange={(e) => {
+              setSelectedCategoryId(e.target.value);
+              setSelectedItemId("");
+            }}
+            className="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none"
+          >
+            <option value="">선택</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        {/* 상품 선택 (카테고리 하위 전체 리스트) */}
+        {selectedCategoryId && (
+          <div>
+            <label className="mb-0.5 block text-[11px] text-gray-500">상품</label>
+            {filteredItems.length === 0 ? (
+              <p className="text-xs text-gray-400">해당 카테고리에 등록된 재고가 없습니다.</p>
+            ) : (
+              <select
+                value={selectedItemId}
+                onChange={(e) => setSelectedItemId(e.target.value)}
+                className="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="">선택</option>
+                {filteredItems.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {itemLabel(item)}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
+        {/* 상태 선택 */}
+        <div className="flex items-end gap-2">
+          <div className="w-28">
+            <label className="mb-0.5 block text-[11px] text-gray-500">상태</label>
+            <select
+              value={condition}
+              onChange={(e) => setCondition(e.target.value as "중고품" | "불량품")}
+              className="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none"
+            >
+              <option value="중고품">중고품</option>
+              <option value="불량품">불량품</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            disabled={isPending || !selectedItem}
+            onClick={() => {
+              if (!selectedItem) return;
+              startTransition(async () => {
+                onError(null);
+                const res = await registerReturnMaterialAction(
+                  materialId, selectedCategoryId, selectedItem.spec_name, selectedItem.product_name, condition
+                );
+                if (res?.error) {
+                  onError(res.error);
+                } else {
+                  onUpdate({
+                    is_return_registered: true,
+                    return_spec: selectedItem.spec_name,
+                    return_name: selectedItem.product_name,
+                    return_condition: condition,
+                    return_status: "pending",
+                  });
+                  setOpen(false);
+                }
+              });
+            }}
+            className="whitespace-nowrap rounded bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            반환 등록
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="whitespace-nowrap rounded bg-gray-200 px-3 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-300"
+          >
+            취소
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

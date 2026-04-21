@@ -45,7 +45,7 @@ export enum ReceiptType {
   PARCEL = "PARCEL",
 }
 
-/** 재고 상태 */
+/** 재고 상태 (레거시 — 기존 inventory 테이블용) */
 export enum InventoryCondition {
   /** 신품 */
   NEW = "NEW",
@@ -57,8 +57,35 @@ export enum InventoryCondition {
   SURPLUS = "SURPLUS",
 }
 
+/** 재고 아이템 상태 */
+export enum ItemCondition {
+  /** 신품 */
+  NEW = "NEW",
+  /** 중고품 */
+  USED = "USED",
+}
+
 /** 결제 상태 */
 export enum PaymentStatus {
   PENDING = "PENDING",
   PAID = "PAID",
+}
+
+/** 기기 유형 */
+export enum DeviceType {
+  NOTEBOOK = "노트북",
+  DESKTOP = "데스크탑",
+  SERVER = "서버",
+  NAS = "나스",
+  OTHER_STORAGE = "기타저장장치",
+}
+
+/** 자재 요청 상태 */
+export enum MaterialRequestStatus {
+  PENDING = "pending",
+  REQUESTED = "requested",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  CANCEL_REQUESTED = "cancel_requested",
+  CANCELLED = "cancelled",
 }

@@ -4,9 +4,12 @@
 import {
   EmployeeRole,
   InventoryCondition,
+  ItemCondition,
   PaymentStatus,
   ReceiptType,
   TicketStatus,
+  DeviceType,
+  MaterialRequestStatus,
 } from "./enums";
 
 /** 직원 테이블 (employees) - Supabase Auth와 1:1 매핑 */
@@ -34,6 +37,7 @@ export interface RepairTicket {
   assignee_id: string | null; // FK → employees.id
   status: TicketStatus;
   receipt_type: ReceiptType;
+  device_type: DeviceType;
   device_brand: string;
   device_model: string | null;
   symptoms: string;
@@ -52,6 +56,12 @@ export interface RepairTicket {
   payment_status: PaymentStatus;
   /** 결제 방식 (CARD, BANK_TRANSFER, E_PAYMENT) */
   payment_method: string | null;
+  /** 가치평가금액 */
+  evaluated_value: number;
+  /** 최소견적금액 */
+  minimum_estimate: number;
+  /** 확정예상견적 */
+  confirmed_estimate: number;
   created_at: string;
   updated_at: string;
 }
@@ -69,8 +79,8 @@ export interface DeviceModel {
   min_repair_cost: number;
 }
 
-/** 재고 관리 테이블 (inventory) */
-export interface InventoryItem {
+/** 재고 관리 테이블 (inventory) — 레거시 */
+export interface LegacyInventoryItem {
   id: string; // UUID
   part_name: string;
   condition: InventoryCondition;
@@ -80,6 +90,45 @@ export interface InventoryItem {
   created_at: string;
 }
 
+/** 재고 카테고리 참조 테이블 (inventory_categories) */
+export interface InventoryCategory {
+  id: string; // UUID
+  name: string;
+  created_at: string;
+}
+
+/** 재고 스펙 참조 테이블 (inventory_specs) */
+export interface InventorySpec {
+  id: string; // UUID
+  category_id: string; // FK → inventory_categories.id
+  name: string;
+  created_at: string;
+}
+
+/** 재고 제품 참조 테이블 (inventory_products) */
+export interface InventoryProduct {
+  id: string; // UUID
+  spec_id: string; // FK → inventory_specs.id
+  name: string;
+  created_at: string;
+}
+
+/** 재고 아이템 마스터 (inventory_items) */
+export interface InventoryItem {
+  id: string; // UUID
+  category_id: string; // FK → inventory_categories.id
+  spec_id: string; // FK → inventory_specs.id
+  product_id: string; // FK → inventory_products.id
+  /** 용량/인치수 (예: '8GB', '15.6"') */
+  capacity: string | null;
+  condition: ItemCondition;
+  quantity: number;
+  /** 기초견적 금액 (원) */
+  base_estimate: number;
+  created_at: string;
+  updated_at: string;
+}
+
 /** 처리 현황 및 로그 테이블 (ticket_logs) - 타임라인 역할 */
 export interface TicketLog {
   id: string; // UUID
@@ -87,4 +136,34 @@ export interface TicketLog {
   employee_id: string; // FK → employees.id
   message: string;
   created_at: string;
+}
+
+/** 시스템 전역 설정 (global_settings) — 단일 row */
+export interface GlobalSettings {
+  /** 기본 서비스 비용 (원) */
+  base_service_cost: number;
+  /** 가치 기준 금액 (원) */
+  value_reference_amount: number;
+  /** 할인/할증 비율 (%, 기본 100) */
+  discount_surcharge_rate: number;
+  updated_at: string;
+}
+
+/** 수리건별 사용 재고 (ticket_materials) */
+export interface TicketMaterial {
+  id: string; // UUID
+  ticket_id: string; // FK → repair_tickets.id
+  inventory_item_id: string; // FK → inventory_items.id
+  quantity: number;
+  request_status: MaterialRequestStatus;
+  notes: string | null;
+  created_by: string | null; // FK → employees.id
+  is_return_registered: boolean;
+  return_category_id: string | null;
+  return_spec: string | null;
+  return_name: string | null;
+  return_condition: "중고품" | "불량품" | null;
+  return_status: "pending" | "approved" | "rejected" | null;
+  created_at: string;
+  updated_at: string;
 }

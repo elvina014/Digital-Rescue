@@ -2,7 +2,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentEmployee } from "@/lib/auth";
 import { getDashboardStats, getRecentLogs } from "@/app/actions/dashboardActions";
+import { getPendingMaterialRequests, getCancelRequestedMaterials, getPendingReturnMaterials } from "@/app/(admin)/tickets/actions";
 import type { EmployeeRole } from "@/types";
+import MaterialDispatchWidget from "@/components/common/MaterialDispatchWidget";
+import MaterialReturnWidget from "@/components/common/MaterialReturnWidget";
+import ReturnMaterialInboundWidget from "@/components/common/ReturnMaterialInboundWidget";
 import {
   ClipboardList,
   PlusCircle,
@@ -51,6 +55,73 @@ export default async function DashboardPage() {
     getDashboardStats(employee.id, employee.role),
     getRecentLogs(employee.id, employee.role),
   ]);
+
+  const isAdminManager = employee.role === "ADMIN" || employee.role === "MANAGER";
+
+  // ADMIN/MANAGER: 자재 출고 요청 목록 + 반환 대기 목록 조회
+  const [materialRequests, returnRequests, inboundReturnRequests] = isAdminManager
+    ? await Promise.all([getPendingMaterialRequests(), getCancelRequestedMaterials(), getPendingReturnMaterials()])
+    : [{ data: [] }, { data: [] }, { data: [] }];
+
+  const materialWidgetData = (materialRequests.data ?? []).map((r: Record<string, unknown>) => {
+    const inv = r.inventory_items as Record<string, unknown> | null;
+    const ticket = r.repair_tickets as Record<string, unknown> | null;
+    const customer = ticket?.customers as Record<string, unknown> | null;
+    return {
+      id: r.id as string,
+      ticket_id: r.ticket_id as string,
+      quantity: r.quantity as number,
+      created_at: r.created_at as string,
+      category_name: (inv?.inventory_categories as Record<string, string> | null)?.name ?? "",
+      spec_name: (inv?.inventory_specs as Record<string, string> | null)?.name ?? "",
+      product_name: (inv?.inventory_products as Record<string, string> | null)?.name ?? "",
+      capacity: (inv?.capacity as string | null) ?? null,
+      base_estimate: (inv?.base_estimate as number) ?? 0,
+      customer_name: (customer?.name as string) ?? "고객",
+      device_info: [ticket?.device_brand, ticket?.device_model].filter(Boolean).join(" "),
+      technician_name: ((ticket?.employees as Record<string, string> | null)?.name) ?? "미배정",
+      request_type: (r.request_type as string) ?? "dispatch",
+    };
+  });
+
+  const returnWidgetData = (returnRequests.data ?? []).map((r: Record<string, unknown>) => {
+    const inv = r.inventory_items as Record<string, unknown> | null;
+    const ticket = r.repair_tickets as Record<string, unknown> | null;
+    const customer = ticket?.customers as Record<string, unknown> | null;
+    return {
+      id: r.id as string,
+      ticket_id: r.ticket_id as string,
+      quantity: r.quantity as number,
+      created_at: r.created_at as string,
+      category_name: (inv?.inventory_categories as Record<string, string> | null)?.name ?? "",
+      spec_name: (inv?.inventory_specs as Record<string, string> | null)?.name ?? "",
+      product_name: (inv?.inventory_products as Record<string, string> | null)?.name ?? "",
+      capacity: (inv?.capacity as string | null) ?? null,
+      base_estimate: (inv?.base_estimate as number) ?? 0,
+      customer_name: (customer?.name as string) ?? "고객",
+      device_info: [ticket?.device_brand, ticket?.device_model].filter(Boolean).join(" "),
+      technician_name: ((ticket?.employees as Record<string, string> | null)?.name) ?? "미배정",
+      request_type: (r.request_type as string) ?? "dispatch",
+    };
+  });
+
+  const inboundReturnWidgetData = (inboundReturnRequests.data ?? []).map((r: Record<string, unknown>) => {
+    const inv = r.inventory_items as Record<string, unknown> | null;
+    const ticket = r.repair_tickets as Record<string, unknown> | null;
+    const catName = (inv?.inventory_categories as Record<string, string> | null)?.name ?? "";
+    const specName = (inv?.inventory_specs as Record<string, string> | null)?.name ?? "";
+    const prodName = (inv?.inventory_products as Record<string, string> | null)?.name ?? "";
+    return {
+      id: r.id as string,
+      ticket_id: r.ticket_id as string,
+      original_label: [catName, specName, prodName].filter(Boolean).join(" / "),
+      return_category: catName,
+      return_spec: (r.return_spec as string) ?? "",
+      return_name: (r.return_name as string) ?? "",
+      return_condition: (r.return_condition as string) ?? "",
+      technician_name: ((ticket?.employees as Record<string, string> | null)?.name) ?? "미배정",
+    };
+  });
 
   const roleLabel = ROLE_LABEL[employee.role] ?? employee.role;
 
@@ -210,6 +281,15 @@ export default async function DashboardPage() {
           </p>
         </Link>
       )}
+
+      {/* 자재 출고 승인 대기 위젯 (ADMIN/MANAGER 전용) */}
+      {isAdminManager && <MaterialDispatchWidget requests={materialWidgetData} />}
+
+      {/* 자재 반환 확인 대기 위젯 (ADMIN/MANAGER 전용) */}
+      {isAdminManager && <MaterialReturnWidget requests={returnWidgetData} />}
+
+      {/* 적출/반환 자재 입고 대기 위젯 (ADMIN/MANAGER 전용) */}
+      {isAdminManager && <ReturnMaterialInboundWidget items={inboundReturnWidgetData} />}
 
       {/* 매출/수익 + 접수 방식 */}
       <div className="grid gap-4 lg:grid-cols-3">

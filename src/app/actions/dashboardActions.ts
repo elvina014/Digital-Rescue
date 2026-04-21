@@ -16,6 +16,8 @@ export interface DashboardStats {
   canceledCount: number;
   /** 전체 대비 취소율 (소수점 1자리) */
   cancelRate: number;
+  /** ADMIN/MANAGER 전용: 자재 출고 요청 대기 건수 */
+  materialRequestCount: number;
 }
 
 export interface RecentLog {
@@ -100,6 +102,17 @@ export async function getDashboardStats(
     ? Math.round((canceledCount / totalTickets) * 1000) / 10
     : 0;
 
+  // 9) ADMIN/MANAGER 전용: 자재 출고 요청 대기 건수
+  let materialRequestCount = 0;
+  const isAdminManager = role === "ADMIN" || role === "MANAGER";
+  if (isAdminManager) {
+    const { count } = await supabase
+      .from("ticket_materials")
+      .select("id", { count: "exact", head: true })
+      .eq("request_status", "requested");
+    materialRequestCount = count ?? 0;
+  }
+
   return {
     totalTickets,
     statusCounts,
@@ -111,6 +124,7 @@ export async function getDashboardStats(
     adminMessageTicketIds,
     canceledCount,
     cancelRate,
+    materialRequestCount,
   };
 }
 

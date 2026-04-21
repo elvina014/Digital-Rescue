@@ -161,16 +161,54 @@ export async function assignTechnicianAction(formData: FormData) {
   redirect(`/tickets/${ticketId}`);
 }
 
-// ----- 수리 진행 시작 + 예상 견적 입력 (TECHNICIAN / EXPERT_REPAIR) -----
+// ----- 과거 접수건 기기가치 조회 (자동완성용) -----
+export async function lookupPastEvaluatedValue(
+  deviceType: string,
+  deviceBrand: string,
+  deviceModel: string
+) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { data: null };
+
+  if (!deviceType || !deviceBrand || !deviceModel) return { data: null };
+
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("repair_tickets")
+    .select("evaluated_value")
+    .eq("device_type", deviceType)
+    .eq("device_brand", deviceBrand)
+    .eq("device_model", deviceModel)
+    .not("evaluated_value", "is", null)
+    .gt("evaluated_value", 0)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return { data: data?.evaluated_value ?? null };
+}
+
+// ----- 수리 진행 시작 + 견적 산출 (TECHNICIAN / EXPERT_REPAIR) -----
 export async function startRepairAction(formData: FormData) {
   const employee = await getCurrentEmployee();
   if (!employee) return { error: "인증이 필요합니다." };
 
   const ticketId = formData.get("ticketId") as string;
-  const expectedEstimate = parseInt(formData.get("expectedEstimate") as string, 10) || 0;
+  const deviceType = formData.get("deviceType") as string;
+  const deviceBrand = (formData.get("deviceBrand") as string)?.trim() || "";
+  const deviceModel = (formData.get("deviceModel") as string)?.trim() || null;
+  const evaluatedValue = parseInt(formData.get("evaluatedValue") as string, 10) || 0;
+  const minimumEstimate = parseInt(formData.get("minimumEstimate") as string, 10) || 0;
+  const confirmedEstimate = parseInt(formData.get("confirmedEstimate") as string, 10) || 0;
+  const materialsJson = formData.get("materials") as string;
 
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
-  if (expectedEstimate < 0) return { error: "예상 견적은 0 이상이어야 합니다." };
+  if (!deviceType) return { error: "기기 종류를 선택해 주세요." };
+  if (confirmedEstimate <= 0) return { error: "확정 예상 견적을 입력해 주세요." };
+  if (confirmedEstimate < minimumEstimate) {
+    return { error: "확정 예상 견적이 최소 견적 금액보다 낮습니다." };
+  }
 
   const supabase = await createClient();
 
@@ -191,20 +229,57 @@ export async function startRepairAction(formData: FormData) {
     return { error: "수리 시작 권한이 없습니다." };
   }
 
+  // 1) 티켓 업데이트: 기기정보 + 견적 + 상태 변경
   const { error } = await supabase
     .from("repair_tickets")
-    .update({ expected_estimate: expectedEstimate, status: "IN_PROGRESS" })
+    .update({
+      device_type: deviceType,
+      device_brand: deviceBrand,
+      device_model: deviceModel,
+      evaluated_value: evaluatedValue,
+      minimum_estimate: minimumEstimate,
+      confirmed_estimate: confirmedEstimate,
+      expected_estimate: confirmedEstimate,
+      status: "IN_PROGRESS",
+    })
     .eq("id", ticketId);
 
   if (error) return { error: "수리 시작 처리에 실패했습니다: " + error.message };
 
-  // 자동 로그
+  // 2) 선택된 자재를 ticket_materials에 저장
+  let materials: { inventory_item_id: string; quantity: number; request_type?: string }[] = [];
+  try {
+    materials = materialsJson ? JSON.parse(materialsJson) : [];
+  } catch {
+    // 파싱 실패 시 빈 배열
+  }
+
+  if (materials.length > 0) {
+    const rows = materials.map((m) => ({
+      ticket_id: ticketId,
+      inventory_item_id: m.inventory_item_id,
+      quantity: m.quantity,
+      request_status: "pending",
+      request_type: m.request_type === "purchase" ? "purchase" : "dispatch",
+      created_by: employee.id,
+    }));
+
+    const { error: matError } = await supabase
+      .from("ticket_materials")
+      .insert(rows);
+
+    if (matError) {
+      // 자재 저장 실패해도 티켓 상태는 이미 변경됨 — 로그 남김
+      console.error("ticket_materials insert error:", matError.message);
+    }
+  }
+
+  // 3) 자동 로그
   const adminSupa = createAdminClient();
-  const estimateText = expectedEstimate > 0 ? ` (예상견적: ${expectedEstimate.toLocaleString()}원)` : "";
   await adminSupa.from("ticket_logs").insert({
     ticket_id: ticketId,
     employee_id: employee.id,
-    message: `시스템: 수리가 시작되었습니다.${estimateText}`,
+    message: `시스템: 수리가 시작되었습니다. (확정견적: ${confirmedEstimate.toLocaleString()}원, 최소견적: ${minimumEstimate.toLocaleString()}원, 자재 ${materials.length}건)`,
   });
 
   revalidatePath(`/tickets/${ticketId}`);
@@ -247,7 +322,28 @@ export async function addMaterialCostAction(formData: FormData) {
   // 기존 배열에 항목 추가
   const existing = Array.isArray(ticket.material_cost_details) ? ticket.material_cost_details : [];
   const newDetails = [...existing, { description, amount }];
-  const newTotal = newDetails.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
+  const manualTotal = newDetails.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
+
+  // 승인 완료된 자재 비용 합산
+  const { data: approvedMats } = await supabase
+    .from("ticket_materials")
+    .select("quantity, inventory_item_id")
+    .eq("ticket_id", ticketId)
+    .eq("request_status", "approved");
+
+  let approvedTotal = 0;
+  if (approvedMats && approvedMats.length > 0) {
+    const itemIds = approvedMats.map((m) => m.inventory_item_id);
+    const { data: items } = await supabase
+      .from("inventory_items")
+      .select("id, base_estimate")
+      .in("id", itemIds);
+    const estMap = new Map<string, number>();
+    for (const item of items ?? []) estMap.set(item.id, item.base_estimate ?? 0);
+    approvedTotal = approvedMats.reduce((s, m) => s + (estMap.get(m.inventory_item_id) ?? 0) * m.quantity, 0);
+  }
+
+  const newTotal = approvedTotal + manualTotal;
 
   const { error } = await supabase
     .from("repair_tickets")
@@ -585,6 +681,14 @@ export async function cancelTicketAction(formData: FormData) {
     message: "시스템: 접수가 취소되었습니다.",
   });
 
+  // 승인 완료된 자재가 있으면 cancel_requested로 일괄 전환 (관리자 반환 확인 대기)
+  const adminSupa = createAdminClient();
+  await adminSupa
+    .from("ticket_materials")
+    .update({ request_status: "cancel_requested" })
+    .eq("ticket_id", ticketId)
+    .eq("request_status", "approved");
+
   // 연결된 이미지 스토리지 삭제
   const { data: ticketForImages } = await supabase
     .from("repair_tickets")
@@ -691,5 +795,634 @@ export async function removeTicketImageAction(
   }
 
   revalidatePath(`/tickets/${ticketId}`);
+  return { success: true };
+}
+
+// ----- 자재 출고 요청 (기사) -----
+export async function requestMaterialDispatchAction(materialId: string) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  // anon client로는 RLS에 의해 TECHNICIAN이 UPDATE 불가 → adminClient 사용
+  const adminSupa = createAdminClient();
+
+  const { data: mat } = await adminSupa
+    .from("ticket_materials")
+    .select("request_status, request_type, ticket_id")
+    .eq("id", materialId)
+    .single();
+
+  if (!mat) return { error: "자재 항목을 찾을 수 없습니다." };
+  if (mat.request_status !== "pending") return { error: "이미 출고 요청 중이거나 승인된 항목입니다." };
+
+  const { error } = await adminSupa
+    .from("ticket_materials")
+    .update({ request_status: "requested" })
+    .eq("id", materialId)
+    .eq("request_status", "pending");  // 낙관적 잠금: pending일 때만 변경
+
+  if (error) return { error: "출고 요청에 실패했습니다: " + error.message };
+
+  const isPurchase = mat.request_type === "purchase";
+
+  // 상태 변경 성공 시에만 로그 삽입
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: mat.ticket_id,
+    employee_id: employee.id,
+    message: isPurchase ? "시스템: 자재 구매가 요청되었습니다." : "시스템: 자재 출고가 요청되었습니다.",
+  });
+
+  revalidatePath(`/tickets/${mat.ticket_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/inventory");
+  return { success: true };
+}
+
+// ----- 자재 출고 승인 (관리자/팀장) — DB RPC 호출 -----
+export async function approveMaterialDispatchAction(materialId: string) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return { error: "승인 권한이 없습니다." };
+  }
+
+  const adminSupa = createAdminClient();
+
+  // RPC 호출 (트랜잭션 원자성)
+  const { data, error } = await adminSupa.rpc("approve_material_dispatch", {
+    p_material_id: materialId,
+  });
+
+  if (error) return { error: "승인 처리 실패: " + error.message };
+
+  const result = data as { error?: string; success?: boolean } | null;
+  if (result?.error) return { error: result.error };
+
+  // 승인 후: 해당 티켓의 approved 자재 기초견적 합계를 material_cost에 반영
+  const { data: mat } = await adminSupa
+    .from("ticket_materials")
+    .select("ticket_id, request_type")
+    .eq("id", materialId)
+    .single();
+
+  if (mat) {
+    // 해당 티켓의 모든 approved 자재 비용 합산
+    const { data: approvedMats } = await adminSupa
+      .from("ticket_materials")
+      .select("quantity, inventory_item_id")
+      .eq("ticket_id", mat.ticket_id)
+      .eq("request_status", "approved");
+
+    // 승인 자재 비용 합산
+    let approvedTotal = 0;
+    if (approvedMats && approvedMats.length > 0) {
+      const itemIds = approvedMats.map((m) => m.inventory_item_id);
+      const { data: items } = await adminSupa
+        .from("inventory_items")
+        .select("id, base_estimate")
+        .in("id", itemIds);
+
+      const estimateMap = new Map<string, number>();
+      for (const item of items ?? []) {
+        estimateMap.set(item.id, item.base_estimate ?? 0);
+      }
+
+      approvedTotal = approvedMats.reduce((sum, m) => {
+        return sum + (estimateMap.get(m.inventory_item_id) ?? 0) * m.quantity;
+      }, 0);
+    }
+
+    // 수동 추가 비용 합산
+    const { data: ticketRow } = await adminSupa
+      .from("repair_tickets")
+      .select("material_cost_details")
+      .eq("id", mat.ticket_id)
+      .single();
+
+    const manualDetails = Array.isArray(ticketRow?.material_cost_details) ? ticketRow.material_cost_details : [];
+    const manualTotal = manualDetails.reduce((s: number, item: { amount: number }) => s + (item.amount ?? 0), 0);
+
+    await adminSupa
+      .from("repair_tickets")
+      .update({ material_cost: approvedTotal + manualTotal })
+      .eq("id", mat.ticket_id);
+
+    // 로그
+    const approveLabel = mat.request_type === "purchase" ? "자재 구매가" : "자재 출고가";
+    await adminSupa.from("ticket_logs").insert({
+      ticket_id: mat.ticket_id,
+      employee_id: employee.id,
+      message: `시스템: ${approveLabel} 승인되었습니다.`,
+    });
+
+    revalidatePath(`/tickets/${mat.ticket_id}`);
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/inventory");
+  return { success: true };
+}
+
+// ----- 자재 출고 요청 대기 목록 조회 (관리자/팀장) -----
+export async function getPendingMaterialRequests() {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다.", data: [] };
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return { error: "권한이 없습니다.", data: [] };
+  }
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("ticket_materials")
+    .select(`
+      id, ticket_id, inventory_item_id, quantity, request_status, request_type, notes, created_at,
+      inventory_items ( base_estimate, capacity, condition,
+        inventory_categories ( name ),
+        inventory_specs ( name ),
+        inventory_products ( name )
+      ),
+      repair_tickets ( device_brand, device_model, status,
+        customers ( name ),
+        employees:assignee_id ( name )
+      ),
+      employees:created_by ( name )
+    `)
+    .eq("request_status", "requested")
+    .order("created_at", { ascending: true });
+
+  if (error) return { error: error.message, data: [] };
+  return { data: data ?? [] };
+}
+
+// ----- 자재 출고/구매 거부 (관리자/팀장) -----
+export async function rejectMaterialDispatchAction(materialId: string) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return { error: "거부 권한이 없습니다." };
+  }
+
+  const adminSupa = createAdminClient();
+
+  const { data: mat } = await adminSupa
+    .from("ticket_materials")
+    .select("ticket_id, request_status, request_type")
+    .eq("id", materialId)
+    .single();
+
+  if (!mat) return { error: "자재 항목을 찾을 수 없습니다." };
+  if (mat.request_status !== "requested") return { error: "요청 상태가 아닌 항목은 거부할 수 없습니다." };
+
+  const { error } = await adminSupa
+    .from("ticket_materials")
+    .update({ request_status: "rejected" })
+    .eq("id", materialId)
+    .eq("request_status", "requested");
+
+  if (error) return { error: "거부 처리 실패: " + error.message };
+
+  const rejectLabel = mat.request_type === "purchase" ? "자재 구매 요청이" : "자재 출고 요청이";
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: mat.ticket_id,
+    employee_id: employee.id,
+    message: `시스템: ${rejectLabel} 거부되었습니다.`,
+  });
+
+  revalidatePath(`/tickets/${mat.ticket_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/inventory");
+  return { success: true };
+}
+
+// ----- 자재 출고 취소 요청 (기사 → 관리자 반환 확인 대기) -----
+export async function cancelMaterialDispatchAction(materialId: string) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  const adminSupa = createAdminClient();
+
+  // 1) 자재 레코드 조회
+  const { data: mat } = await adminSupa
+    .from("ticket_materials")
+    .select("ticket_id, request_type, request_status")
+    .eq("id", materialId)
+    .single();
+
+  if (!mat) return { error: "자재 항목을 찾을 수 없습니다." };
+  if (mat.request_status !== "approved") {
+    return { error: "승인 상태가 아닌 항목은 취소할 수 없습니다. (현재: " + mat.request_status + ")" };
+  }
+
+  // 2) 상태만 cancel_requested로 변경 (재고 롤백은 관리자 반환 확인 시 처리)
+  const { error: cancelError } = await adminSupa
+    .from("ticket_materials")
+    .update({ request_status: "cancel_requested" })
+    .eq("id", materialId)
+    .eq("request_status", "approved");
+
+  if (cancelError) return { error: "취소 요청 실패: " + cancelError.message };
+
+  const cancelLabel = mat.request_type === "purchase" ? "자재 구매" : "자재 출고";
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: mat.ticket_id,
+    employee_id: employee.id,
+    message: `시스템: ${cancelLabel} 반환이 요청되었습니다. (관리자 확인 대기)`,
+  });
+
+  revalidatePath(`/tickets/${mat.ticket_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/inventory");
+  return { success: true };
+}
+
+// ----- 자재 반환 대기 목록 조회 (관리자/팀장) -----
+export async function getCancelRequestedMaterials() {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다.", data: [] };
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return { error: "권한이 없습니다.", data: [] };
+  }
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("ticket_materials")
+    .select(`
+      id, ticket_id, inventory_item_id, quantity, request_status, request_type, notes, created_at,
+      inventory_items ( base_estimate, capacity, condition,
+        inventory_categories ( name ),
+        inventory_specs ( name ),
+        inventory_products ( name )
+      ),
+      repair_tickets ( device_brand, device_model, status,
+        customers ( name ),
+        employees:assignee_id ( name )
+      )
+    `)
+    .eq("request_status", "cancel_requested")
+    .order("created_at", { ascending: true });
+
+  if (error) return { error: error.message, data: [] };
+  return { data: data ?? [] };
+}
+
+// ----- 자재 반환 확인 (관리자/팀장 — 재고 복구 + 자재비 차감) -----
+export async function confirmMaterialReturnAction(materialId: string) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return { error: "반환 확인 권한이 없습니다." };
+  }
+
+  const adminSupa = createAdminClient();
+
+  // 1) 자재 레코드 조회
+  const { data: mat } = await adminSupa
+    .from("ticket_materials")
+    .select("ticket_id, request_type, request_status, quantity, inventory_item_id")
+    .eq("id", materialId)
+    .single();
+
+  if (!mat) return { error: "자재 항목을 찾을 수 없습니다." };
+  if (mat.request_status !== "cancel_requested") {
+    return { error: "반환 대기 상태가 아닙니다. (현재: " + mat.request_status + ")" };
+  }
+
+  // 2) 상태를 cancelled로 최종 변경
+  const { error: updateError } = await adminSupa
+    .from("ticket_materials")
+    .update({ request_status: "cancelled" })
+    .eq("id", materialId)
+    .eq("request_status", "cancel_requested");
+
+  if (updateError) return { error: "반환 처리 실패: " + updateError.message };
+
+  // 3) dispatch 타입이면 재고 복구
+  if (mat.request_type === "dispatch") {
+    const { data: invItem } = await adminSupa
+      .from("inventory_items")
+      .select("quantity")
+      .eq("id", mat.inventory_item_id)
+      .single();
+
+    if (invItem) {
+      const { error: invError } = await adminSupa
+        .from("inventory_items")
+        .update({
+          quantity: invItem.quantity + mat.quantity,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", mat.inventory_item_id);
+
+      if (invError) {
+        // 재고 복구 실패 시 롤백
+        await adminSupa
+          .from("ticket_materials")
+          .update({ request_status: "cancel_requested" })
+          .eq("id", materialId);
+        return { error: "재고 복구 실패: " + invError.message };
+      }
+    }
+  }
+
+  // 4) 티켓 자재비 합계 재계산
+  const { data: approvedMats } = await adminSupa
+    .from("ticket_materials")
+    .select("quantity, inventory_item_id")
+    .eq("ticket_id", mat.ticket_id)
+    .eq("request_status", "approved");
+
+  let approvedTotal = 0;
+  if (approvedMats && approvedMats.length > 0) {
+    const itemIds = approvedMats.map((m) => m.inventory_item_id);
+    const { data: items } = await adminSupa
+      .from("inventory_items")
+      .select("id, base_estimate")
+      .in("id", itemIds);
+
+    const estimateMap = new Map<string, number>();
+    for (const item of items ?? []) {
+      estimateMap.set(item.id, item.base_estimate ?? 0);
+    }
+
+    approvedTotal = approvedMats.reduce((sum, m) => {
+      return sum + (estimateMap.get(m.inventory_item_id) ?? 0) * m.quantity;
+    }, 0);
+  }
+
+  const { data: ticketRow } = await adminSupa
+    .from("repair_tickets")
+    .select("material_cost_details")
+    .eq("id", mat.ticket_id)
+    .single();
+
+  const manualDetails = Array.isArray(ticketRow?.material_cost_details) ? ticketRow.material_cost_details : [];
+  const manualTotal = manualDetails.reduce((s: number, item: { amount: number }) => s + (item.amount ?? 0), 0);
+
+  await adminSupa
+    .from("repair_tickets")
+    .update({ material_cost: approvedTotal + manualTotal })
+    .eq("id", mat.ticket_id);
+
+  // 5) 로그
+  const returnLabel = mat.request_type === "purchase" ? "자재 구매" : "자재 출고";
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: mat.ticket_id,
+    employee_id: employee.id,
+    message: `시스템: ${returnLabel} 반환이 확인되었습니다. (재고 복구 완료)`,
+  });
+
+  revalidatePath(`/tickets/${mat.ticket_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/inventory");
+  return { success: true };
+}
+
+// ----- 적출/반환 자재 등록 (담당 기사) -----
+export async function registerReturnMaterialAction(
+  materialId: string,
+  returnCategoryId: string,
+  returnSpec: string,
+  returnName: string,
+  returnCondition: "중고품" | "불량품"
+) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  const adminSupa = createAdminClient();
+
+  const { data: mat } = await adminSupa
+    .from("ticket_materials")
+    .select("ticket_id, request_status, is_return_registered")
+    .eq("id", materialId)
+    .single();
+
+  if (!mat) return { error: "자재 항목을 찾을 수 없습니다." };
+  if (mat.is_return_registered) return { error: "이미 반환 등록된 항목입니다." };
+  if (mat.request_status !== "approved" && mat.request_status !== "cancel_requested" && mat.request_status !== "cancelled") {
+    return { error: "승인/취소 상태의 자재만 반환 등록이 가능합니다." };
+  }
+
+  const { error: updateError } = await adminSupa
+    .from("ticket_materials")
+    .update({
+      is_return_registered: true,
+      return_category_id: returnCategoryId,
+      return_spec: returnSpec.trim(),
+      return_name: returnName.trim(),
+      return_condition: returnCondition,
+      return_status: "pending",
+    })
+    .eq("id", materialId);
+
+  if (updateError) return { error: "반환 등록 실패: " + updateError.message };
+
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: mat.ticket_id,
+    employee_id: employee.id,
+    message: `시스템: 적출 자재가 등록되었습니다. (${returnSpec} / ${returnName} / ${returnCondition})`,
+  });
+
+  revalidatePath(`/tickets/${mat.ticket_id}`);
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+// ----- 적출/반환 자재 입고 대기 목록 조회 (관리자/팀장) -----
+export async function getPendingReturnMaterials() {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다.", data: [] };
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return { error: "권한이 없습니다.", data: [] };
+  }
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("ticket_materials")
+    .select(`
+      id, ticket_id, inventory_item_id, quantity, request_status, request_type,
+      return_spec, return_name, return_condition, return_status,
+      created_at,
+      inventory_items (
+        category_id, spec_id, product_id,
+        base_estimate, capacity, condition,
+        inventory_categories ( id, name ),
+        inventory_specs ( name ),
+        inventory_products ( name )
+      ),
+      repair_tickets (
+        device_brand, device_model, status,
+        customers ( name ),
+        employees:assignee_id ( name )
+      )
+    `)
+    .eq("is_return_registered", true)
+    .eq("return_status", "pending")
+    .order("created_at", { ascending: true });
+
+  if (error) return { error: error.message, data: [] };
+  return { data: data ?? [] };
+}
+
+// ----- 적출/반환 자재 입고 승인 (관리자/팀장 — 재고 등록) -----
+export async function approveReturnMaterialAction(materialId: string) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return { error: "입고 승인 권한이 없습니다." };
+  }
+
+  const adminSupa = createAdminClient();
+
+  // 1) 자재 레코드 조회
+  const { data: mat } = await adminSupa
+    .from("ticket_materials")
+    .select(`
+      ticket_id, is_return_registered, return_category_id, return_spec, return_name, return_condition, return_status,
+      inventory_items (
+        category_id,
+        inventory_categories ( id, name )
+      )
+    `)
+    .eq("id", materialId)
+    .single();
+
+  if (!mat) return { error: "자재 항목을 찾을 수 없습니다." };
+  if (!mat.is_return_registered || mat.return_status !== "pending") {
+    return { error: "입고 대기 상태가 아닙니다." };
+  }
+
+  const inv = mat.inventory_items as unknown as {
+    category_id: string;
+    inventory_categories: { id: string; name: string } | null;
+  };
+  // return_category_id가 있으면 사용, 없으면 원본 자재의 category_id 사용 (하위 호환)
+  const categoryId = (mat as Record<string, unknown>).return_category_id as string | null ?? inv?.category_id;
+  if (!categoryId) return { error: "반환 자재의 카테고리를 찾을 수 없습니다." };
+
+  const returnSpec = mat.return_spec!;
+  const returnName = mat.return_name!;
+  const returnCondition = "USED"; // 적출품은 모두 중고로 입고
+
+  // 2) return_status → approved
+  const { error: statusError } = await adminSupa
+    .from("ticket_materials")
+    .update({ return_status: "approved" })
+    .eq("id", materialId)
+    .eq("return_status", "pending");
+
+  if (statusError) return { error: "승인 상태 변경 실패: " + statusError.message };
+
+  // 3) spec 조회 또는 생성
+  let specId: string;
+  const { data: existingSpec } = await adminSupa
+    .from("inventory_specs")
+    .select("id")
+    .eq("category_id", categoryId)
+    .eq("name", returnSpec)
+    .single();
+
+  if (existingSpec) {
+    specId = existingSpec.id;
+  } else {
+    const { data: newSpec, error: specErr } = await adminSupa
+      .from("inventory_specs")
+      .insert({ category_id: categoryId, name: returnSpec })
+      .select("id")
+      .single();
+    if (specErr || !newSpec) {
+      await adminSupa.from("ticket_materials").update({ return_status: "pending" }).eq("id", materialId);
+      return { error: "스펙 생성 실패: " + (specErr?.message ?? "알 수 없는 오류") };
+    }
+    specId = newSpec.id;
+  }
+
+  // 4) product 조회 또는 생성
+  let productId: string;
+  const { data: existingProduct } = await adminSupa
+    .from("inventory_products")
+    .select("id")
+    .eq("spec_id", specId)
+    .eq("name", returnName)
+    .single();
+
+  if (existingProduct) {
+    productId = existingProduct.id;
+  } else {
+    const { data: newProduct, error: prodErr } = await adminSupa
+      .from("inventory_products")
+      .insert({ spec_id: specId, name: returnName })
+      .select("id")
+      .single();
+    if (prodErr || !newProduct) {
+      await adminSupa.from("ticket_materials").update({ return_status: "pending" }).eq("id", materialId);
+      return { error: "제품 생성 실패: " + (prodErr?.message ?? "알 수 없는 오류") };
+    }
+    productId = newProduct.id;
+  }
+
+  // 5) inventory_items: 완전 일치 → 수량+1, 없으면 insert (기초견적 0원)
+  const { data: existingItem } = await adminSupa
+    .from("inventory_items")
+    .select("id, quantity")
+    .eq("category_id", categoryId)
+    .eq("spec_id", specId)
+    .eq("product_id", productId)
+    .eq("condition", returnCondition)
+    .single();
+
+  if (existingItem) {
+    const { error: updateErr } = await adminSupa
+      .from("inventory_items")
+      .update({
+        quantity: existingItem.quantity + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingItem.id);
+
+    if (updateErr) {
+      await adminSupa.from("ticket_materials").update({ return_status: "pending" }).eq("id", materialId);
+      return { error: "재고 수량 업데이트 실패: " + updateErr.message };
+    }
+  } else {
+    const { error: insertErr } = await adminSupa
+      .from("inventory_items")
+      .insert({
+        category_id: categoryId,
+        spec_id: specId,
+        product_id: productId,
+        capacity: null,
+        condition: returnCondition,
+        quantity: 1,
+        base_estimate: 0,
+      });
+
+    if (insertErr) {
+      await adminSupa.from("ticket_materials").update({ return_status: "pending" }).eq("id", materialId);
+      return { error: "재고 신규 등록 실패: " + insertErr.message };
+    }
+  }
+
+  // 6) 로그 — 카테고리 이름 조회 (반환 카테고리가 원본과 다를 수 있음)
+  let categoryName = inv?.inventory_categories?.name ?? "카테고리";
+  if (categoryId !== inv?.category_id) {
+    const { data: returnCat } = await adminSupa
+      .from("inventory_categories")
+      .select("name")
+      .eq("id", categoryId)
+      .single();
+    if (returnCat) categoryName = returnCat.name;
+  }
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: mat.ticket_id,
+    employee_id: employee.id,
+    message: `시스템: 적출 자재 입고 승인 완료 (${categoryName} / ${returnSpec} / ${returnName} / ${mat.return_condition})`,
+  });
+
+  revalidatePath(`/tickets/${mat.ticket_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/inventory");
   return { success: true };
 }
