@@ -111,14 +111,17 @@ export default async function DashboardPage() {
     const catName = (inv?.inventory_categories as Record<string, string> | null)?.name ?? "";
     const specName = (inv?.inventory_specs as Record<string, string> | null)?.name ?? "";
     const prodName = (inv?.inventory_products as Record<string, string> | null)?.name ?? "";
+    const capacity = (inv?.capacity as string | null) ?? null;
     return {
       id: r.id as string,
       ticket_id: r.ticket_id as string,
-      original_label: [catName, specName, prodName].filter(Boolean).join(" / "),
+      original_label: [catName, specName, prodName, capacity].filter(Boolean).join(" / "),
       return_category: catName,
       return_spec: (r.return_spec as string) ?? "",
       return_name: (r.return_name as string) ?? "",
       return_condition: (r.return_condition as string) ?? "",
+      return_quantity: (r.return_quantity as number | null) ?? 1,
+      return_capacity: (r.return_capacity as string | null) ?? null,
       technician_name: ((ticket?.employees as Record<string, string> | null)?.name) ?? "미배정",
     };
   });

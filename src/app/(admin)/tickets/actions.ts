@@ -808,7 +808,15 @@ export async function requestMaterialDispatchAction(materialId: string) {
 
   const { data: mat } = await adminSupa
     .from("ticket_materials")
-    .select("request_status, request_type, ticket_id")
+    .select(`
+      request_status, request_type, ticket_id,
+      inventory_items (
+        capacity,
+        inventory_categories ( name ),
+        inventory_specs ( name ),
+        inventory_products ( name )
+      )
+    `)
     .eq("id", materialId)
     .single();
 
@@ -824,12 +832,21 @@ export async function requestMaterialDispatchAction(materialId: string) {
   if (error) return { error: "출고 요청에 실패했습니다: " + error.message };
 
   const isPurchase = mat.request_type === "purchase";
+  const invReq = mat.inventory_items as unknown as {
+    capacity: string | null;
+    inventory_categories: { name: string } | null;
+    inventory_specs: { name: string } | null;
+    inventory_products: { name: string } | null;
+  } | null;
+  const reqItemLabel = [invReq?.inventory_categories?.name, invReq?.inventory_specs?.name, invReq?.inventory_products?.name, invReq?.capacity].filter(Boolean).join(" / ");
 
   // 상태 변경 성공 시에만 로그 삽입
   await adminSupa.from("ticket_logs").insert({
     ticket_id: mat.ticket_id,
     employee_id: employee.id,
-    message: isPurchase ? "시스템: 자재 구매가 요청되었습니다." : "시스템: 자재 출고가 요청되었습니다.",
+    message: isPurchase
+      ? `시스템: 자재 구매가 요청되었습니다. (${reqItemLabel})`
+      : `시스템: 자재 출고가 요청되었습니다. (${reqItemLabel})`,
   });
 
   revalidatePath(`/tickets/${mat.ticket_id}`);
@@ -848,9 +865,10 @@ export async function approveMaterialDispatchAction(materialId: string) {
 
   const adminSupa = createAdminClient();
 
-  // RPC 호출 (트랜잭션 원자성)
+  // RPC 호출 (트랜잭션 원자성): p_user_id 전달하여 OUTBOUND 기록 포함
   const { data, error } = await adminSupa.rpc("approve_material_dispatch", {
     p_material_id: materialId,
+    p_user_id: employee.id,
   });
 
   if (error) return { error: "승인 처리 실패: " + error.message };
@@ -861,11 +879,39 @@ export async function approveMaterialDispatchAction(materialId: string) {
   // 승인 후: 해당 티켓의 approved 자재 기초견적 합계를 material_cost에 반영
   const { data: mat } = await adminSupa
     .from("ticket_materials")
-    .select("ticket_id, request_type")
+    .select(`
+      ticket_id, request_type, inventory_item_id, quantity, created_by,
+      inventory_items (
+        capacity,
+        inventory_categories ( name ),
+        inventory_specs ( name ),
+        inventory_products ( name )
+      )
+    `)
     .eq("id", materialId)
     .single();
 
   if (mat) {
+    // inventory_transactions에 OUTBOUND 기록 (RPC가 구버전이라 미기록된 경우 보완)
+    const { count } = await adminSupa
+      .from("inventory_transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("ticket_id", mat.ticket_id)
+      .eq("item_id", mat.inventory_item_id)
+      .eq("transaction_type", "OUTBOUND")
+      .gte("created_at", new Date(Date.now() - 10000).toISOString()); // 10초 이내
+
+    if (!count || count === 0) {
+      await adminSupa.from("inventory_transactions").insert({
+        item_id: mat.inventory_item_id,
+        user_id: mat.created_by ?? employee.id, // 요청자 우선, 없으면 승인자
+        transaction_type: "OUTBOUND",
+        quantity_changed: mat.quantity,
+        ticket_id: mat.ticket_id,
+        notes: "자재 출고 승인",
+      });
+    }
+
     // 해당 티켓의 모든 approved 자재 비용 합산
     const { data: approvedMats } = await adminSupa
       .from("ticket_materials")
@@ -909,10 +955,17 @@ export async function approveMaterialDispatchAction(materialId: string) {
 
     // 로그
     const approveLabel = mat.request_type === "purchase" ? "자재 구매가" : "자재 출고가";
+    const invApprove = mat.inventory_items as unknown as {
+      capacity: string | null;
+      inventory_categories: { name: string } | null;
+      inventory_specs: { name: string } | null;
+      inventory_products: { name: string } | null;
+    } | null;
+    const approveItemLabel = [invApprove?.inventory_categories?.name, invApprove?.inventory_specs?.name, invApprove?.inventory_products?.name, invApprove?.capacity].filter(Boolean).join(" / ");
     await adminSupa.from("ticket_logs").insert({
       ticket_id: mat.ticket_id,
       employee_id: employee.id,
-      message: `시스템: ${approveLabel} 승인되었습니다.`,
+      message: `시스템: ${approveLabel} 승인되었습니다. (${approveItemLabel})`,
     });
 
     revalidatePath(`/tickets/${mat.ticket_id}`);
@@ -967,7 +1020,15 @@ export async function rejectMaterialDispatchAction(materialId: string) {
 
   const { data: mat } = await adminSupa
     .from("ticket_materials")
-    .select("ticket_id, request_status, request_type")
+    .select(`
+      ticket_id, request_status, request_type,
+      inventory_items (
+        capacity,
+        inventory_categories ( name ),
+        inventory_specs ( name ),
+        inventory_products ( name )
+      )
+    `)
     .eq("id", materialId)
     .single();
 
@@ -983,10 +1044,17 @@ export async function rejectMaterialDispatchAction(materialId: string) {
   if (error) return { error: "거부 처리 실패: " + error.message };
 
   const rejectLabel = mat.request_type === "purchase" ? "자재 구매 요청이" : "자재 출고 요청이";
+  const invReject = mat.inventory_items as unknown as {
+    capacity: string | null;
+    inventory_categories: { name: string } | null;
+    inventory_specs: { name: string } | null;
+    inventory_products: { name: string } | null;
+  } | null;
+  const rejectItemLabel = [invReject?.inventory_categories?.name, invReject?.inventory_specs?.name, invReject?.inventory_products?.name, invReject?.capacity].filter(Boolean).join(" / ");
   await adminSupa.from("ticket_logs").insert({
     ticket_id: mat.ticket_id,
     employee_id: employee.id,
-    message: `시스템: ${rejectLabel} 거부되었습니다.`,
+    message: `시스템: ${rejectLabel} 거부되었습니다. (${rejectItemLabel})`,
   });
 
   revalidatePath(`/tickets/${mat.ticket_id}`);
@@ -1005,7 +1073,15 @@ export async function cancelMaterialDispatchAction(materialId: string) {
   // 1) 자재 레코드 조회
   const { data: mat } = await adminSupa
     .from("ticket_materials")
-    .select("ticket_id, request_type, request_status")
+    .select(`
+      ticket_id, request_type, request_status,
+      inventory_items (
+        capacity,
+        inventory_categories ( name ),
+        inventory_specs ( name ),
+        inventory_products ( name )
+      )
+    `)
     .eq("id", materialId)
     .single();
 
@@ -1024,10 +1100,17 @@ export async function cancelMaterialDispatchAction(materialId: string) {
   if (cancelError) return { error: "취소 요청 실패: " + cancelError.message };
 
   const cancelLabel = mat.request_type === "purchase" ? "자재 구매" : "자재 출고";
+  const invCancel = mat.inventory_items as unknown as {
+    capacity: string | null;
+    inventory_categories: { name: string } | null;
+    inventory_specs: { name: string } | null;
+    inventory_products: { name: string } | null;
+  } | null;
+  const cancelItemLabel = [invCancel?.inventory_categories?.name, invCancel?.inventory_specs?.name, invCancel?.inventory_products?.name, invCancel?.capacity].filter(Boolean).join(" / ");
   await adminSupa.from("ticket_logs").insert({
     ticket_id: mat.ticket_id,
     employee_id: employee.id,
-    message: `시스템: ${cancelLabel} 반환이 요청되었습니다. (관리자 확인 대기)`,
+    message: `시스템: ${cancelLabel} 반환이 요청되었습니다. (${cancelItemLabel}) (관리자 확인 대기)`,
   });
 
   revalidatePath(`/tickets/${mat.ticket_id}`);
@@ -1080,7 +1163,15 @@ export async function confirmMaterialReturnAction(materialId: string) {
   // 1) 자재 레코드 조회
   const { data: mat } = await adminSupa
     .from("ticket_materials")
-    .select("ticket_id, request_type, request_status, quantity, inventory_item_id")
+    .select(`
+      ticket_id, request_type, request_status, quantity, inventory_item_id,
+      inventory_items (
+        capacity,
+        inventory_categories ( name ),
+        inventory_specs ( name ),
+        inventory_products ( name )
+      )
+    `)
     .eq("id", materialId)
     .single();
 
@@ -1167,10 +1258,17 @@ export async function confirmMaterialReturnAction(materialId: string) {
 
   // 5) 로그
   const returnLabel = mat.request_type === "purchase" ? "자재 구매" : "자재 출고";
+  const invReturn = mat.inventory_items as unknown as {
+    capacity: string | null;
+    inventory_categories: { name: string } | null;
+    inventory_specs: { name: string } | null;
+    inventory_products: { name: string } | null;
+  } | null;
+  const returnItemLabel = [invReturn?.inventory_categories?.name, invReturn?.inventory_specs?.name, invReturn?.inventory_products?.name, invReturn?.capacity].filter(Boolean).join(" / ");
   await adminSupa.from("ticket_logs").insert({
     ticket_id: mat.ticket_id,
     employee_id: employee.id,
-    message: `시스템: ${returnLabel} 반환이 확인되었습니다. (재고 복구 완료)`,
+    message: `시스템: ${returnLabel} 반환이 확인되었습니다. (${returnItemLabel}) (재고 복구 완료)`,
   });
 
   revalidatePath(`/tickets/${mat.ticket_id}`);
@@ -1185,7 +1283,9 @@ export async function registerReturnMaterialAction(
   returnCategoryId: string,
   returnSpec: string,
   returnName: string,
-  returnCondition: "중고품" | "불량품"
+  returnCondition: "중고품" | "불량품",
+  returnQuantity: number = 1,
+  returnCapacity: string | null = null
 ) {
   const employee = await getCurrentEmployee();
   if (!employee) return { error: "인증이 필요합니다." };
@@ -1212,6 +1312,8 @@ export async function registerReturnMaterialAction(
       return_spec: returnSpec.trim(),
       return_name: returnName.trim(),
       return_condition: returnCondition,
+      return_quantity: Math.max(1, returnQuantity),
+      return_capacity: returnCapacity ?? null,
       return_status: "pending",
     })
     .eq("id", materialId);
@@ -1221,7 +1323,7 @@ export async function registerReturnMaterialAction(
   await adminSupa.from("ticket_logs").insert({
     ticket_id: mat.ticket_id,
     employee_id: employee.id,
-    message: `시스템: 적출 자재가 등록되었습니다. (${returnSpec} / ${returnName} / ${returnCondition})`,
+    message: `시스템: 적출 자재가 등록되었습니다. (${returnSpec} / ${returnName}${returnCapacity ? ` / ${returnCapacity}` : ""} / ${returnCondition} × ${Math.max(1, returnQuantity)}개)`,
   });
 
   revalidatePath(`/tickets/${mat.ticket_id}`);
@@ -1243,7 +1345,7 @@ export async function getPendingReturnMaterials() {
     .from("ticket_materials")
     .select(`
       id, ticket_id, inventory_item_id, quantity, request_status, request_type,
-      return_spec, return_name, return_condition, return_status,
+      return_spec, return_name, return_condition, return_status, return_quantity, return_capacity,
       created_at,
       inventory_items (
         category_id, spec_id, product_id,
@@ -1280,7 +1382,7 @@ export async function approveReturnMaterialAction(materialId: string) {
   const { data: mat } = await adminSupa
     .from("ticket_materials")
     .select(`
-      ticket_id, is_return_registered, return_category_id, return_spec, return_name, return_condition, return_status,
+      ticket_id, is_return_registered, return_category_id, return_spec, return_name, return_condition, return_status, return_quantity,
       inventory_items (
         category_id,
         inventory_categories ( id, name )
@@ -1305,6 +1407,7 @@ export async function approveReturnMaterialAction(materialId: string) {
   const returnSpec = mat.return_spec!;
   const returnName = mat.return_name!;
   const returnCondition = "USED"; // 적출품은 모두 중고로 입고
+  const returnQty = (mat as Record<string, unknown>).return_quantity as number | null ?? 1;
 
   // 2) return_status → approved
   const { error: statusError } = await adminSupa
@@ -1377,7 +1480,7 @@ export async function approveReturnMaterialAction(materialId: string) {
     const { error: updateErr } = await adminSupa
       .from("inventory_items")
       .update({
-        quantity: existingItem.quantity + 1,
+        quantity: existingItem.quantity + returnQty,
         updated_at: new Date().toISOString(),
       })
       .eq("id", existingItem.id);
@@ -1395,7 +1498,7 @@ export async function approveReturnMaterialAction(materialId: string) {
         product_id: productId,
         capacity: null,
         condition: returnCondition,
-        quantity: 1,
+        quantity: returnQty,
         base_estimate: 0,
       });
 

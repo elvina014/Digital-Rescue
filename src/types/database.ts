@@ -164,6 +164,7 @@ export interface TicketMaterial {
   return_name: string | null;
   return_condition: "중고품" | "불량품" | null;
   return_status: "pending" | "approved" | "rejected" | null;
+  return_quantity: number;
   created_at: string;
   updated_at: string;
 }

@@ -93,6 +93,7 @@ interface TicketMaterialRow {
   return_name: string | null;
   return_condition: string | null;
   return_status: string | null;
+  return_quantity: number;
 }
 
 interface TechnicianOption {
@@ -516,7 +517,7 @@ export default function TicketDetailForm({
                       )}
                       {m.is_return_registered && (
                         <div className="mt-1.5 rounded bg-indigo-50 px-2.5 py-1.5 text-xs text-indigo-700">
-                          <span className="font-semibold">적출품 등록:</span> {m.return_spec} / {m.return_name} / {m.return_condition}
+                          <span className="font-semibold">적출품 등록:</span> {m.return_spec} / {m.return_name}{m.capacity ? ` / ${m.capacity}` : ""} / {m.return_condition} × {m.return_quantity ?? 1}개
                           {m.return_status === "pending" && (
                             <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-700 font-semibold">입고 대기</span>
                           )}
@@ -898,13 +899,14 @@ function ReturnMaterialForm({
   defaultCategoryId: string | null;
   categories: CategoryOption[];
   inventoryItems: InventoryItemRow[];
-  onUpdate: (fields: { is_return_registered: boolean; return_spec: string; return_name: string; return_condition: string; return_status: string }) => void;
+  onUpdate: (fields: { is_return_registered: boolean; return_spec: string; return_name: string; return_condition: string; return_status: string; return_quantity: number }) => void;
   onError: (msg: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState(defaultCategoryId ?? "");
   const [selectedItemId, setSelectedItemId] = useState("");
   const [condition, setCondition] = useState<"중고품" | "불량품">("중고품");
+  const [returnQty, setReturnQty] = useState(1);
   const [isPending, startTransition] = useTransition();
 
   // 선택된 카테고리에 해당하는 재고 아이템 목록
@@ -976,7 +978,7 @@ function ReturnMaterialForm({
             )}
           </div>
         )}
-        {/* 상태 선택 */}
+        {/* 상태 및 수량 선택 */}
         <div className="flex items-end gap-2">
           <div className="w-28">
             <label className="mb-0.5 block text-[11px] text-gray-500">상태</label>
@@ -989,6 +991,16 @@ function ReturnMaterialForm({
               <option value="불량품">불량품</option>
             </select>
           </div>
+          <div className="w-20">
+            <label className="mb-0.5 block text-[11px] text-gray-500">수량</label>
+            <input
+              type="number"
+              min={1}
+              value={returnQty}
+              onChange={(e) => setReturnQty(Math.max(1, Number(e.target.value) || 1))}
+              className="w-full rounded border border-gray-300 px-2 py-1 text-center text-xs tabular-nums focus:border-indigo-500 focus:outline-none"
+            />
+          </div>
           <button
             type="button"
             disabled={isPending || !selectedItem}
@@ -997,7 +1009,7 @@ function ReturnMaterialForm({
               startTransition(async () => {
                 onError(null);
                 const res = await registerReturnMaterialAction(
-                  materialId, selectedCategoryId, selectedItem.spec_name, selectedItem.product_name, condition
+                  materialId, selectedCategoryId, selectedItem.spec_name, selectedItem.product_name, condition, returnQty, selectedItem.capacity ?? null
                 );
                 if (res?.error) {
                   onError(res.error);
@@ -1008,6 +1020,7 @@ function ReturnMaterialForm({
                     return_name: selectedItem.product_name,
                     return_condition: condition,
                     return_status: "pending",
+                    return_quantity: returnQty,
                   });
                   setOpen(false);
                 }

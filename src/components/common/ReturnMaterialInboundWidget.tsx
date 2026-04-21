@@ -12,6 +12,8 @@ interface ReturnMaterialItem {
   return_spec: string;
   return_name: string;
   return_condition: string;
+  return_quantity: number;
+  return_capacity: string | null;
   technician_name: string;
 }
 
@@ -67,8 +69,9 @@ export default function ReturnMaterialInboundWidget({ items: initialItems }: Ret
                   <span className="text-gray-400">원본:</span> {item.original_label}
                   <span className="mx-1.5 text-gray-300">→</span>
                   <span className="font-semibold text-indigo-700">[반환]</span>{" "}
-                  {item.return_category} / {item.return_spec} / {item.return_name} /{" "}
-                  <span className={item.return_condition === "불량품" ? "text-red-600 font-semibold" : "text-green-600 font-semibold"}>
+                  {item.return_category} / {item.return_spec} / {item.return_name}{item.return_capacity ? ` / ${item.return_capacity}` : ""}{" "}
+                  × {item.return_quantity}개{" "}/
+                  {" "}<span className={item.return_condition === "불량품" ? "text-red-600 font-semibold" : "text-green-600 font-semibold"}>
                     {item.return_condition}
                   </span>
                 </p>
