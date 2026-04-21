@@ -96,6 +96,47 @@ export default async function InventoryPage() {
     };
   });
 
+  // Supabase JOIN 결과가 배열로 추론되므로 단일 객체로 변환
+  const transactionRows = (transactionsRes.data ?? []).map((t: Record<string, unknown>) => {
+    const emp = t.employees as { name: string }[] | { name: string } | null;
+    const inv = t.inventory_items as {
+      capacity: string | null;
+      inventory_categories: { name: string }[] | { name: string } | null;
+      inventory_specs: { name: string }[] | { name: string } | null;
+      inventory_products: { name: string }[] | { name: string } | null;
+    }[] | {
+      capacity: string | null;
+      inventory_categories: { name: string }[] | { name: string } | null;
+      inventory_specs: { name: string }[] | { name: string } | null;
+      inventory_products: { name: string }[] | { name: string } | null;
+    } | null;
+
+    const empObj = Array.isArray(emp) ? emp[0] ?? null : emp;
+    const invObj = Array.isArray(inv) ? inv[0] ?? null : inv;
+
+    const cats = invObj?.inventory_categories;
+    const specs = invObj?.inventory_specs;
+    const prods = invObj?.inventory_products;
+
+    return {
+      id: t.id as string,
+      transaction_type: t.transaction_type as string,
+      quantity_changed: t.quantity_changed as number,
+      notes: (t.notes as string | null) ?? null,
+      ticket_id: (t.ticket_id as string | null) ?? null,
+      created_at: t.created_at as string,
+      employees: empObj ? { name: empObj.name } : null,
+      inventory_items: invObj
+        ? {
+            capacity: invObj.capacity,
+            inventory_categories: Array.isArray(cats) ? cats[0] ?? null : cats ?? null,
+            inventory_specs: Array.isArray(specs) ? specs[0] ?? null : specs ?? null,
+            inventory_products: Array.isArray(prods) ? prods[0] ?? null : prods ?? null,
+          }
+        : null,
+    };
+  });
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <MaterialDispatchWidget requests={materialWidgetData} />
@@ -103,7 +144,7 @@ export default async function InventoryPage() {
       <ReturnMaterialInboundWidget items={inboundReturnWidgetData} />
       <InventoryClient
         items={items ?? []}
-        transactions={transactionsRes.data ?? []}
+        transactions={transactionRows}
         currentEmployee={{ id: employee.id, name: employee.name, role: employee.role }}
       />
     </div>
