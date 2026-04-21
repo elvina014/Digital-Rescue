@@ -24,7 +24,7 @@ export default async function InventorySettingsPage() {
         initialCategories={categoriesRes.data ?? []}
         initialSpecs={specsRes.data ?? []}
         initialProducts={productsRes.data ?? []}
-        initialGlobalSettings={"data" in settingsRes ? settingsRes.data : null}
+        initialGlobalSettings={"data" in settingsRes ? settingsRes.data ?? null : null}
       />
     </div>
   );
