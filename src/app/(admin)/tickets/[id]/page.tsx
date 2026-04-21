@@ -84,7 +84,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     .from("ticket_materials")
     .select(`
       id, inventory_item_id, quantity, request_status, request_type, notes,
-      is_return_registered, return_spec, return_name, return_condition, return_status, return_quantity,
+      is_return_registered, return_spec, return_name, return_condition, return_status, return_quantity, return_capacity,
       inventory_items (
         category_id, base_estimate, capacity, condition,
         inventory_categories ( name ),
@@ -147,6 +147,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       return_condition: (tm as Record<string, unknown>).return_condition as string | null ?? null,
       return_status: (tm as Record<string, unknown>).return_status as string | null ?? null,
       return_quantity: (tm as Record<string, unknown>).return_quantity as number | null ?? 1,
+      return_capacity: (tm as Record<string, unknown>).return_capacity as string | null ?? null,
     };
   });
 

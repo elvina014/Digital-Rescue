@@ -94,6 +94,7 @@ interface TicketMaterialRow {
   return_condition: string | null;
   return_status: string | null;
   return_quantity: number;
+  return_capacity: string | null;
 }
 
 interface TechnicianOption {
@@ -517,7 +518,7 @@ export default function TicketDetailForm({
                       )}
                       {m.is_return_registered && (
                         <div className="mt-1.5 rounded bg-indigo-50 px-2.5 py-1.5 text-xs text-indigo-700">
-                          <span className="font-semibold">적출품 등록:</span> {m.return_spec} / {m.return_name}{m.capacity ? ` / ${m.capacity}` : ""} / {m.return_condition} × {m.return_quantity ?? 1}개
+                          <span className="font-semibold">적출품 등록:</span> {m.return_spec} / {m.return_name}{m.return_capacity ? ` / ${m.return_capacity}` : ""} / {m.return_condition} × {m.return_quantity ?? 1}개
                           {m.return_status === "pending" && (
                             <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-amber-700 font-semibold">입고 대기</span>
                           )}

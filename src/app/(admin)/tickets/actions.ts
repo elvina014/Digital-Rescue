@@ -1382,10 +1382,13 @@ export async function approveReturnMaterialAction(materialId: string) {
   const { data: mat } = await adminSupa
     .from("ticket_materials")
     .select(`
-      ticket_id, is_return_registered, return_category_id, return_spec, return_name, return_condition, return_status, return_quantity,
+      ticket_id, is_return_registered, return_category_id, return_spec, return_name, return_condition, return_status, return_quantity, return_capacity,
       inventory_items (
         category_id,
         inventory_categories ( id, name )
+      ),
+      repair_tickets:ticket_id (
+        assignee_id
       )
     `)
     .eq("id", materialId)
@@ -1408,6 +1411,11 @@ export async function approveReturnMaterialAction(materialId: string) {
   const returnName = mat.return_name!;
   const returnCondition = "USED"; // 적출품은 모두 중고로 입고
   const returnQty = (mat as Record<string, unknown>).return_quantity as number | null ?? 1;
+  const returnCapacity = (mat as Record<string, unknown>).return_capacity as string | null ?? null;
+
+  // 담당 기사 ID 조회 (트랜잭션 담당자로 기록)
+  const ticket = mat.repair_tickets as unknown as { assignee_id: string | null } | null;
+  const technicianUserId = ticket?.assignee_id ?? employee.id;
 
   // 2) return_status → approved
   const { error: statusError } = await adminSupa
@@ -1529,18 +1537,18 @@ export async function approveReturnMaterialAction(materialId: string) {
   if (inboundItemId) {
     await adminSupa.from("inventory_transactions").insert({
       item_id: inboundItemId,
-      user_id: employee.id,
+      user_id: technicianUserId,
       transaction_type: "INBOUND",
       quantity_changed: returnQty,
       ticket_id: mat.ticket_id,
-      notes: `적출품 반환 입고 (${categoryName} / ${returnSpec} / ${returnName} / ${mat.return_condition})`,
+      notes: "적출품 반환 입고",
     });
   }
 
   await adminSupa.from("ticket_logs").insert({
     ticket_id: mat.ticket_id,
     employee_id: employee.id,
-    message: `시스템: 적출 자재 입고 승인 완료 (${categoryName} / ${returnSpec} / ${returnName} / ${mat.return_condition})`,
+    message: `시스템: 적출 자재 입고 승인 완료 (${categoryName} / ${returnSpec} / ${returnName}${returnCapacity ? ` / ${returnCapacity}` : ""} / ${mat.return_condition})`,
   });
 
   revalidatePath(`/tickets/${mat.ticket_id}`);
