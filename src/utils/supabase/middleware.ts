@@ -20,9 +20,13 @@ export async function updateSession(request: NextRequest) {
             request.cookies.set(name, value)
           );
           supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
+          cookiesToSet.forEach(({ name, value, options }) => {
+            // 브라우저 종료 시 세션 만료: maxAge/expires를 제거해 session cookie로 설정
+            const sessionOptions = { ...options };
+            delete (sessionOptions as Record<string, unknown>).maxAge;
+            delete (sessionOptions as Record<string, unknown>).expires;
+            supabaseResponse.cookies.set(name, value, sessionOptions);
+          });
         },
       },
     }

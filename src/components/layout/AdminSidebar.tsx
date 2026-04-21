@@ -92,9 +92,16 @@ export function AdminSidebar({ employeeName, employeeRole, onLinkClick }: AdminS
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
           {visibleItems.map((item) => {
+            // 가장 구체적인 경로가 우선 활성화되도록 처리
+            // 예: /inventory/settings에서는 /inventory가 아닌 /inventory/settings만 활성
             const isActive =
               pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
+              (item.href !== "/dashboard" &&
+                pathname.startsWith(item.href + "/") &&
+                !visibleItems.some(
+                  (other) =>
+                    other.href !== item.href && pathname.startsWith(other.href)
+                ));
 
             return (
               <li key={item.href}>
