@@ -580,3 +580,81 @@ export async function updateGlobalSettings(settings: {
   revalidatePath("/inventory");
   return { success: true };
 }
+
+// =============================================
+// 10. 재고 입출고 트랜잭션 조회 (관리자용)
+// =============================================
+
+export async function getInventoryTransactions(limit = 100) {
+  const employee = await getCurrentEmployee();
+  const authErr = requireAuth(employee);
+  if (authErr) return { error: authErr.error, data: null };
+  const permErr = requireManager(employee!);
+  if (permErr) return { error: permErr.error, data: null };
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("inventory_transactions")
+    .select(
+      `
+      id,
+      transaction_type,
+      quantity_changed,
+      notes,
+      ticket_id,
+      created_at,
+      employees:user_id ( name ),
+      inventory_items:item_id (
+        capacity,
+        inventory_categories ( name ),
+        inventory_specs ( name ),
+        inventory_products ( name )
+      )
+    `
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) return { error: error.message, data: null };
+  return { error: null, data };
+}
+
+// =============================================
+// 11. 관리자 인라인 재고 직접 수정
+// =============================================
+
+export async function adminInlineUpdateInventoryItem(
+  itemId: string,
+  data: { capacity?: string | null; quantity?: number; base_estimate?: number }
+) {
+  const employee = await getCurrentEmployee();
+  const authErr = requireAuth(employee);
+  if (authErr) return authErr;
+  const permErr = requireAdmin(employee!);
+  if (permErr) return permErr;
+
+  const updates: Record<string, unknown> = {};
+  if ("capacity" in data) updates.capacity = data.capacity?.trim() || null;
+  if (data.quantity !== undefined) {
+    if (data.quantity < 0) return { error: "수량은 0 이상이어야 합니다." };
+    updates.quantity = data.quantity;
+  }
+  if (data.base_estimate !== undefined) {
+    if (data.base_estimate < 0) return { error: "기초견적은 0 이상이어야 합니다." };
+    updates.base_estimate = data.base_estimate;
+  }
+
+  if (Object.keys(updates).length === 0) return { error: "변경할 항목이 없습니다." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("inventory_items")
+    .update(updates)
+    .eq("id", itemId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/inventory");
+  return { success: true };
+}

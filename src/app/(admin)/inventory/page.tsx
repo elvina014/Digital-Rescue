@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { getCurrentEmployee } from "@/lib/auth";
 import { EmployeeRole } from "@/types";
 import { getPendingMaterialRequests, getCancelRequestedMaterials, getPendingReturnMaterials } from "@/app/(admin)/tickets/actions";
+import { getInventoryTransactions } from "@/app/actions/inventoryActions";
 import InventoryClient from "./InventoryClient";
 import MaterialDispatchWidget from "@/components/common/MaterialDispatchWidget";
 import MaterialReturnWidget from "@/components/common/MaterialReturnWidget";
@@ -17,7 +18,7 @@ export default async function InventoryPage() {
 
   const supabase = await createClient();
 
-  const [{ data: items }, materialRequests, returnRequests, inboundReturnRequests] = await Promise.all([
+  const [{ data: items }, materialRequests, returnRequests, inboundReturnRequests, transactionsRes] = await Promise.all([
     supabase
       .from("inventory_items")
       .select(
@@ -32,6 +33,7 @@ export default async function InventoryPage() {
     getPendingMaterialRequests(),
     getCancelRequestedMaterials(),
     getPendingReturnMaterials(),
+    getInventoryTransactions(200),
   ]);
 
   const materialWidgetData = (materialRequests.data ?? []).map((r: Record<string, unknown>) => {
@@ -101,6 +103,7 @@ export default async function InventoryPage() {
       <ReturnMaterialInboundWidget items={inboundReturnWidgetData} />
       <InventoryClient
         items={items ?? []}
+        transactions={transactionsRes.data ?? []}
         currentEmployee={{ id: employee.id, name: employee.name, role: employee.role }}
       />
     </div>
