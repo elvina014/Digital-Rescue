@@ -1476,6 +1476,8 @@ export async function approveReturnMaterialAction(materialId: string) {
     .eq("condition", returnCondition)
     .single();
 
+  let inboundItemId: string | null = null;
+
   if (existingItem) {
     const { error: updateErr } = await adminSupa
       .from("inventory_items")
@@ -1489,8 +1491,9 @@ export async function approveReturnMaterialAction(materialId: string) {
       await adminSupa.from("ticket_materials").update({ return_status: "pending" }).eq("id", materialId);
       return { error: "재고 수량 업데이트 실패: " + updateErr.message };
     }
+    inboundItemId = existingItem.id;
   } else {
-    const { error: insertErr } = await adminSupa
+    const { data: newItem, error: insertErr } = await adminSupa
       .from("inventory_items")
       .insert({
         category_id: categoryId,
@@ -1500,15 +1503,18 @@ export async function approveReturnMaterialAction(materialId: string) {
         condition: returnCondition,
         quantity: returnQty,
         base_estimate: 0,
-      });
+      })
+      .select("id")
+      .single();
 
-    if (insertErr) {
+    if (insertErr || !newItem) {
       await adminSupa.from("ticket_materials").update({ return_status: "pending" }).eq("id", materialId);
-      return { error: "재고 신규 등록 실패: " + insertErr.message };
+      return { error: "재고 신규 등록 실패: " + (insertErr?.message ?? "알 수 없는 오류") };
     }
+    inboundItemId = newItem.id;
   }
 
-  // 6) 로그 — 카테고리 이름 조회 (반환 카테고리가 원본과 다를 수 있음)
+  // 6) 카테고리 이름 조회 (반환 카테고리가 원본과 다를 수 있음)
   let categoryName = inv?.inventory_categories?.name ?? "카테고리";
   if (categoryId !== inv?.category_id) {
     const { data: returnCat } = await adminSupa
@@ -1518,6 +1524,19 @@ export async function approveReturnMaterialAction(materialId: string) {
       .single();
     if (returnCat) categoryName = returnCat.name;
   }
+
+  // inventory_transactions INBOUND 기록 (적출품 반환 입고)
+  if (inboundItemId) {
+    await adminSupa.from("inventory_transactions").insert({
+      item_id: inboundItemId,
+      user_id: employee.id,
+      transaction_type: "INBOUND",
+      quantity_changed: returnQty,
+      ticket_id: mat.ticket_id,
+      notes: `적출품 반환 입고 (${categoryName} / ${returnSpec} / ${returnName} / ${mat.return_condition})`,
+    });
+  }
+
   await adminSupa.from("ticket_logs").insert({
     ticket_id: mat.ticket_id,
     employee_id: employee.id,

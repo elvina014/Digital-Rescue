@@ -367,7 +367,7 @@ export async function addInventoryItem(data: {
 
   const supabase = await createClient();
 
-  const { error } = await supabase.from("inventory_items").insert({
+  const { data: inserted, error } = await supabase.from("inventory_items").insert({
     category_id: data.category_id,
     spec_id: data.spec_id,
     product_id: data.product_id,
@@ -375,9 +375,20 @@ export async function addInventoryItem(data: {
     condition: data.condition,
     quantity: data.quantity,
     base_estimate: data.base_estimate,
-  });
+  }).select("id").single();
 
   if (error) return { error: error.message };
+
+  // INBOUND 트랜잭션 기록 (신규 재고 등록)
+  if (inserted && data.quantity > 0) {
+    await supabase.from("inventory_transactions").insert({
+      item_id: inserted.id,
+      user_id: employee!.id,
+      transaction_type: "INBOUND",
+      quantity_changed: data.quantity,
+      notes: "신규 재고 등록",
+    });
+  }
 
   revalidatePath("/inventory");
   return { success: true };
@@ -648,12 +659,40 @@ export async function adminInlineUpdateInventoryItem(
   if (Object.keys(updates).length === 0) return { error: "변경할 항목이 없습니다." };
 
   const supabase = await createClient();
+
+  // 수량 변경이 있는 경우 이전 수량 조회 (트랜잭션 기록용)
+  let prevQuantity: number | null = null;
+  if (data.quantity !== undefined) {
+    const { data: current } = await supabase
+      .from("inventory_items")
+      .select("quantity")
+      .eq("id", itemId)
+      .single();
+    prevQuantity = current?.quantity ?? null;
+  }
+
   const { error } = await supabase
     .from("inventory_items")
     .update(updates)
     .eq("id", itemId);
 
   if (error) return { error: error.message };
+
+  // 수량 변경 시 트랜잭션 기록
+  if (data.quantity !== undefined && prevQuantity !== null) {
+    const delta = data.quantity - prevQuantity;
+    if (delta !== 0) {
+      await supabase.from("inventory_transactions").insert({
+        item_id: itemId,
+        user_id: employee!.id,
+        transaction_type: delta > 0 ? "INBOUND" : "ADJUSTMENT",
+        quantity_changed: Math.abs(delta),
+        notes: delta > 0
+          ? `관리자 수동 입고 (+${delta}개)`
+          : `관리자 수동 조정 (${delta}개)`,
+      });
+    }
+  }
 
   revalidatePath("/inventory");
   return { success: true };
