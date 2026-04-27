@@ -25,7 +25,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     .from("repair_tickets")
     .select(
       `
-      id, status, receipt_type, device_brand, device_model,
+      id, status, receipt_type, device_brand, device_model, tag_info, release_year,
       symptoms, initial_estimate, expected_estimate, material_cost,
       material_cost_details, final_price, is_approved, has_admin_message, images,
       payment_status, payment_method, created_at, updated_at,
@@ -158,6 +158,8 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     receipt_type: ticket.receipt_type,
     device_brand: ticket.device_brand,
     device_model: ticket.device_model,
+    tag_info: (ticket as Record<string, unknown>).tag_info as string | null ?? null,
+    release_year: (ticket as Record<string, unknown>).release_year as string | null ?? null,
     symptoms: ticket.symptoms,
     initial_estimate: ticket.initial_estimate,
     expected_estimate: ticket.expected_estimate,

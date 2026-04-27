@@ -62,6 +62,10 @@ export interface RepairTicket {
   minimum_estimate: number;
   /** 확정예상견적 */
   confirmed_estimate: number;
+  /** 기기 라벨 태그 정보 */
+  tag_info: string | null;
+  /** 기기 출시 연도 (참고용) */
+  release_year: string | null;
   created_at: string;
   updated_at: string;
 }

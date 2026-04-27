@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useTransition, useCallback, useRef } from "react";
-import { startRepairAction, lookupPastEvaluatedValue } from "../actions";
+import { startRepairAction, lookupPastEvaluatedValue, analyzeDeviceLabelAction } from "../actions";
 import { DeviceType } from "@/types";
 
 // ─── 타입 ───
@@ -35,6 +35,8 @@ interface EstimateCardProps {
   ticketId: string;
   currentDeviceBrand: string | null;
   currentDeviceModel: string | null;
+  currentTagInfo?: string | null;
+  currentReleaseYear?: string | null;
   categories: CategoryOption[];
   inventoryItems: InventoryItemRow[];
   globalSettings: GlobalSettingsData;
@@ -54,6 +56,8 @@ export default function EstimateCard({
   ticketId,
   currentDeviceBrand,
   currentDeviceModel,
+  currentTagInfo,
+  currentReleaseYear,
   categories,
   inventoryItems,
   globalSettings,
@@ -65,8 +69,15 @@ export default function EstimateCard({
   const [deviceType, setDeviceType] = useState<string>(DeviceType.NOTEBOOK);
   const [deviceBrand, setDeviceBrand] = useState(currentDeviceBrand ?? "");
   const [deviceModel, setDeviceModel] = useState(currentDeviceModel ?? "");
+  const [tagInfo, setTagInfo] = useState(currentTagInfo ?? "");
+  const [releaseYear, setReleaseYear] = useState(currentReleaseYear ?? "");
   const [evaluatedValue, setEvaluatedValue] = useState<number | "">(0);
   const [autoFillHint, setAutoFillHint] = useState<string | null>(null);
+
+  // AI 분석 상태
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzeHint, setAnalyzeHint] = useState<string | null>(null);
+  const labelInputRef = useRef<HTMLInputElement>(null);
 
   // 자동완성 debounce
   const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,6 +101,47 @@ export default function EstimateCard({
     },
     []
   );
+
+  // AI 분석 실행 (이미지 또는 텍스트 기반)
+  const runAnalysis = useCallback(async (imageBase64?: string) => {
+    setIsAnalyzing(true);
+    setAnalyzeHint(null);
+    const res = await analyzeDeviceLabelAction({
+      imageBase64,
+      modelName: deviceModel.trim() || undefined,
+      tagInfo: tagInfo.trim() || undefined,
+      deviceType,
+      brand: deviceBrand.trim() || undefined,
+    });
+    setIsAnalyzing(false);
+    if (res.error) {
+      setAnalyzeHint(`⚠️ ${res.error}`);
+      return;
+    }
+    if (res.data) {
+      const d = res.data;
+      if (d.brand) setDeviceBrand(d.brand);
+      if (d.model) setDeviceModel(d.model);
+      if (d.tagInfo) setTagInfo(d.tagInfo);
+      if (d.releaseYear) setReleaseYear(d.releaseYear);
+      if (d.evaluatedValue > 0) setEvaluatedValue(d.evaluatedValue);
+      setAnalyzeHint("✅ AI가 기기 정보를 자동 입력했습니다.");
+    }
+  }, [deviceModel, tagInfo, deviceType, deviceBrand]);
+
+  // 라벨 사진 선택 핸들러 — FileReader로 base64 변환 후 즉시 분석
+  const handleLabelImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      runAnalysis(base64);
+    };
+    reader.readAsDataURL(file);
+    // 같은 파일 재선택 허용을 위해 value 초기화
+    e.target.value = "";
+  }, [runAnalysis]);
 
   // 카테고리 체크박스
   const [checkedCategories, setCheckedCategories] = useState<Set<string>>(new Set());
@@ -176,6 +228,8 @@ export default function EstimateCard({
     fd.set("deviceType", deviceType);
     fd.set("deviceBrand", deviceBrand);
     fd.set("deviceModel", deviceModel);
+    fd.set("tagInfo", tagInfo);
+    fd.set("releaseYear", releaseYear);
     fd.set("evaluatedValue", String(typeof evaluatedValue === "number" ? evaluatedValue : 0));
     fd.set("minimumEstimate", String(minimumEstimate));
     fd.set("confirmedEstimate", String(ce));
@@ -222,6 +276,8 @@ export default function EstimateCard({
       {/* ─── 기기 정보 ─── */}
       <div className="mb-5 rounded-lg border border-yellow-200 bg-white p-4">
         <h3 className="mb-3 text-sm font-semibold text-gray-800">기기 정보</h3>
+
+        {/* 1행: 기기 종류 / 브랜드 / 모델명 / 기기 가치 평가 */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-600">기기 종류</label>
@@ -276,6 +332,75 @@ export default function EstimateCard({
             />
           </div>
         </div>
+
+        {/* 2행: 태그 정보 / 출시 연도 / 라벨 사진 업로드 + AI 검색 */}
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="lg:col-span-2">
+            <label className="mb-1 block text-xs font-medium text-gray-600">태그 정보 (Tag Info)</label>
+            <input
+              type="text"
+              value={tagInfo}
+              onChange={(e) => setTagInfo(e.target.value)}
+              placeholder="예: 15U780-GA56K"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">출시 연도</label>
+            <input
+              type="text"
+              value={releaseYear}
+              onChange={(e) => setReleaseYear(e.target.value)}
+              placeholder="예: 2021"
+              maxLength={4}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            {/* 숨겨진 파일 input */}
+            <input
+              ref={labelInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleLabelImageChange}
+            />
+            <label className="mb-1 block text-xs font-medium text-gray-600">AI 기기 정보 조회</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={isAnalyzing}
+                onClick={() => labelInputRef.current?.click()}
+                className="flex-1 rounded-lg border border-purple-300 bg-purple-50 px-2 py-2 text-xs font-medium text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50"
+                title="노트북 뒷면 라벨 사진을 찍어 AI로 기기 정보를 자동 입력합니다"
+              >
+                📷 라벨 촬영
+              </button>
+              <button
+                type="button"
+                disabled={isAnalyzing || (evaluatedValue !== 0 && evaluatedValue !== "") || (!deviceModel.trim() && !tagInfo.trim())}
+                onClick={() => runAnalysis()}
+                className="flex-1 rounded-lg border border-blue-300 bg-blue-50 px-2 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                title="모델명 또는 태그 정보로 AI 웹 검색을 실행합니다"
+              >
+                🔍 AI 검색
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 로딩 / 결과 힌트 */}
+        {isAnalyzing && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-purple-600">
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-purple-400 border-t-transparent" />
+            AI가 라벨을 분석 중입니다...
+          </div>
+        )}
+        {!isAnalyzing && analyzeHint && (
+          <p className={`mt-2 text-xs ${analyzeHint.startsWith("⚠️") ? "text-red-500" : "text-green-600"}`}>
+            {analyzeHint}
+          </p>
+        )}
         {autoFillHint && (
           <p className="mt-2 text-xs text-blue-600">{autoFillHint}</p>
         )}

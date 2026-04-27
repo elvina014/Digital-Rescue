@@ -198,6 +198,8 @@ export async function startRepairAction(formData: FormData) {
   const deviceType = formData.get("deviceType") as string;
   const deviceBrand = (formData.get("deviceBrand") as string)?.trim() || "";
   const deviceModel = (formData.get("deviceModel") as string)?.trim() || null;
+  const tagInfo = (formData.get("tagInfo") as string)?.trim() || null;
+  const releaseYear = (formData.get("releaseYear") as string)?.trim() || null;
   const evaluatedValue = parseInt(formData.get("evaluatedValue") as string, 10) || 0;
   const minimumEstimate = parseInt(formData.get("minimumEstimate") as string, 10) || 0;
   const confirmedEstimate = parseInt(formData.get("confirmedEstimate") as string, 10) || 0;
@@ -236,6 +238,8 @@ export async function startRepairAction(formData: FormData) {
       device_type: deviceType,
       device_brand: deviceBrand,
       device_model: deviceModel,
+      tag_info: tagInfo,
+      release_year: releaseYear,
       evaluated_value: evaluatedValue,
       minimum_estimate: minimumEstimate,
       confirmed_estimate: confirmedEstimate,
@@ -1555,4 +1559,72 @@ export async function approveReturnMaterialAction(materialId: string) {
   revalidatePath("/dashboard");
   revalidatePath("/inventory");
   return { success: true };
+}
+
+// ----- n8n AI 기기 라벨 분석 (신규 기기 가치 자동 조회) -----
+export interface DeviceLabelAnalysisResult {
+  tagInfo: string;
+  brand: string;
+  model: string;
+  releaseYear: string;
+  evaluatedValue: number;
+}
+
+export async function analyzeDeviceLabelAction(payload: {
+  imageBase64?: string;
+  modelName?: string;
+  tagInfo?: string;
+  deviceType?: string;
+  brand?: string;
+}): Promise<{ data?: DeviceLabelAnalysisResult; error?: string }> {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  const webhookUrl = process.env.N8N_DEVICE_WEBHOOK_URL;
+  if (!webhookUrl) return { error: "AI 분석 서비스가 설정되지 않았습니다." };
+
+  let response: Response;
+  try {
+    response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    return { error: "AI 분석 서버에 연결할 수 없습니다." };
+  }
+
+  if (!response.ok) {
+    return { error: `AI 분석 실패 (${response.status})` };
+  }
+
+  let result: DeviceLabelAnalysisResult;
+  try {
+    result = await response.json();
+  } catch {
+    return { error: "AI 응답을 파싱할 수 없습니다." };
+  }
+
+  if (!result.brand || !result.model) {
+    return { error: "AI가 기기 정보를 인식하지 못했습니다. 직접 입력해 주세요." };
+  }
+
+  // device_models 테이블에 캐시 (다음 동일 기기 조회 시 재활용)
+  if (result.evaluatedValue > 0) {
+    const adminSupa = createAdminClient();
+    await adminSupa
+      .from("device_models")
+      .upsert(
+        {
+          brand: result.brand,
+          model_name: result.model,
+          release_year: result.releaseYear ? parseInt(result.releaseYear, 10) : null,
+          release_price: result.evaluatedValue,
+          min_repair_cost: 0,
+        },
+        { onConflict: "brand,model_name", ignoreDuplicates: false }
+      );
+  }
+
+  return { data: result };
 }

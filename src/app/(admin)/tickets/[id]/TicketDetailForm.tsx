@@ -32,6 +32,8 @@ interface TicketData {
   receipt_type: string;
   device_brand: string;
   device_model: string | null;
+  tag_info?: string | null;
+  release_year?: string | null;
   symptoms: string;
   initial_estimate: number;
   expected_estimate: number;
@@ -366,6 +368,8 @@ export default function TicketDetailForm({
           ticketId={ticket.id}
           currentDeviceBrand={ticket.device_brand}
           currentDeviceModel={ticket.device_model}
+          currentTagInfo={ticket.tag_info}
+          currentReleaseYear={ticket.release_year}
           categories={inventoryCategories}
           inventoryItems={inventoryItems}
           globalSettings={globalSettings}
