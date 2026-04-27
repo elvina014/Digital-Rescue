@@ -165,12 +165,45 @@ export async function assignTechnicianAction(formData: FormData) {
 export async function lookupPastEvaluatedValue(
   deviceType: string,
   deviceBrand: string,
-  deviceModel: string
+  deviceModel: string,
+  tagInfo?: string
 ) {
   const employee = await getCurrentEmployee();
   if (!employee) return { data: null };
 
-  if (!deviceType || !deviceBrand || !deviceModel) return { data: null };
+  const adminSupa = createAdminClient();
+
+  // 1순위: 태그 정보로 device_models 캐시 조회
+  if (tagInfo?.trim()) {
+    const { data: byTag } = await adminSupa
+      .from("device_models")
+      .select("release_price")
+      .eq("tag_info", tagInfo.trim())
+      .gt("release_price", 0)
+      .maybeSingle();
+
+    if (byTag?.release_price) {
+      return { data: byTag.release_price as number };
+    }
+  }
+
+  // 2순위: 브랜드 + 모델명으로 device_models 캐시 조회
+  if (deviceBrand?.trim() && deviceModel?.trim()) {
+    const { data: byModel } = await adminSupa
+      .from("device_models")
+      .select("release_price")
+      .eq("brand", deviceBrand.trim())
+      .eq("model_name", deviceModel.trim())
+      .gt("release_price", 0)
+      .maybeSingle();
+
+    if (byModel?.release_price) {
+      return { data: byModel.release_price as number };
+    }
+  }
+
+  // 3순위: 과거 repair_tickets에서 조회 (캐시 미스 시 폴백)
+  if (!deviceType || !deviceBrand?.trim() || !deviceModel?.trim()) return { data: null };
 
   const supabase = await createClient();
 
@@ -278,13 +311,30 @@ export async function startRepairAction(formData: FormData) {
     }
   }
 
-  // 3) 자동 로그
+  // 3) 자동 로그 + device_models 캐시 저장
   const adminSupa = createAdminClient();
   await adminSupa.from("ticket_logs").insert({
     ticket_id: ticketId,
     employee_id: employee.id,
     message: `시스템: 수리가 시작되었습니다. (확정견적: ${confirmedEstimate.toLocaleString()}원, 최소견적: ${minimumEstimate.toLocaleString()}원, 자재 ${materials.length}건)`,
   });
+
+  // 기기 가치 평가가 입력된 경우 device_models 캐시에 저장
+  if (evaluatedValue > 0 && deviceBrand && deviceModel) {
+    await adminSupa
+      .from("device_models")
+      .upsert(
+        {
+          brand: deviceBrand,
+          model_name: deviceModel,
+          tag_info: tagInfo || null,
+          release_year: releaseYear ? parseInt(releaseYear, 10) : null,
+          release_price: evaluatedValue,
+          min_repair_cost: 0,
+        },
+        { onConflict: "brand,model_name", ignoreDuplicates: false }
+      );
+  }
 
   revalidatePath(`/tickets/${ticketId}`);
   revalidatePath("/tickets");
@@ -1619,6 +1669,7 @@ export async function analyzeDeviceLabelAction(payload: {
         {
           brand: result.brand,
           model_name: result.model,
+          tag_info: payload.tagInfo?.trim() || null,
           release_year: result.releaseYear ? parseInt(result.releaseYear, 10) : null,
           release_price: result.evaluatedValue,
           min_repair_cost: 0,

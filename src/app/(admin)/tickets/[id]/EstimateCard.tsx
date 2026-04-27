@@ -83,17 +83,19 @@ export default function EstimateCard({
   const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tryAutoFill = useCallback(
-    (type: string, brand: string, model: string) => {
+    (type: string, brand: string, model: string, tag?: string) => {
       if (lookupTimer.current) clearTimeout(lookupTimer.current);
-      if (!type || !brand.trim() || !model.trim()) {
+      const hasTag = !!tag?.trim();
+      const hasBrandModel = !!brand.trim() && !!model.trim();
+      if (!hasTag && (!type || !hasBrandModel)) {
         setAutoFillHint(null);
         return;
       }
       lookupTimer.current = setTimeout(async () => {
-        const res = await lookupPastEvaluatedValue(type, brand.trim(), model.trim());
+        const res = await lookupPastEvaluatedValue(type, brand.trim(), model.trim(), tag?.trim());
         if (res.data != null) {
           setEvaluatedValue(res.data);
-          setAutoFillHint(`과거 동일 기기 가치: ${res.data.toLocaleString()}원 (자동 입력됨)`);
+          setAutoFillHint(`동일 기기 가치 평가: ${res.data.toLocaleString()}원 (자동 입력됨)`);
         } else {
           setAutoFillHint(null);
         }
@@ -124,13 +126,16 @@ export default function EstimateCard({
       if (d.model) setDeviceModel(d.model);
       if (d.tagInfo) setTagInfo(d.tagInfo);
       if (d.releaseYear) setReleaseYear(d.releaseYear);
-      if (d.evaluatedValue > 0) setEvaluatedValue(d.evaluatedValue);
-      const priceHint = d.evaluatedValue > 0
-        ? ` (${d.evaluatedValue.toLocaleString("ko-KR")}원 / 출처: ${d.priceSource ?? "AI 추정"})`
-        : " (가치평가 금액을 찾지 못했습니다. 직접 입력해 주세요.)";
-      setAnalyzeHint(`✅ AI가 기기 정보를 자동 입력했습니다.${priceHint}`);
+      if (d.evaluatedValue > 0) {
+        setEvaluatedValue(d.evaluatedValue);
+        setAnalyzeHint(`✅ AI가 기기 정보를 자동 입력했습니다. (${d.evaluatedValue.toLocaleString("ko-KR")}원 / 출처: ${d.priceSource ?? "AI 추정"})`);
+      } else {
+        setAnalyzeHint("✅ AI가 기기 정보를 자동 입력했습니다. (가치 평가는 직접 입력해 주세요.)");
+        // AI가 가치를 못 찾은 경우 캐시에서 조회 시도
+        tryAutoFill(deviceType, d.brand || deviceBrand, d.model || deviceModel, d.tagInfo || tagInfo);
+      }
     }
-  }, [deviceModel, tagInfo, deviceType, deviceBrand]);
+  }, [deviceModel, tagInfo, deviceType, deviceBrand, tryAutoFill]);
 
   // 라벨 사진 선택 핸들러 — FileReader로 base64 변환 후 즉시 분석
   const handleLabelImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -288,7 +293,7 @@ export default function EstimateCard({
               value={deviceType}
               onChange={(e) => {
                 setDeviceType(e.target.value);
-                tryAutoFill(e.target.value, deviceBrand, deviceModel);
+                tryAutoFill(e.target.value, deviceBrand, deviceModel, tagInfo);
               }}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
@@ -305,7 +310,7 @@ export default function EstimateCard({
               type="text"
               value={deviceBrand}
               onChange={(e) => setDeviceBrand(e.target.value)}
-              onBlur={() => tryAutoFill(deviceType, deviceBrand, deviceModel)}
+              onBlur={() => tryAutoFill(deviceType, deviceBrand, deviceModel, tagInfo)}
               placeholder="예: LG, Samsung, HP"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
@@ -316,7 +321,7 @@ export default function EstimateCard({
               type="text"
               value={deviceModel}
               onChange={(e) => setDeviceModel(e.target.value)}
-              onBlur={() => tryAutoFill(deviceType, deviceBrand, deviceModel)}
+              onBlur={() => tryAutoFill(deviceType, deviceBrand, deviceModel, tagInfo)}
               placeholder="예: 그램 17"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
@@ -349,6 +354,7 @@ export default function EstimateCard({
               type="text"
               value={tagInfo}
               onChange={(e) => setTagInfo(e.target.value)}
+              onBlur={() => tryAutoFill(deviceType, deviceBrand, deviceModel, tagInfo)}
               placeholder="예: 15U780-GA56K"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
