@@ -125,7 +125,10 @@ export default function EstimateCard({
       if (d.tagInfo) setTagInfo(d.tagInfo);
       if (d.releaseYear) setReleaseYear(d.releaseYear);
       if (d.evaluatedValue > 0) setEvaluatedValue(d.evaluatedValue);
-      setAnalyzeHint("✅ AI가 기기 정보를 자동 입력했습니다.");
+      const priceHint = d.evaluatedValue > 0
+        ? ` (${d.evaluatedValue.toLocaleString("ko-KR")}원 / 출처: ${d.priceSource ?? "AI 추정"})`
+        : " (가치평가 금액을 찾지 못했습니다. 직접 입력해 주세요.)";
+      setAnalyzeHint(`✅ AI가 기기 정보를 자동 입력했습니다.${priceHint}`);
     }
   }, [deviceModel, tagInfo, deviceType, deviceBrand]);
 
@@ -330,6 +333,11 @@ export default function EstimateCard({
               placeholder="예: 1500000"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
+            {typeof evaluatedValue === "number" && evaluatedValue > 0 && (
+              <p className="mt-1 text-xs tabular-nums text-gray-500">
+                {evaluatedValue.toLocaleString("ko-KR")}원
+              </p>
+            )}
           </div>
         </div>
 

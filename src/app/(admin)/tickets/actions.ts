@@ -1568,6 +1568,7 @@ export interface DeviceLabelAnalysisResult {
   model: string;
   releaseYear: string;
   evaluatedValue: number;
+  priceSource?: string;
 }
 
 export async function analyzeDeviceLabelAction(payload: {
