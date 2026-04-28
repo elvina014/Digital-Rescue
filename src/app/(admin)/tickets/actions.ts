@@ -162,43 +162,61 @@ export async function assignTechnicianAction(formData: FormData) {
 }
 
 // ----- 과거 접수건 기기가치 조회 (자동완성용) -----
+export type DeviceModelLookupResult = {
+  releasePrice: number;
+  modelName?: string | null;
+  tagInfo?: string | null;
+  releaseYear?: number | null;
+};
+
 export async function lookupPastEvaluatedValue(
   deviceType: string,
   deviceBrand: string,
   deviceModel: string,
   tagInfo?: string
-) {
+): Promise<{ data: DeviceModelLookupResult | null }> {
   const employee = await getCurrentEmployee();
   if (!employee) return { data: null };
 
   const adminSupa = createAdminClient();
 
-  // 1순위: 태그 정보로 device_models 캐시 조회
-  if (tagInfo?.trim()) {
+  // 1순위: 태그정보가 있으면 '브랜드 + 태그정보' 부분일치 조회
+  if (tagInfo?.trim() && deviceBrand?.trim()) {
     const { data: byTag } = await adminSupa
       .from("device_models")
-      .select("release_price")
-      .eq("tag_info", tagInfo.trim())
-      .gt("release_price", 0)
-      .maybeSingle();
+      .select("release_price, model_name, release_year")
+      .ilike("brand", `%${deviceBrand.trim()}%`)
+      .ilike("tag_info", `%${tagInfo.trim()}%`)
+      .gt("release_price", 0);
 
-    if (byTag?.release_price) {
-      return { data: byTag.release_price as number };
+    if (byTag && byTag.length === 1) {
+      return {
+        data: {
+          releasePrice: byTag[0].release_price as number,
+          modelName: byTag[0].model_name as string | null,
+          releaseYear: byTag[0].release_year as number | null,
+        },
+      };
     }
   }
 
-  // 2순위: 브랜드 + 모델명으로 device_models 캐시 조회
-  if (deviceBrand?.trim() && deviceModel?.trim()) {
+  // 2순위: 태그정보가 없을 때만 '브랜드 + 모델명' 부분일치 조회
+  if (!tagInfo?.trim() && deviceBrand?.trim() && deviceModel?.trim()) {
     const { data: byModel } = await adminSupa
       .from("device_models")
-      .select("release_price")
-      .eq("brand", deviceBrand.trim())
-      .eq("model_name", deviceModel.trim())
-      .gt("release_price", 0)
-      .maybeSingle();
+      .select("release_price, tag_info, release_year")
+      .ilike("brand", `%${deviceBrand.trim()}%`)
+      .ilike("model_name", `%${deviceModel.trim()}%`)
+      .gt("release_price", 0);
 
-    if (byModel?.release_price) {
-      return { data: byModel.release_price as number };
+    if (byModel && byModel.length === 1) {
+      return {
+        data: {
+          releasePrice: byModel[0].release_price as number,
+          tagInfo: byModel[0].tag_info as string | null,
+          releaseYear: byModel[0].release_year as number | null,
+        },
+      };
     }
   }
 
@@ -219,7 +237,8 @@ export async function lookupPastEvaluatedValue(
     .limit(1)
     .maybeSingle();
 
-  return { data: data?.evaluated_value ?? null };
+  if (!data?.evaluated_value) return { data: null };
+  return { data: { releasePrice: data.evaluated_value } };
 }
 
 // ----- 수리 진행 시작 + 견적 산출 (TECHNICIAN / EXPERT_REPAIR) -----

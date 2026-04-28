@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition, useCallback, useRef } from "react";
 import { startRepairAction, lookupPastEvaluatedValue, analyzeDeviceLabelAction } from "../actions";
+import type { DeviceModelLookupResult } from "../actions";
 import { DeviceType } from "@/types";
 
 // ─── 타입 ───
@@ -86,7 +87,8 @@ export default function EstimateCard({
     (type: string, brand: string, model: string, tag?: string) => {
       if (lookupTimer.current) clearTimeout(lookupTimer.current);
       const hasTag = !!tag?.trim();
-      const hasBrandModel = !!brand.trim() && !!model.trim();
+      const hasBrand = !!brand.trim();
+      const hasBrandModel = hasBrand && !!model.trim();
       if (!hasTag && (!type || !hasBrandModel)) {
         setAutoFillHint(null);
         return;
@@ -94,14 +96,19 @@ export default function EstimateCard({
       lookupTimer.current = setTimeout(async () => {
         const res = await lookupPastEvaluatedValue(type, brand.trim(), model.trim(), tag?.trim());
         if (res.data != null) {
-          setEvaluatedValue(res.data);
-          setAutoFillHint(`동일 기기 가치 평가: ${res.data.toLocaleString()}원 (자동 입력됨)`);
+          const d: DeviceModelLookupResult = res.data;
+          setEvaluatedValue(d.releasePrice);
+          // 빈 필드만 자동 완성
+          if (d.modelName && !model.trim()) setDeviceModel(d.modelName);
+          if (d.tagInfo && !tag?.trim()) setTagInfo(d.tagInfo);
+          if (d.releaseYear && !releaseYear) setReleaseYear(String(d.releaseYear));
+          setAutoFillHint(`동일 기기 가치 평가: ${d.releasePrice.toLocaleString()}원 (자동 입력됨)`);
         } else {
           setAutoFillHint(null);
         }
       }, 500);
     },
-    []
+    [releaseYear]
   );
 
   // AI 분석 실행 (이미지 또는 텍스트 기반)
