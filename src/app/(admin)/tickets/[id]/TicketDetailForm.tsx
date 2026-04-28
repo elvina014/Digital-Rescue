@@ -37,6 +37,7 @@ interface TicketData {
   symptoms: string;
   initial_estimate: number;
   expected_estimate: number;
+  evaluated_value: number;
   material_cost: number;
   material_cost_details: { description: string; amount: number }[];
   final_price: number;
@@ -639,6 +640,11 @@ export default function TicketDetailForm({
             </div>
           )}
 
+          {ticket.evaluated_value > 0 && (
+            <p className="mb-3 text-sm text-orange-700">
+              기기가치: <span className="font-semibold tabular-nums">{ticket.evaluated_value.toLocaleString()}원</span>
+            </p>
+          )}
           {ticket.initial_estimate > 0 && (
             <p className="mb-3 text-sm text-orange-700">
               시스템 최소 견적: <span className="font-semibold">{ticket.initial_estimate.toLocaleString()}원</span>
@@ -722,6 +728,12 @@ export default function TicketDetailForm({
         <section className="rounded-xl border border-gray-200 bg-white p-5">
           <h2 className="mb-4 text-base font-semibold text-gray-800">견적 정보</h2>
           <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <dt className="text-xs font-medium text-gray-500">기기가치</dt>
+              <dd className="mt-0.5 text-sm tabular-nums text-gray-900">
+                {ticket.evaluated_value > 0 ? `${ticket.evaluated_value.toLocaleString()}원` : "-"}
+              </dd>
+            </div>
             <div>
               <dt className="text-xs font-medium text-gray-500">최소 견적</dt>
               <dd className="mt-0.5 text-sm tabular-nums text-gray-900">
