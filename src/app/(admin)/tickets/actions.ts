@@ -179,14 +179,18 @@ export async function lookupPastEvaluatedValue(
   if (!employee) return { data: null };
 
   const adminSupa = createAdminClient();
+  const brand = deviceBrand?.trim() ?? "";
+  const model = deviceModel?.trim() ?? "";
+  const tag = tagInfo?.trim() ?? "";
 
-  // 1순위: 태그정보가 있으면 '브랜드 + 태그정보' 부분일치 조회
-  if (tagInfo?.trim() && deviceBrand?.trim()) {
+  // ── 1순위: 태그정보가 있으면 '브랜드 + 태그정보' 부분일치 조회
+  if (tag && brand) {
+    // (a) device_models 캐시 부분일치
     const { data: byTag } = await adminSupa
       .from("device_models")
       .select("release_price, model_name, release_year")
-      .ilike("brand", `%${deviceBrand.trim()}%`)
-      .ilike("tag_info", `%${tagInfo.trim()}%`)
+      .ilike("brand", `%${brand}%`)
+      .ilike("tag_info", `%${tag}%`)
       .gt("release_price", 0);
 
     if (byTag && byTag.length === 1) {
@@ -201,16 +205,45 @@ export async function lookupPastEvaluatedValue(
     if (byTag && byTag.length > 1) {
       return { data: null, multipleResults: true };
     }
+
+    // (b) repair_tickets 부분일치 폴백
+    const { data: tixByTag } = await adminSupa
+      .from("repair_tickets")
+      .select("device_model, tag_info, release_year, evaluated_value, created_at")
+      .ilike("device_brand", `%${brand}%`)
+      .ilike("tag_info", `%${tag}%`)
+      .not("evaluated_value", "is", null)
+      .gt("evaluated_value", 0)
+      .order("created_at", { ascending: false });
+
+    if (tixByTag && tixByTag.length > 0) {
+      const uniqueKeys = new Set(
+        tixByTag.map((t) => `${t.device_model ?? ""}|${t.release_year ?? ""}`)
+      );
+      if (uniqueKeys.size === 1) {
+        const t = tixByTag[0];
+        return {
+          data: {
+            releasePrice: Number(t.evaluated_value),
+            modelName: (t.device_model as string | null) ?? null,
+            releaseYear: t.release_year != null ? Number(t.release_year) : null,
+          },
+        };
+      }
+      return { data: null, multipleResults: true };
+    }
+
     return { data: null };
   }
 
-  // 2순위: 태그정보가 없을 때만 '브랜드 + 모델명' 부분일치 조회
-  if (deviceBrand?.trim() && deviceModel?.trim()) {
+  // ── 2순위: 태그정보가 없을 때 '브랜드 + 모델명' 부분일치 조회
+  if (brand && model) {
+    // (a) device_models 캐시 부분일치
     const { data: byModel } = await adminSupa
       .from("device_models")
       .select("release_price, tag_info, release_year")
-      .ilike("brand", `%${deviceBrand.trim()}%`)
-      .ilike("model_name", `%${deviceModel.trim()}%`)
+      .ilike("brand", `%${brand}%`)
+      .ilike("model_name", `%${model}%`)
       .gt("release_price", 0);
 
     if (byModel && byModel.length === 1) {
@@ -225,27 +258,36 @@ export async function lookupPastEvaluatedValue(
     if (byModel && byModel.length > 1) {
       return { data: null, multipleResults: true };
     }
+
+    // (b) repair_tickets 부분일치 폴백
+    const { data: tixByModel } = await adminSupa
+      .from("repair_tickets")
+      .select("device_model, tag_info, release_year, evaluated_value, created_at")
+      .ilike("device_brand", `%${brand}%`)
+      .ilike("device_model", `%${model}%`)
+      .not("evaluated_value", "is", null)
+      .gt("evaluated_value", 0)
+      .order("created_at", { ascending: false });
+
+    if (tixByModel && tixByModel.length > 0) {
+      const uniqueKeys = new Set(
+        tixByModel.map((t) => `${t.device_model ?? ""}|${t.release_year ?? ""}`)
+      );
+      if (uniqueKeys.size === 1) {
+        const t = tixByModel[0];
+        return {
+          data: {
+            releasePrice: Number(t.evaluated_value),
+            tagInfo: (t.tag_info as string | null) ?? null,
+            releaseYear: t.release_year != null ? Number(t.release_year) : null,
+          },
+        };
+      }
+      return { data: null, multipleResults: true };
+    }
   }
 
-  // 3순위: 과거 repair_tickets에서 조회 (캐시 미스 시 폴백)
-  if (!deviceType || !deviceBrand?.trim() || !deviceModel?.trim()) return { data: null };
-
-  const supabase = await createClient();
-
-  const { data } = await supabase
-    .from("repair_tickets")
-    .select("evaluated_value")
-    .eq("device_type", deviceType)
-    .eq("device_brand", deviceBrand)
-    .eq("device_model", deviceModel)
-    .not("evaluated_value", "is", null)
-    .gt("evaluated_value", 0)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!data?.evaluated_value) return { data: null };
-  return { data: { releasePrice: data.evaluated_value } };
+  return { data: null };
 }
 
 // ----- 수리 진행 시작 + 견적 산출 (TECHNICIAN / EXPERT_REPAIR) -----
