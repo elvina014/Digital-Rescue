@@ -762,12 +762,28 @@ export default function TicketDetailForm({
           </dl>
 
           {/* 자재비 상세 목록 (읽기 전용) */}
-          {ticket.material_cost_details.length > 0 && (
+          {(materials.length > 0 || ticket.material_cost_details.length > 0) && (
             <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
               <h3 className="mb-2 text-xs font-semibold text-gray-500">자재비 상세</h3>
               <ul className="divide-y divide-gray-200 text-sm">
+                {materials.map((m) => {
+                  const label = [m.category_name, m.spec_name, m.product_name, m.capacity].filter(Boolean).join(" / ");
+                  const subtotal = m.base_estimate * m.quantity;
+                  return (
+                    <li key={m.id} className="flex items-center justify-between py-1.5">
+                      <span className="text-gray-700">
+                        {label}
+                        {m.quantity > 1 && <span className="ml-1 text-gray-500"> x {m.quantity}</span>}
+                        {m.request_type === "purchase" && (
+                          <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-700">구매</span>
+                        )}
+                      </span>
+                      <span className="tabular-nums font-medium text-gray-900">{subtotal.toLocaleString()}원</span>
+                    </li>
+                  );
+                })}
                 {ticket.material_cost_details.map((item, idx) => (
-                  <li key={idx} className="flex items-center justify-between py-1.5">
+                  <li key={`manual-${idx}`} className="flex items-center justify-between py-1.5">
                     <span className="text-gray-700">{item.description}</span>
                     <span className="tabular-nums font-medium text-gray-900">{item.amount.toLocaleString()}원</span>
                   </li>
@@ -779,9 +795,36 @@ export default function TicketDetailForm({
       )}
 
       {/* 최종 승인 버튼 (MANAGER / ADMIN) */}
-      {canApprove && (
+      {canApprove && (() => {
+        const physicalMaterials = materials.filter(
+          (m) =>
+            m.category_name !== "소프트웨어" &&
+            (m.request_status === "approved" || m.request_status === "cancel_requested" || m.request_status === "cancelled")
+        );
+        const hasMaterials = physicalMaterials.length > 0;
+        const allReturnsRegistered = hasMaterials && physicalMaterials.every((m) => m.is_return_registered);
+        const hasUnregisteredReturns = hasMaterials && physicalMaterials.some((m) => !m.is_return_registered);
+
+        return (
         <section className="rounded-xl border border-blue-200 bg-blue-50 p-5">
           <h2 className="mb-3 text-base font-semibold text-blue-900">센터 최종 승인</h2>
+
+          {/* 적출품 입고 상태 알림 */}
+          {hasMaterials && (
+            hasUnregisteredReturns ? (
+              <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3">
+                <p className="text-sm font-bold text-red-700">🔴 주의: 적출품이 등록되지 않았습니다.</p>
+                <p className="mt-1 text-xs text-red-600">
+                  출고된 실물 자재 중 적출품이 아직 등록되지 않은 항목이 있습니다. 승인 전 확인해 주세요.
+                </p>
+              </div>
+            ) : allReturnsRegistered ? (
+              <div className="mb-4 rounded-lg border border-green-300 bg-green-50 p-3">
+                <p className="text-sm font-bold text-green-700">🟢 적출품 입고(등록) 완료</p>
+              </div>
+            ) : null
+          )}
+
           <p className="mb-4 text-sm text-blue-700">
             최종 견적 <span className="font-semibold">{ticket.final_price.toLocaleString()}원</span>을 승인하시겠습니까?
             승인 후에는 ADMIN 외 수정이 불가합니다.
@@ -797,7 +840,8 @@ export default function TicketDetailForm({
             </button>
           </form>
         </section>
-      )}
+        );
+      })()}
 
       {/* 작업 메모 입력 */}
       <section className="rounded-xl border border-gray-200 bg-white p-5">
