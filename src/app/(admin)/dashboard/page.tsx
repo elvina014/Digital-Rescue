@@ -11,6 +11,7 @@ import {
   ClipboardList,
   PlusCircle,
   Wrench,
+  Timer,
   Clock,
   CheckCircle2,
   Banknote,
@@ -156,6 +157,15 @@ export default async function DashboardPage() {
         ? `/tickets?status=ASSIGNED&assignee=${employee.id}`
         : "/tickets?status=NEW",
     },
+    ...(!isTech ? [{
+      label: "수리 대기 중",
+      value: stats.statusCounts["ASSIGNED"] ?? 0,
+      icon: Timer,
+      bg: "bg-purple-50",
+      iconColor: "text-purple-600",
+      textColor: "text-purple-900",
+      href: "/tickets?status=ASSIGNED",
+    }] : []),
     {
       label: isTech ? "내 수리 진행" : "수리 진행 중",
       value: isTech ? stats.myInProgressCount : (stats.statusCounts["IN_PROGRESS"] ?? 0),
@@ -234,15 +244,17 @@ export default async function DashboardPage() {
       </div>
 
       {/* 접수건 통계 카드 */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+      <div className={`grid gap-4 sm:grid-cols-2 ${isTech ? "lg:grid-cols-6" : "lg:grid-cols-7"}`}>
         {summaryCards.map((card) => {
           const Icon = card.icon;
-          return (
-            <Link
-              key={card.label}
-              href={card.href}
-              className={`flex items-center gap-4 rounded-xl border border-gray-200 p-4 shadow-sm transition-shadow hover:shadow-md ${card.bg}`}
-            >
+          const isDisabled = card.value === 0;
+          const baseClass = `flex items-center gap-4 rounded-xl border border-gray-200 p-4 shadow-sm ${card.bg}`;
+          const className = isDisabled
+            ? `${baseClass} cursor-default opacity-60`
+            : `${baseClass} cursor-pointer transition-shadow hover:shadow-md`;
+
+          const inner = (
+            <>
               <div className={`rounded-lg p-2.5 ${card.bg}`}>
                 <Icon className={`h-6 w-6 ${card.iconColor}`} />
               </div>
@@ -255,7 +267,13 @@ export default async function DashboardPage() {
                   <p className="text-xs text-gray-400">{card.sub}</p>
                 )}
               </div>
-            </Link>
+            </>
+          );
+
+          return isDisabled ? (
+            <div key={card.label} className={className}>{inner}</div>
+          ) : (
+            <Link key={card.label} href={card.href} className={className}>{inner}</Link>
           );
         })}
       </div>
