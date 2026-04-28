@@ -558,11 +558,6 @@ export default function EstimateCard({
             </dd>
           </div>
         </dl>
-        <p className="mt-2 text-xs text-blue-600">
-          서비스비용 = 기본서비스비용({globalSettings.base_service_cost.toLocaleString()}) ×
-          (기기가치 ÷ 기준금액({globalSettings.value_reference_amount.toLocaleString()})) ×
-          (할인할증률({globalSettings.discount_surcharge_rate}%) ÷ 100)
-        </p>
       </div>
 
       {/* ─── 확정 예상 견적 ─── */}
