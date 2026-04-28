@@ -174,7 +174,7 @@ export async function lookupPastEvaluatedValue(
   deviceBrand: string,
   deviceModel: string,
   tagInfo?: string
-): Promise<{ data: DeviceModelLookupResult | null }> {
+): Promise<{ data: DeviceModelLookupResult | null; multipleResults?: boolean }> {
   const employee = await getCurrentEmployee();
   if (!employee) return { data: null };
 
@@ -198,10 +198,14 @@ export async function lookupPastEvaluatedValue(
         },
       };
     }
+    if (byTag && byTag.length > 1) {
+      return { data: null, multipleResults: true };
+    }
+    return { data: null };
   }
 
   // 2순위: 태그정보가 없을 때만 '브랜드 + 모델명' 부분일치 조회
-  if (!tagInfo?.trim() && deviceBrand?.trim() && deviceModel?.trim()) {
+  if (deviceBrand?.trim() && deviceModel?.trim()) {
     const { data: byModel } = await adminSupa
       .from("device_models")
       .select("release_price, tag_info, release_year")
@@ -217,6 +221,9 @@ export async function lookupPastEvaluatedValue(
           releaseYear: byModel[0].release_year as number | null,
         },
       };
+    }
+    if (byModel && byModel.length > 1) {
+      return { data: null, multipleResults: true };
     }
   }
 

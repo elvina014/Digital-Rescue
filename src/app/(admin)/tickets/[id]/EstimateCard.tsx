@@ -103,6 +103,8 @@ export default function EstimateCard({
           if (d.tagInfo && !tag?.trim()) setTagInfo(d.tagInfo);
           if (d.releaseYear && !releaseYear) setReleaseYear(String(d.releaseYear));
           setAutoFillHint(`동일 기기 가치 평가: ${d.releasePrice.toLocaleString()}원 (자동 입력됨)`);
+        } else if (res.multipleResults) {
+          setAutoFillHint("기기 검색 결과 두 개 이상: 기기 정보를 추가 입력해주세요.");
         } else {
           setAutoFillHint(null);
         }
