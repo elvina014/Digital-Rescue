@@ -28,7 +28,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       id, status, receipt_type, device_brand, device_model, tag_info, release_year,
       symptoms, initial_estimate, expected_estimate, material_cost,
       material_cost_details, final_price, is_approved, has_admin_message, images,
-      payment_status, payment_method, created_at, updated_at,
+      payment_status, payment_method, cancel_device_disposal, created_at, updated_at,
       customers ( name, phone, address ),
       employees:assignee_id ( id, name )
     `
@@ -171,6 +171,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     images: ((ticket.images ?? []) as { path: string; url: string; description?: string; uploaded_by?: string; uploader_name?: string; uploaded_at?: string; is_customer?: boolean }[]),
     payment_status: ticket.payment_status,
     payment_method: ticket.payment_method ?? null,
+    cancel_device_disposal: (ticket as Record<string, unknown>).cancel_device_disposal as string | null ?? null,
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
     customer: ticket.customers as unknown as {

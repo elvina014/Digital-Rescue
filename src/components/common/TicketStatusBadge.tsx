@@ -1,6 +1,5 @@
 import type { TicketStatus } from "@/types";
 
-/** 상태별 뱃지 스타일 및 한글 레이블 */
 const STATUS_CONFIG: Record<
   TicketStatus,
   { label: string; className: string }
@@ -31,21 +30,32 @@ const STATUS_CONFIG: Record<
   },
 };
 
+const DISPOSAL_LABEL: Record<string, string> = {
+  RETURN: "취소 - 기기 반환",
+  DISPOSE: "취소 - 기기 폐기",
+};
+
 interface TicketStatusBadgeProps {
   status: TicketStatus;
+  cancelDisposal?: string | null;
 }
 
-export function TicketStatusBadge({ status }: TicketStatusBadgeProps) {
+export function TicketStatusBadge({ status, cancelDisposal }: TicketStatusBadgeProps) {
   const config = STATUS_CONFIG[status] ?? {
     label: status,
     className: "bg-gray-100 text-gray-600",
   };
 
+  const label =
+    status === "CANCELED" && cancelDisposal
+      ? (DISPOSAL_LABEL[cancelDisposal] ?? config.label)
+      : config.label;
+
   return (
     <span
       className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${config.className}`}
     >
-      {config.label}
+      {label}
     </span>
   );
 }

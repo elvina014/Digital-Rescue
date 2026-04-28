@@ -2,11 +2,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentEmployee } from "@/lib/auth";
 import { getDashboardStats, getRecentLogs } from "@/app/actions/dashboardActions";
-import { getPendingMaterialRequests, getCancelRequestedMaterials, getPendingReturnMaterials } from "@/app/(admin)/tickets/actions";
+import { getPendingMaterialRequests, getCancelRequestedMaterials, getPendingReturnMaterials, getDisposalPendingTickets } from "@/app/(admin)/tickets/actions";
 import type { EmployeeRole } from "@/types";
 import MaterialDispatchWidget from "@/components/common/MaterialDispatchWidget";
 import MaterialReturnWidget from "@/components/common/MaterialReturnWidget";
 import ReturnMaterialInboundWidget from "@/components/common/ReturnMaterialInboundWidget";
+import DisposalConfirmWidget from "@/components/common/DisposalConfirmWidget";
 import {
   ClipboardList,
   PlusCircle,
@@ -59,10 +60,10 @@ export default async function DashboardPage() {
 
   const isAdminManager = employee.role === "ADMIN" || employee.role === "MANAGER";
 
-  // ADMIN/MANAGER: 자재 출고 요청 목록 + 반환 대기 목록 조회
-  const [materialRequests, returnRequests, inboundReturnRequests] = isAdminManager
-    ? await Promise.all([getPendingMaterialRequests(), getCancelRequestedMaterials(), getPendingReturnMaterials()])
-    : [{ data: [] }, { data: [] }, { data: [] }];
+  // ADMIN/MANAGER: 자재 출고 요청 목록 + 반환 대기 목록 + 폐기 확인 대기 조회
+  const [materialRequests, returnRequests, inboundReturnRequests, disposalPendingResult] = isAdminManager
+    ? await Promise.all([getPendingMaterialRequests(), getCancelRequestedMaterials(), getPendingReturnMaterials(), getDisposalPendingTickets()])
+    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
 
   const materialWidgetData = (materialRequests.data ?? []).map((r: Record<string, unknown>) => {
     const inv = r.inventory_items as Record<string, unknown> | null;
@@ -124,6 +125,21 @@ export default async function DashboardPage() {
       return_quantity: (r.return_quantity as number | null) ?? 1,
       return_capacity: (r.return_capacity as string | null) ?? null,
       technician_name: ((ticket?.employees as Record<string, string> | null)?.name) ?? "미배정",
+    };
+  });
+
+  const disposalWidgetData = (disposalPendingResult.data ?? []).map((t: Record<string, unknown>) => {
+    const customer = t.customers as Record<string, string> | null;
+    const assignee = t.employees as Record<string, string> | null;
+    return {
+      id: t.id as string,
+      device_brand: (t.device_brand as string) ?? "",
+      device_model: (t.device_model as string | null) ?? null,
+      tag_info: (t.tag_info as string | null) ?? null,
+      customer_name: customer?.name ?? "고객",
+      customer_phone: customer?.phone ?? "",
+      assignee_name: assignee?.name ?? "미배정",
+      created_at: t.created_at as string,
     };
   });
 
@@ -311,6 +327,9 @@ export default async function DashboardPage() {
 
       {/* 적출/반환 자재 입고 대기 위젯 (ADMIN/MANAGER 전용) */}
       {isAdminManager && <ReturnMaterialInboundWidget items={inboundReturnWidgetData} />}
+
+      {/* 폐기 기기 확인 대기 위젯 (ADMIN/MANAGER 전용) */}
+      {isAdminManager && <DisposalConfirmWidget tickets={disposalWidgetData} />}
 
       {/* 매출/수익 + 접수 방식 */}
       <div className="grid gap-4 lg:grid-cols-3">

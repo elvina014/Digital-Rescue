@@ -45,6 +45,7 @@ interface TicketData {
   images: TicketImage[];
   payment_status: string;
   payment_method: string | null;
+  cancel_device_disposal: string | null;
   created_at: string;
   updated_at: string;
   customer: { name: string; phone: string; address: string | null } | null;
@@ -142,6 +143,8 @@ export default function TicketDetailForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [materials, setMaterials] = useState(initialMaterials);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [deviceDisposal, setDeviceDisposal] = useState<"RETURN" | "DISPOSE" | "">("");
 
   // 서버 데이터 재검증 시 props 변경을 동기화
   useEffect(() => {
@@ -263,7 +266,7 @@ export default function TicketDetailForm({
           </div>
           <div>
             <dt className="text-xs font-medium text-gray-500">상태</dt>
-            <dd className="mt-0.5"><TicketStatusBadge status={ticket.status} /></dd>
+            <dd className="mt-0.5"><TicketStatusBadge status={ticket.status} cancelDisposal={ticket.cancel_device_disposal} /></dd>
           </div>
           <div>
             <dt className="text-xs font-medium text-gray-500">접수일</dt>
@@ -894,20 +897,93 @@ export default function TicketDetailForm({
             type="button"
             disabled={isPending}
             onClick={() => {
-              const msg =
-                ticket.status === "IN_PROGRESS"
-                  ? "주의: 진행 중인 건의 취소입니다. 사용된 자재 및 경비에 주의해주세요. 취소 하시겠습니까?"
-                  : "정말 이 접수건을 취소하시겠습니까?";
-              if (!confirm(msg)) return;
-              const fd = new FormData();
-              fd.set("ticketId", ticket.id);
-              handleAction(cancelTicketAction, fd);
+              setDeviceDisposal("");
+              setShowCancelModal(true);
             }}
             className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50"
           >
             접수 취소
           </button>
         </section>
+      )}
+
+      {/* 접수 취소 모달 */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-1 text-base font-bold text-gray-900">접수 취소</h3>
+            {ticket.status === "IN_PROGRESS" && (
+              <p className="mb-4 rounded-lg bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+                주의: 진행 중인 건입니다. 사용된 자재 및 경비에 주의해주세요.
+              </p>
+            )}
+            <p className="mb-5 text-sm text-gray-600">정말 이 접수건을 취소하시겠습니까?</p>
+
+            <fieldset className="mb-5">
+              <legend className="mb-2 text-sm font-semibold text-gray-800">
+                의뢰 기기 처리방법 <span className="text-red-500">*</span>
+              </legend>
+              <div className="space-y-2">
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 hover:bg-gray-50 has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50">
+                  <input
+                    type="radio"
+                    name="deviceDisposal"
+                    value="RETURN"
+                    checked={deviceDisposal === "RETURN"}
+                    onChange={() => setDeviceDisposal("RETURN")}
+                    className="h-4 w-4 text-blue-600"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">반환요청</p>
+                    <p className="text-xs text-gray-500">고객에게 기기를 반환합니다.</p>
+                  </div>
+                </label>
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 hover:bg-gray-50 has-[:checked]:border-red-400 has-[:checked]:bg-red-50">
+                  <input
+                    type="radio"
+                    name="deviceDisposal"
+                    value="DISPOSE"
+                    checked={deviceDisposal === "DISPOSE"}
+                    onChange={() => setDeviceDisposal("DISPOSE")}
+                    className="h-4 w-4 text-red-600"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">폐기요청</p>
+                    <p className="text-xs text-gray-500">기기를 폐기 처리합니다. 관리자 확인이 필요합니다.</p>
+                  </div>
+                </label>
+              </div>
+              {!deviceDisposal && (
+                <p className="mt-2 text-xs text-red-500">처리방법을 선택해야 취소를 진행할 수 있습니다.</p>
+              )}
+            </fieldset>
+
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(false)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                닫기
+              </button>
+              <button
+                type="button"
+                disabled={!deviceDisposal || isPending}
+                onClick={() => {
+                  if (!deviceDisposal) return;
+                  setShowCancelModal(false);
+                  const fd = new FormData();
+                  fd.set("ticketId", ticket.id);
+                  fd.set("deviceDisposal", deviceDisposal);
+                  handleAction(cancelTicketAction, fd);
+                }}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                확인 (취소 실행)
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 작업 로그 타임라인 */}

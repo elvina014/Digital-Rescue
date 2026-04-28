@@ -764,6 +764,11 @@ export async function cancelTicketAction(formData: FormData) {
   const ticketId = formData.get("ticketId") as string;
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
 
+  const deviceDisposal = formData.get("deviceDisposal") as string | null;
+  if (!deviceDisposal || !["RETURN", "DISPOSE"].includes(deviceDisposal)) {
+    return { error: "의뢰 기기 처리방법을 선택해주세요." };
+  }
+
   const supabase = await createClient();
 
   const { data: ticket } = await supabase
@@ -787,9 +792,14 @@ export async function cancelTicketAction(formData: FormData) {
     return { error: "승인 완료된 접수건은 관리자만 취소할 수 있습니다." };
   }
 
+  const disposalLabel = deviceDisposal === "DISPOSE" ? "기기 폐기" : "기기 반환";
+
   const { error } = await supabase
     .from("repair_tickets")
-    .update({ status: "CANCELED" })
+    .update({
+      status: "CANCELED",
+      cancel_device_disposal: deviceDisposal,
+    })
     .eq("id", ticketId);
 
   if (error) {
@@ -800,7 +810,7 @@ export async function cancelTicketAction(formData: FormData) {
   await supabase.from("ticket_logs").insert({
     ticket_id: ticketId,
     employee_id: employee.id,
-    message: "시스템: 접수가 취소되었습니다.",
+    message: `시스템: 접수가 취소되었습니다. (처리방법: ${disposalLabel})`,
   });
 
   // 승인 완료된 자재가 있으면 cancel_requested로 일괄 전환 (관리자 반환 확인 대기)
@@ -1311,7 +1321,7 @@ export async function confirmMaterialReturnAction(materialId: string) {
 
   if (updateError) return { error: "반환 처리 실패: " + updateError.message };
 
-  // 3) dispatch 타입이면 재고 복구
+  // 3) dispatch 타입이면 재고 복구 + 입출고 로그 생성
   if (mat.request_type === "dispatch") {
     const { data: invItem } = await adminSupa
       .from("inventory_items")
@@ -1336,6 +1346,16 @@ export async function confirmMaterialReturnAction(materialId: string) {
           .eq("id", materialId);
         return { error: "재고 복구 실패: " + invError.message };
       }
+
+      // 입출고 기록 생성 (접수 취소로 인한 자재 원복)
+      await adminSupa.from("inventory_transactions").insert({
+        item_id: mat.inventory_item_id,
+        user_id: employee.id,
+        transaction_type: "INBOUND",
+        quantity_changed: mat.quantity,
+        ticket_id: mat.ticket_id,
+        notes: "접수 취소로 인한 자재 원복",
+      });
     }
   }
 
@@ -1747,4 +1767,63 @@ export async function analyzeDeviceLabelAction(payload: {
   }
 
   return { data: result };
+}
+
+/**
+ * 폐기 확인 대기 티켓 목록 조회 (ADMIN/MANAGER 전용)
+ * 취소 처리방법이 DISPOSE이고 아직 관리자 확인이 완료되지 않은 티켓
+ */
+export async function getDisposalPendingTickets() {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { data: [] };
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return { data: [] };
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("repair_tickets")
+    .select(`
+      id, device_brand, device_model, tag_info, cancel_device_disposal, created_at,
+      customers ( name, phone ),
+      employees:assignee_id ( name )
+    `)
+    .eq("status", "CANCELED")
+    .eq("cancel_device_disposal", "DISPOSE")
+    .is("dispose_confirmed_at", null)
+    .order("created_at", { ascending: false });
+
+  return { data: data ?? [] };
+}
+
+/**
+ * 폐기 기기 확인 완료 처리 (ADMIN/MANAGER 전용)
+ */
+export async function confirmDisposalAction(ticketId: string) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return { error: "폐기 확인 권한이 없습니다." };
+  }
+
+  const adminSupa = createAdminClient();
+
+  const { error } = await adminSupa
+    .from("repair_tickets")
+    .update({ dispose_confirmed_at: new Date().toISOString() })
+    .eq("id", ticketId)
+    .eq("cancel_device_disposal", "DISPOSE")
+    .is("dispose_confirmed_at", null);
+
+  if (error) return { error: "폐기 확인 처리 실패: " + error.message };
+
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: ticketId,
+    employee_id: employee.id,
+    message: "시스템: 폐기 기기 실물 확인이 완료되었습니다.",
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/tickets/${ticketId}`);
+  return { success: true };
 }
