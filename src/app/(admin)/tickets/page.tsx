@@ -80,8 +80,11 @@ export default async function TicketsPage({
     query = query.eq("status", statusFilter);
   }
 
-  // COMPLETED 상태의 날짜 필터는 completed_at 기준, 나머지는 created_at 기준
-  const dateColumn = statusFilter === "COMPLETED" ? "completed_at" : "created_at";
+  // 상태별 날짜 필터 기준 컬럼
+  // COMPLETED → completed_at, CANCELED → canceled_at, 나머지 → created_at
+  const dateColumn =
+    statusFilter === "COMPLETED" ? "completed_at" :
+    statusFilter === "CANCELED"  ? "canceled_at"  : "created_at";
   if (startDate) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     query = (query as any).gte(dateColumn, `${startDate}T00:00:00`);

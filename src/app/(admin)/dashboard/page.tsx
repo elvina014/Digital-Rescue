@@ -212,14 +212,14 @@ export default async function DashboardPage() {
       href: `/tickets?status=COMPLETED&startDate=${monthStart}&endDate=${monthEnd}`,
     },
     {
-      label: "접수 취소",
-      value: stats.canceledCount,
+      label: "이달 취소",
+      value: stats.thisMonthCanceledCount,
       icon: XCircle,
       bg: "bg-red-50",
       iconColor: "text-red-600",
       textColor: "text-red-900",
-      href: "/tickets?status=CANCELED",
-      sub: `취소율 ${stats.cancelRate}%`,
+      href: `/tickets?status=CANCELED&startDate=${monthStart}&endDate=${monthEnd}`,
+      sub: `전체 취소율 ${stats.cancelRate}%`,
     },
   ];
 
