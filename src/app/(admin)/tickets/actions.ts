@@ -610,9 +610,14 @@ export async function updateTicketStatusAction(formData: FormData) {
     return { error: "승인 완료된 접수건은 수정할 수 없습니다." };
   }
 
+  const now = new Date().toISOString();
+  const updatePayload: Record<string, unknown> = { status: newStatus };
+  if (newStatus === "COMPLETED") updatePayload.completed_at = now;
+  if (newStatus === "CANCELED")  updatePayload.canceled_at  = now;
+
   const { error } = await supabase
     .from("repair_tickets")
-    .update({ status: newStatus })
+    .update(updatePayload)
     .eq("id", ticketId);
 
   if (error) {
@@ -657,7 +662,7 @@ export async function approveTicketAction(formData: FormData) {
 
   const { error } = await supabase
     .from("repair_tickets")
-    .update({ is_approved: true, status: "COMPLETED" })
+    .update({ is_approved: true, status: "COMPLETED", completed_at: new Date().toISOString() })
     .eq("id", ticketId);
 
   if (error) {
@@ -799,6 +804,7 @@ export async function cancelTicketAction(formData: FormData) {
     .update({
       status: "CANCELED",
       cancel_device_disposal: deviceDisposal,
+      canceled_at: new Date().toISOString(),
     })
     .eq("id", ticketId);
 

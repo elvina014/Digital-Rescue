@@ -7,6 +7,8 @@ import {
   getTechnicianPerformance,
   getBrandBreakdown,
   getStatusBreakdown,
+  getReceiptTypeBreakdown,
+  getCancelStats,
 } from "@/app/actions/statisticsActions";
 import { StatisticsClient } from "./StatisticsClient";
 
@@ -17,7 +19,7 @@ export default async function StatisticsPage() {
     redirect("/dashboard");
   }
 
-  const [annualRevenue, dailyRevenue, techRevenue, techPerformance, brandBreakdown, statusBreakdown] =
+  const [annualRevenue, dailyRevenue, techRevenue, techPerformance, brandBreakdown, statusBreakdown, receiptTypeBreakdown, cancelStats] =
     await Promise.all([
       getAnnualRevenue(),
       getMonthlyDailyRevenue(),
@@ -25,6 +27,8 @@ export default async function StatisticsPage() {
       getTechnicianPerformance(),
       getBrandBreakdown(),
       getStatusBreakdown(),
+      getReceiptTypeBreakdown(),
+      getCancelStats(),
     ]);
 
   const now = new Date();
@@ -47,6 +51,8 @@ export default async function StatisticsPage() {
         techPerformance={techPerformance}
         brandBreakdown={brandBreakdown}
         statusBreakdown={statusBreakdown}
+        receiptTypeBreakdown={receiptTypeBreakdown}
+        cancelStats={cancelStats}
         currentYear={currentYear}
         currentMonth={currentMonth}
       />

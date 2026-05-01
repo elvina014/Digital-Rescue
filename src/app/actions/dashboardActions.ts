@@ -2,10 +2,14 @@ import { createClient } from "@/utils/supabase/server";
 
 export interface DashboardStats {
   totalTickets: number;
+  /** 당월 접수 건수 (created_at 기준) */
+  thisMonthTicketCount: number;
   statusCounts: Record<string, number>;
   receiptTypeCounts: Record<string, number>;
   monthlyRevenue: number;
   monthlyProfit: number;
+  /** 당월 완료 건수 (completed_at 기준) */
+  thisMonthCompletedCount: number;
   /** TECHNICIAN/EXPERT_REPAIR 전용: 본인 배정 ASSIGNED 건수 */
   myNewCount: number;
   /** TECHNICIAN/EXPERT_REPAIR 전용: 본인 배정 IN_PROGRESS 건수 */
@@ -30,7 +34,8 @@ export interface RecentLog {
 
 /**
  * 대시보드 통계 데이터 집계
- * TECHNICIAN/EXPERT_REPAIR인 경우 본인 배정 건수를 별도 집계
+ * - 완료 기준: completed_at (실제 완료 처리 날짜)
+ * - 당월 접수건: created_at 기준 이번 달 접수
  */
 export async function getDashboardStats(
   employeeId?: string,
@@ -38,10 +43,12 @@ export async function getDashboardStats(
 ): Promise<DashboardStats> {
   const supabase = await createClient();
 
-  // 전체 티켓 조회 (status, receipt_type, final_price, material_cost)
   const { data: tickets } = await supabase
     .from("repair_tickets")
-    .select("status, receipt_type, final_price, material_cost, created_at, assignee_id, has_admin_message, id");
+    .select(
+      "status, receipt_type, final_price, material_cost, created_at, " +
+      "completed_at, canceled_at, assignee_id, has_admin_message, id"
+    );
 
   const all = tickets ?? [];
 
@@ -60,27 +67,40 @@ export async function getDashboardStats(
     receiptTypeCounts[t.receipt_type] = (receiptTypeCounts[t.receipt_type] ?? 0) + 1;
   }
 
-  // 4) 이번 달 기준
+  // 이번 달 범위
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
 
+  // 4) 당월 접수건 (created_at 기준)
+  const thisMonthTicketCount = all.filter(
+    (t) => t.created_at >= monthStart && t.created_at < monthEnd
+  ).length;
+
+  // 5) 당월 완료건 (completed_at 기준)
   const completedThisMonth = all.filter(
-    (t) => t.status === "COMPLETED" && t.created_at >= monthStart
+    (t) =>
+      t.status === "COMPLETED" &&
+      t.completed_at &&
+      t.completed_at >= monthStart &&
+      t.completed_at < monthEnd
   );
+  const thisMonthCompletedCount = completedThisMonth.length;
 
-  // 이번 달 예상 매출: COMPLETED 티켓의 final_price 합계
+  // 6) 이번 달 예상 매출: 당월 완료건의 final_price 합계
   const monthlyRevenue = completedThisMonth.reduce(
-    (sum, t) => sum + (t.final_price ?? 0),
+    (sum, t) => sum + ((t.final_price as number | null) ?? 0),
     0
   );
 
-  // 5) 이번 달 예상 수익: (final_price - material_cost) 합계
+  // 7) 이번 달 예상 수익: (final_price - material_cost) 합계
   const monthlyProfit = completedThisMonth.reduce(
-    (sum, t) => sum + ((t.final_price ?? 0) - (t.material_cost ?? 0)),
+    (sum, t) =>
+      sum + (((t.final_price as number | null) ?? 0) - ((t.material_cost as number | null) ?? 0)),
     0
   );
 
-  // 6) TECHNICIAN/EXPERT_REPAIR 전용: 본인 배정 건수
+  // 8) TECHNICIAN/EXPERT_REPAIR 전용
   const isTech = role === "TECHNICIAN" || role === "EXPERT_REPAIR";
   const myNewCount = isTech && employeeId
     ? all.filter((t) => t.status === "ASSIGNED" && t.assignee_id === employeeId).length
@@ -89,20 +109,19 @@ export async function getDashboardStats(
     ? all.filter((t) => t.status === "IN_PROGRESS" && t.assignee_id === employeeId).length
     : 0;
 
-  // 7) TECHNICIAN/EXPERT_REPAIR 전용: 관리자 메시지가 있는 본인 배정 티켓 ID
+  // 9) TECHNICIAN/EXPERT_REPAIR: 관리자 메시지 티켓 ID
   const adminMessageTicketIds = isTech && employeeId
     ? all
         .filter((t) => t.has_admin_message === true && t.assignee_id === employeeId)
         .map((t) => t.id as string)
     : [];
 
-  // 8) 취소 통계
+  // 10) 취소 통계 (전체)
   const canceledCount = statusCounts["CANCELED"] ?? 0;
-  const cancelRate = totalTickets > 0
-    ? Math.round((canceledCount / totalTickets) * 1000) / 10
-    : 0;
+  const cancelRate =
+    totalTickets > 0 ? Math.round((canceledCount / totalTickets) * 1000) / 10 : 0;
 
-  // 9) ADMIN/MANAGER 전용: 자재 출고 요청 대기 건수
+  // 11) ADMIN/MANAGER: 자재 출고 요청 대기
   let materialRequestCount = 0;
   const isAdminManager = role === "ADMIN" || role === "MANAGER";
   if (isAdminManager) {
@@ -115,10 +134,12 @@ export async function getDashboardStats(
 
   return {
     totalTickets,
+    thisMonthTicketCount,
     statusCounts,
     receiptTypeCounts,
     monthlyRevenue,
     monthlyProfit,
+    thisMonthCompletedCount,
     myNewCount,
     myInProgressCount,
     adminMessageTicketIds,
@@ -130,8 +151,6 @@ export async function getDashboardStats(
 
 /**
  * 최근 활동 로그 10건 조회
- * ADMIN/MANAGER: 전체 로그
- * 기타 직급: 본인이 작성했거나 본인에게 배정된 티켓의 로그만 조회
  */
 export async function getRecentLogs(
   employeeId?: string,
@@ -142,7 +161,6 @@ export async function getRecentLogs(
   const isAdmin = role === "ADMIN" || role === "MANAGER";
 
   if (isAdmin || !employeeId) {
-    // 관리자/팀장: 전체 로그
     const { data: logs } = await supabase
       .from("ticket_logs")
       .select("id, message, created_at, ticket_id, employees:employee_id ( name )")
@@ -152,16 +170,13 @@ export async function getRecentLogs(
     return mapLogs(logs);
   }
 
-  // 일반 직원: 본인 작성 로그 + 본인 배정 티켓 로그
   const [{ data: myLogs }, { data: assignedLogs }] = await Promise.all([
-    // 내가 작성한 로그
     supabase
       .from("ticket_logs")
       .select("id, message, created_at, ticket_id, employees:employee_id ( name )")
       .eq("employee_id", employeeId)
       .order("created_at", { ascending: false })
       .limit(10),
-    // 나에게 배정된 티켓의 로그 (다른 사람이 작성한 것)
     supabase
       .from("ticket_logs")
       .select(
@@ -173,7 +188,6 @@ export async function getRecentLogs(
       .limit(10),
   ]);
 
-  // 병합 후 최신순 정렬, 10건 제한
   return [...mapLogs(myLogs), ...mapLogs(assignedLogs)]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 10);

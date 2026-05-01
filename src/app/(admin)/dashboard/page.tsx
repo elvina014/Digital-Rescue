@@ -154,13 +154,13 @@ export default async function DashboardPage() {
 
   const summaryCards = [
     {
-      label: "전체 접수건",
-      value: stats.totalTickets,
+      label: "당월 접수건",
+      value: stats.thisMonthTicketCount,
       icon: ClipboardList,
       bg: "bg-blue-50",
       iconColor: "text-blue-600",
       textColor: "text-blue-900",
-      href: "/tickets",
+      href: `/tickets?startDate=${monthStart}&endDate=${monthEnd}`,
     },
     {
       label: isTech ? "배정된 신규" : "신규 접수",
@@ -204,7 +204,7 @@ export default async function DashboardPage() {
     },
     {
       label: "이달 완료",
-      value: stats.statusCounts["COMPLETED"] ?? 0,
+      value: stats.thisMonthCompletedCount,
       icon: CheckCircle2,
       bg: "bg-green-50",
       iconColor: "text-green-600",

@@ -22,6 +22,8 @@ import type {
   TechnicianPerformanceData,
   BrandBreakdownData,
   StatusBreakdownData,
+  ReceiptTypeBreakdownData,
+  CancelStatsData,
 } from "@/app/actions/statisticsActions";
 
 interface Props {
@@ -31,6 +33,8 @@ interface Props {
   techPerformance: TechnicianPerformanceData[];
   brandBreakdown: BrandBreakdownData[];
   statusBreakdown: StatusBreakdownData[];
+  receiptTypeBreakdown: ReceiptTypeBreakdownData[];
+  cancelStats: CancelStatsData;
   currentYear: number;
   currentMonth: number;
 }
@@ -57,6 +61,8 @@ export function StatisticsClient({
   techPerformance,
   brandBreakdown,
   statusBreakdown,
+  receiptTypeBreakdown,
+  cancelStats,
   currentYear,
   currentMonth,
 }: Props) {
@@ -227,7 +233,138 @@ export function StatisticsClient({
         )}
       </div>
 
-      {/* 섹션 4: 운영 인사이트 */}
+      {/* 섹션 4: 접수 방식별 비율 + 취소율 */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* 접수 방식별 비율 */}
+        <div className="rounded-xl border bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-base font-semibold text-gray-900">접수 방식별 비율</h2>
+          <p className="mb-4 text-xs text-gray-400">전체 접수 기준</p>
+          {receiptTypeBreakdown.length === 0 ? (
+            <EmptyChart />
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie
+                  data={receiptTypeBreakdown}
+                  dataKey="count"
+                  nameKey="label"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={90}
+                  label={(props) => {
+                    const p = props as { name?: string; percent?: number };
+                    return `${p.name ?? ""} ${((p.percent ?? 0) * 100).toFixed(0)}%`;
+                  }}
+                  labelLine={true}
+                >
+                  {receiptTypeBreakdown.map((_, index) => (
+                    <Cell
+                      key={`receipt-${index}`}
+                      fill={["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"][index % 4]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: unknown) => [`${Number(value ?? 0)}건`, "건수"] as never} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* 취소율 요약 */}
+        <div className="rounded-xl border bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-base font-semibold text-gray-900">취소율 분석</h2>
+          <p className="mb-4 text-xs text-gray-400">전체 대비 / 당월 접수 대비</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="rounded-lg bg-gray-50 p-4 text-center">
+              <p className="text-xs text-gray-500">전체 취소율</p>
+              <p className="mt-1 text-3xl font-bold text-red-500">{cancelStats.totalRate}%</p>
+              <p className="mt-1 text-xs text-gray-400">
+                취소 {cancelStats.totalCanceled.toLocaleString()}건
+              </p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-4 text-center">
+              <p className="text-xs text-gray-500">당월 취소율</p>
+              <p className="mt-1 text-3xl font-bold text-orange-500">{cancelStats.monthlyRate}%</p>
+              <p className="mt-1 text-xs text-gray-400">
+                취소 {cancelStats.monthlyCanceled.toLocaleString()}건
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 섹션 5: 담당기사별 취소율 */}
+      <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-base font-semibold text-gray-900">담당기사별 취소율</h2>
+        <p className="mb-4 text-xs text-gray-400">배정된 티켓 기준 취소율 (전체 / 당월)</p>
+        {cancelStats.byTechnician.length === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-400">데이터가 없습니다.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs font-medium text-gray-500">
+                  <th className="py-3 pr-4">기사 이름</th>
+                  <th className="py-3 pr-4 text-right">전체 건수</th>
+                  <th className="py-3 pr-4 text-right">전체 취소</th>
+                  <th className="py-3 pr-4 text-right">전체 취소율</th>
+                  <th className="py-3 pr-4 text-right">당월 건수</th>
+                  <th className="py-3 pr-4 text-right">당월 취소</th>
+                  <th className="py-3 text-right">당월 취소율</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {cancelStats.byTechnician.map((row) => (
+                  <tr key={row.technicianId} className="hover:bg-gray-50">
+                    <td className="py-3 pr-4 font-medium text-gray-900">{row.name}</td>
+                    <td className="py-3 pr-4 text-right text-gray-600">
+                      {row.totalCount.toLocaleString()}건
+                    </td>
+                    <td className="py-3 pr-4 text-right text-gray-600">
+                      {row.canceledCount.toLocaleString()}건
+                    </td>
+                    <td className="py-3 pr-4 text-right">
+                      <span
+                        className={
+                          row.cancelRate >= 20
+                            ? "font-semibold text-red-600"
+                            : row.cancelRate >= 10
+                            ? "font-semibold text-orange-500"
+                            : "text-gray-700"
+                        }
+                      >
+                        {row.cancelRate}%
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4 text-right text-gray-600">
+                      {row.monthlyTotal.toLocaleString()}건
+                    </td>
+                    <td className="py-3 pr-4 text-right text-gray-600">
+                      {row.monthlyCanceled.toLocaleString()}건
+                    </td>
+                    <td className="py-3 text-right">
+                      <span
+                        className={
+                          row.monthlyCancelRate >= 20
+                            ? "font-semibold text-red-600"
+                            : row.monthlyCancelRate >= 10
+                            ? "font-semibold text-orange-500"
+                            : "text-gray-700"
+                        }
+                      >
+                        {row.monthlyCancelRate}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 섹션 6: 운영 인사이트 */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* 브랜드별 접수 Top 5 */}
         <div className="rounded-xl border bg-white p-6 shadow-sm">
