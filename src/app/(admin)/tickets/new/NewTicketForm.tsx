@@ -15,6 +15,15 @@ const RECEIPT_TYPE_OPTIONS = [
   { value: "PARCEL", label: "택배" },
 ] as const;
 
+const DEVICE_TYPE_OPTIONS = [
+  { value: "노트북",       label: "노트북" },
+  { value: "데스크탑",     label: "데스크탑" },
+  { value: "태블릿",       label: "태블릿" },
+  { value: "서버",         label: "서버" },
+  { value: "나스",         label: "나스" },
+  { value: "기타저장장치", label: "기타저장장치" },
+] as const;
+
 const BRAND_OPTIONS = [
   "Samsung", "LG", "MSI", "ASUS", "Lenovo", "HP", "Dell", "Acer", "Apple", "기타",
 ] as const;
@@ -111,7 +120,7 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
       {/* 접수 정보 섹션 */}
       <fieldset className="rounded-xl border border-gray-200 bg-white p-5">
         <legend className="px-2 text-sm font-semibold text-gray-700">접수 정보</legend>
-        <div className="mt-2 grid gap-4 sm:grid-cols-2">
+        <div className="mt-2 grid gap-4 sm:grid-cols-3">
           <div>
             <label htmlFor="receiptType" className="mb-1 block text-sm font-medium text-gray-700">
               접수 방식 <span className="text-red-500">*</span>
@@ -124,6 +133,24 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
             >
               <option value="">선택</option>
               {RECEIPT_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="deviceType" className="mb-1 block text-sm font-medium text-gray-700">
+              기기 종류 <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="deviceType"
+              name="deviceType"
+              required
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              <option value="">선택</option>
+              {DEVICE_TYPE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -148,7 +175,7 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
               ))}
             </select>
           </div>
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-3">
             <label htmlFor="deviceModel" className="mb-1 block text-sm font-medium text-gray-700">
               모델명 <span className="text-xs text-gray-400">(선택)</span>
             </label>
@@ -161,7 +188,7 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
             />
           </div>
 
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-3">
             <label htmlFor="symptoms" className="mb-1 block text-sm font-medium text-gray-700">
               고장 증상 / 문의 내용 <span className="text-red-500">*</span>
             </label>

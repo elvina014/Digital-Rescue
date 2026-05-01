@@ -30,11 +30,12 @@ export async function createTicketAction(formData: FormData) {
   const customerPhone = (formData.get("customerPhone") as string)?.trim();
   const customerAddress = (formData.get("customerAddress") as string)?.trim() || null;
   const receiptType = formData.get("receiptType") as string;
+  const deviceType = (formData.get("deviceType") as string)?.trim();
   const deviceBrand = (formData.get("deviceBrand") as string)?.trim();
   const deviceModel = (formData.get("deviceModel") as string)?.trim() || null;
   const symptoms = (formData.get("symptoms") as string)?.trim();
 
-  if (!customerName || !customerPhone || !receiptType || !deviceBrand || !symptoms) {
+  if (!customerName || !customerPhone || !receiptType || !deviceType || !deviceBrand || !symptoms) {
     return { error: "필수 항목을 모두 입력해 주세요." };
   }
 
@@ -75,6 +76,7 @@ export async function createTicketAction(formData: FormData) {
     .insert({
       customer_id: customerId,
       receipt_type: receiptType,
+      device_type: deviceType,
       device_brand: deviceBrand,
       device_model: deviceModel,
       symptoms,

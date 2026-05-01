@@ -20,6 +20,9 @@ const ticketFormSchema = z.object({
   receiptType: z.enum(["WALK_IN", "VISIT", "QUICK", "PARCEL"], {
     message: "접수 방식을 선택해 주세요.",
   }),
+  deviceType: z.enum(["노트북", "데스크탑", "태블릿", "서버", "나스", "기타저장장치"], {
+    message: "기기 종류를 선택해 주세요.",
+  }),
   deviceBrand: z
     .string()
     .min(1, "브랜드를 입력해 주세요.")
@@ -56,6 +59,7 @@ export async function submitTicketAction(
     phone: formData.get("phone") as string | null,
     address: formData.get("address") as string | null,
     receiptType: formData.get("receiptType") as string | null,
+    deviceType: formData.get("deviceType") as string | null,
     deviceBrand: formData.get("deviceBrand") as string | null,
     deviceModel: formData.get("deviceModel") as string | null,
     symptoms: formData.get("symptoms") as string | null,
@@ -67,6 +71,7 @@ export async function submitTicketAction(
     phone: raw.phone?.trim().replace(/\s/g, "") ?? "",
     address: raw.address?.trim() ?? "",
     receiptType: raw.receiptType ?? "",
+    deviceType: raw.deviceType?.trim() ?? "",
     deviceBrand: raw.deviceBrand?.trim() ?? "",
     deviceModel: raw.deviceModel?.trim() ?? "",
     symptoms: raw.symptoms?.trim() ?? "",
@@ -87,6 +92,7 @@ export async function submitTicketAction(
       phone: raw.phone?.trim() ?? "",
       address: raw.address?.trim() ?? "",
       receiptType: raw.receiptType ?? "",
+      deviceType: raw.deviceType?.trim() ?? "",
       deviceBrand: raw.deviceBrand?.trim() ?? "",
       deviceModel: raw.deviceModel?.trim() ?? "",
       symptoms: raw.symptoms?.trim() ?? "",
@@ -158,6 +164,7 @@ export async function submitTicketAction(
         customer_id: customerId,
         status: "NEW",
         receipt_type: data.receiptType,
+        device_type: data.deviceType,
         device_brand: data.deviceBrand,
         device_model: data.deviceModel || null,
         symptoms: data.symptoms,
