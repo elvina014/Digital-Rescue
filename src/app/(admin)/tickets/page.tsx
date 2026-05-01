@@ -79,11 +79,16 @@ export default async function TicketsPage({
   if (statusFilter) {
     query = query.eq("status", statusFilter);
   }
+
+  // COMPLETED 상태의 날짜 필터는 completed_at 기준, 나머지는 created_at 기준
+  const dateColumn = statusFilter === "COMPLETED" ? "completed_at" : "created_at";
   if (startDate) {
-    query = query.gte("created_at", `${startDate}T00:00:00`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    query = (query as any).gte(dateColumn, `${startDate}T00:00:00`);
   }
   if (endDate) {
-    query = query.lte("created_at", `${endDate}T23:59:59`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    query = (query as any).lte(dateColumn, `${endDate}T23:59:59`);
   }
   if (assigneeFilter) {
     query = query.eq("assignee_id", assigneeFilter);
