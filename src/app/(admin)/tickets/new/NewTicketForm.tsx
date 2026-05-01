@@ -25,7 +25,7 @@ const DEVICE_TYPE_OPTIONS = [
 ] as const;
 
 const BRAND_OPTIONS = [
-  "Samsung", "LG", "MSI", "ASUS", "Lenovo", "HP", "Dell", "Acer", "Apple", "기타",
+  "Samsung", "LG", "한성", "MSI", "ASUS", "Lenovo", "HP", "Dell", "Acer", "Apple", "기타",
 ] as const;
 
 export default function NewTicketForm({ currentEmployee }: { currentEmployee: { id: string; name: string } }) {

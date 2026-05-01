@@ -27,6 +27,7 @@ const DEVICE_TYPES = [
 const BRANDS = [
   "삼성",
   "LG",
+  "한성",
   "ASUS",
   "MSI",
   "레노버",
