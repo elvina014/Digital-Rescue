@@ -160,6 +160,7 @@ const updateEmployeeSchema = z.object({
     ["ADMIN", "MANAGER", "RECEPTION", "TECHNICIAN", "EXPERT_REPAIR", "CS"],
     { message: "직급을 선택해 주세요." }
   ),
+  email: z.string().email("올바른 이메일 형식을 입력해 주세요."),
 });
 
 /**
@@ -188,6 +189,7 @@ export async function updateEmployeeAction(
     name: (formData.get("name") as string | null)?.trim() ?? "",
     phone: (formData.get("phone") as string | null)?.trim() ?? "",
     role: (formData.get("role") as string | null) ?? "",
+    email: (formData.get("email") as string | null)?.trim() ?? "",
   };
 
   const result = z.safeParse(updateEmployeeSchema, raw);
@@ -212,6 +214,19 @@ export async function updateEmployeeAction(
   const supabase = createAdminClient();
 
   try {
+    // 이메일 변경 (Supabase Auth)
+    const { error: emailError } = await supabase.auth.admin.updateUserById(
+      employeeId,
+      { email: data.email, email_confirm: true }
+    );
+    if (emailError) {
+      const msg = emailError.message?.includes("already been registered")
+        ? "이미 사용 중인 이메일입니다."
+        : `이메일 변경 실패: ${emailError.message}`;
+      return { success: false, message: msg, values: raw };
+    }
+
+    // 프로필 변경 (employees 테이블)
     const { error } = await supabase
       .from("employees")
       .update({
