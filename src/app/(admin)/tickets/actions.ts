@@ -1790,7 +1790,8 @@ export async function getDisposalPendingTickets() {
   }
 
   const supabase = await createClient();
-  const { data } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase as any)
     .from("repair_tickets")
     .select(`
       id, device_brand, device_model, tag_info, cancel_device_disposal, created_at,
@@ -1798,24 +1799,20 @@ export async function getDisposalPendingTickets() {
       employees:assignee_id ( name )
     `)
     .eq("status", "CANCELED")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .eq("cancel_device_disposal" as any, "DISPOSE")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .is("dispose_confirmed_at" as any, null)
-    .order("created_at", { ascending: false }) as unknown as {
-      data: {
-        id: string;
-        device_brand: string | null;
-        device_model: string | null;
-        tag_info: string | null;
-        cancel_device_disposal: string | null;
-        created_at: string;
-        customers: { name: string; phone: string | null } | { name: string; phone: string | null }[] | null;
-        employees: { name: string } | { name: string }[] | null;
-      }[] | null
-    };
+    .eq("cancel_device_disposal", "DISPOSE")
+    .is("dispose_confirmed_at", null)
+    .order("created_at", { ascending: false });
 
-  return { data: data ?? [] };
+  return { data: (data ?? []) as {
+    id: string;
+    device_brand: string | null;
+    device_model: string | null;
+    tag_info: string | null;
+    cancel_device_disposal: string | null;
+    created_at: string;
+    customers: { name: string; phone: string | null } | { name: string; phone: string | null }[] | null;
+    employees: { name: string } | { name: string }[] | null;
+  }[] };
 }
 
 /**
@@ -1830,15 +1827,13 @@ export async function confirmDisposalAction(ticketId: string) {
 
   const adminSupa = createAdminClient();
 
-  const { error } = await adminSupa
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (adminSupa as any)
     .from("repair_tickets")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .update({ dispose_confirmed_at: new Date().toISOString() } as any)
+    .update({ dispose_confirmed_at: new Date().toISOString() })
     .eq("id", ticketId)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .eq("cancel_device_disposal" as any, "DISPOSE")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .is("dispose_confirmed_at" as any, null);
+    .eq("cancel_device_disposal", "DISPOSE")
+    .is("dispose_confirmed_at", null);
 
   if (error) return { error: "폐기 확인 처리 실패: " + error.message };
 
