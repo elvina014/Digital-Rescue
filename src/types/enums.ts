@@ -75,6 +75,7 @@ export enum PaymentStatus {
 export enum DeviceType {
   NOTEBOOK = "노트북",
   DESKTOP = "데스크탑",
+  TABLET = "태블릿",
   SERVER = "서버",
   NAS = "나스",
   OTHER_STORAGE = "기타저장장치",

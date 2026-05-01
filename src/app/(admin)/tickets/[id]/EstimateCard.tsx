@@ -276,6 +276,7 @@ export default function EstimateCard({
   const DEVICE_TYPE_OPTIONS = [
     { value: DeviceType.NOTEBOOK, label: "노트북" },
     { value: DeviceType.DESKTOP, label: "데스크탑" },
+    { value: DeviceType.TABLET, label: "태블릿" },
     { value: DeviceType.SERVER, label: "서버" },
     { value: DeviceType.NAS, label: "나스" },
     { value: DeviceType.OTHER_STORAGE, label: "기타저장장치" },
