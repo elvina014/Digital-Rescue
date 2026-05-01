@@ -120,7 +120,7 @@ export async function getAnnualRevenue(): Promise<MonthlyRevenueData[]> {
     .from("repair_tickets")
     .select("final_price, completed_at")
     .eq("status", "COMPLETED")
-    .gte("completed_at", start);
+    .gte("completed_at", start) as unknown as { data: { final_price: number | null; completed_at: string | null }[] | null };
 
   const monthMap: Record<number, number> = {};
   for (const t of data ?? []) {
@@ -149,7 +149,7 @@ export async function getMonthlyDailyRevenue(): Promise<DailyRevenueData[]> {
     .select("final_price, completed_at")
     .eq("status", "COMPLETED")
     .gte("completed_at", start)
-    .lt("completed_at", end);
+    .lt("completed_at", end) as unknown as { data: { final_price: number | null; completed_at: string | null }[] | null };
 
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const dayMap: Record<number, number> = {};
@@ -180,7 +180,7 @@ export async function getTechnicianMonthlyRevenue(): Promise<TechnicianRevenueDa
     .eq("status", "COMPLETED")
     .gte("completed_at", start)
     .lt("completed_at", end)
-    .not("assignee_id", "is", null);
+    .not("assignee_id", "is", null) as unknown as { data: { final_price: number | null; assignee_id: string | null; completed_at: string | null; employees: { name: string } | { name: string }[] | null }[] | null };
 
   const map: Record<string, { name: string; revenue: number; count: number }> = {};
   for (const t of data ?? []) {
@@ -324,7 +324,7 @@ export async function getCancelStats(): Promise<CancelStatsData> {
     .from("repair_tickets")
     .select(
       "status, created_at, canceled_at, assignee_id, employees:assignee_id ( name )"
-    );
+    ) as unknown as { data: { status: string; created_at: string; canceled_at: string | null; assignee_id: string | null; employees: { name: string } | { name: string }[] | null }[] | null };
 
   const all = data ?? [];
   const total = all.length;

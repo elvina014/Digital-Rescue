@@ -37,6 +37,19 @@ export interface RecentLog {
  * - 완료 기준: completed_at (실제 완료 처리 날짜)
  * - 당월 접수건: created_at 기준 이번 달 접수
  */
+type TicketRow = {
+  status: string;
+  receipt_type: string;
+  final_price: number | null;
+  material_cost: number | null;
+  created_at: string;
+  completed_at: string | null;
+  canceled_at: string | null;
+  assignee_id: string | null;
+  has_admin_message: boolean | null;
+  id: string;
+};
+
 export async function getDashboardStats(
   employeeId?: string,
   role?: string
@@ -48,7 +61,7 @@ export async function getDashboardStats(
     .select(
       "status, receipt_type, final_price, material_cost, created_at, " +
       "completed_at, canceled_at, assignee_id, has_admin_message, id"
-    );
+    ) as unknown as { data: TicketRow[] | null };
 
   const all = tickets ?? [];
 
