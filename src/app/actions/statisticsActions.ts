@@ -67,7 +67,7 @@ export interface ReceiptTypeBreakdownData {
 export interface TechCancelData {
   technicianId: string;
   name: string;
-  /** 전체 기간 */
+  /** 선택 월 */
   totalCount: number;
   canceledCount: number;
   cancelRate: number;
@@ -78,9 +78,9 @@ export interface TechCancelData {
 }
 
 export interface CancelStatsData {
-  /** 전체 취소 건수 */
+  /** 선택 월 취소 건수 */
   totalCanceled: number;
-  /** 전체 취소율 % */
+  /** 선택 월 취소율 % */
   totalRate: number;
   /** 당월 취소 건수 (canceled_at 기준) */
   monthlyCanceled: number;
@@ -106,15 +106,14 @@ const RECEIPT_LABEL_MAP: Record<string, string> = {
   PARCEL:  "택배",
 };
 
-// ─── 기존 함수 (completed_at 기준으로 수정) ───────────────────
+// ─── 매출 관련 함수 ───────────────────────────────────────────
 
 /**
- * 올해 기준 월별 매출 집계 — completed_at 기준
+ * 선택 연도 기준 월별 매출 집계 — completed_at 기준
  */
-export async function getAnnualRevenue(): Promise<MonthlyRevenueData[]> {
+export async function getAnnualRevenue(year: number): Promise<MonthlyRevenueData[]> {
   const supabase = await createClient();
-  const now = new Date();
-  const { start } = yearRange(now.getFullYear());
+  const { start } = yearRange(year);
 
   const { data } = await supabase
     .from("repair_tickets")
@@ -125,8 +124,10 @@ export async function getAnnualRevenue(): Promise<MonthlyRevenueData[]> {
   const monthMap: Record<number, number> = {};
   for (const t of data ?? []) {
     if (!t.completed_at) continue;
-    const month = new Date(t.completed_at).getMonth() + 1;
-    monthMap[month] = (monthMap[month] ?? 0) + ((t.final_price as number) ?? 0);
+    const m = new Date(t.completed_at).getMonth() + 1;
+    // 해당 연도 데이터만 포함
+    if (new Date(t.completed_at).getFullYear() !== year) continue;
+    monthMap[m] = (monthMap[m] ?? 0) + ((t.final_price as number) ?? 0);
   }
 
   return Array.from({ length: 12 }, (_, i) => ({
@@ -137,12 +138,11 @@ export async function getAnnualRevenue(): Promise<MonthlyRevenueData[]> {
 }
 
 /**
- * 이번 달 일별 매출 집계 — completed_at 기준
+ * 선택 연/월 기준 일별 매출 집계 — completed_at 기준
  */
-export async function getMonthlyDailyRevenue(): Promise<DailyRevenueData[]> {
+export async function getMonthlyDailyRevenue(year: number, month: number): Promise<DailyRevenueData[]> {
   const supabase = await createClient();
-  const now = new Date();
-  const { start, end } = monthRange(now.getFullYear(), now.getMonth() + 1);
+  const { start, end } = monthRange(year, month);
 
   const { data } = await supabase
     .from("repair_tickets")
@@ -151,7 +151,7 @@ export async function getMonthlyDailyRevenue(): Promise<DailyRevenueData[]> {
     .gte("completed_at", start)
     .lt("completed_at", end) as unknown as { data: { final_price: number | null; completed_at: string | null }[] | null };
 
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysInMonth = new Date(year, month, 0).getDate();
   const dayMap: Record<number, number> = {};
   for (const t of data ?? []) {
     if (!t.completed_at) continue;
@@ -167,12 +167,11 @@ export async function getMonthlyDailyRevenue(): Promise<DailyRevenueData[]> {
 }
 
 /**
- * 이번 달 기사별 매출 집계 — completed_at 기준
+ * 선택 연/월 기준 기사별 매출 집계 — completed_at 기준
  */
-export async function getTechnicianMonthlyRevenue(): Promise<TechnicianRevenueData[]> {
+export async function getTechnicianMonthlyRevenue(year: number, month: number): Promise<TechnicianRevenueData[]> {
   const supabase = await createClient();
-  const now = new Date();
-  const { start, end } = monthRange(now.getFullYear(), now.getMonth() + 1);
+  const { start, end } = monthRange(year, month);
 
   const { data } = await supabase
     .from("repair_tickets")
@@ -198,31 +197,35 @@ export async function getTechnicianMonthlyRevenue(): Promise<TechnicianRevenueDa
 }
 
 /**
- * 전체 기간 기사별 최소견적 대비 성과
+ * 선택 연/월 기준 기사별 최소견적 대비 성과 — completed_at 기준
  */
-export async function getTechnicianPerformance(): Promise<TechnicianPerformanceData[]> {
+export async function getTechnicianPerformance(year: number, month: number): Promise<TechnicianPerformanceData[]> {
   const supabase = await createClient();
+  const { start, end } = monthRange(year, month);
 
-  const { data } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase as any)
     .from("repair_tickets")
     .select("final_price, minimum_estimate, assignee_id, employees:assignee_id ( name )")
     .eq("status", "COMPLETED")
-    .not("assignee_id", "is", null);
+    .not("assignee_id", "is", null)
+    .gte("completed_at", start)
+    .lt("completed_at", end);
 
   const map: Record<
     string,
     { name: string; completedCount: number; totalRevenue: number; upsellAmount: number; upsellCount: number }
   > = {};
 
-  for (const t of data ?? []) {
-    const id = t.assignee_id as string;
+  for (const t of (data ?? []) as { final_price: number | null; minimum_estimate: number | null; assignee_id: string; employees: { name: string } | { name: string }[] | null }[]) {
+    const id = t.assignee_id;
     const emp2 = Array.isArray(t.employees) ? t.employees[0] : t.employees;
     const name = (emp2 as { name: string } | null)?.name ?? "미지정";
     if (!map[id]) {
       map[id] = { name, completedCount: 0, totalRevenue: 0, upsellAmount: 0, upsellCount: 0 };
     }
-    const fp = (t.final_price as number) ?? 0;
-    const me = (t.minimum_estimate as number) ?? 0;
+    const fp = t.final_price ?? 0;
+    const me = t.minimum_estimate ?? 0;
     map[id].completedCount += 1;
     map[id].totalRevenue += fp;
     if (me > 0 && fp > me) {
@@ -237,16 +240,19 @@ export async function getTechnicianPerformance(): Promise<TechnicianPerformanceD
 }
 
 /**
- * 브랜드별 접수 건수 Top 5
+ * 선택 연/월 기준 브랜드별 접수 건수 Top 5 — created_at 기준
  */
-export async function getBrandBreakdown(): Promise<BrandBreakdownData[]> {
+export async function getBrandBreakdown(year: number, month: number): Promise<BrandBreakdownData[]> {
   const supabase = await createClient();
+  const { start, end } = monthRange(year, month);
 
   const { data } = await supabase
     .from("repair_tickets")
     .select("device_brand")
     .not("device_brand", "is", null)
-    .neq("device_brand", "");
+    .neq("device_brand", "")
+    .gte("created_at", start)
+    .lt("created_at", end);
 
   const map: Record<string, number> = {};
   for (const t of data ?? []) {
@@ -261,12 +267,17 @@ export async function getBrandBreakdown(): Promise<BrandBreakdownData[]> {
 }
 
 /**
- * 현재 전체 티켓 상태별 비율
+ * 선택 연/월 기준 티켓 상태별 비율 — created_at 기준
  */
-export async function getStatusBreakdown(): Promise<StatusBreakdownData[]> {
+export async function getStatusBreakdown(year: number, month: number): Promise<StatusBreakdownData[]> {
   const supabase = await createClient();
+  const { start, end } = monthRange(year, month);
 
-  const { data } = await supabase.from("repair_tickets").select("status");
+  const { data } = await supabase
+    .from("repair_tickets")
+    .select("status")
+    .gte("created_at", start)
+    .lt("created_at", end);
 
   const map: Record<string, number> = {};
   for (const t of data ?? []) {
@@ -281,17 +292,18 @@ export async function getStatusBreakdown(): Promise<StatusBreakdownData[]> {
   }));
 }
 
-// ─── 신규 함수 ────────────────────────────────────────────────
-
 /**
- * 접수 방식별 접수 건수 (전체)
+ * 선택 연/월 기준 접수 방식별 접수 건수 — created_at 기준
  */
-export async function getReceiptTypeBreakdown(): Promise<ReceiptTypeBreakdownData[]> {
+export async function getReceiptTypeBreakdown(year: number, month: number): Promise<ReceiptTypeBreakdownData[]> {
   const supabase = await createClient();
+  const { start, end } = monthRange(year, month);
 
   const { data } = await supabase
     .from("repair_tickets")
-    .select("receipt_type");
+    .select("receipt_type")
+    .gte("created_at", start)
+    .lt("created_at", end);
 
   const map: Record<string, number> = {};
   for (const t of data ?? []) {
@@ -309,16 +321,12 @@ export async function getReceiptTypeBreakdown(): Promise<ReceiptTypeBreakdownDat
 }
 
 /**
- * 취소율 통계 — 전체 / 당월 / 담당기사별
- * - 전체: 모든 티켓 대비 취소 비율
- * - 당월: 당월 접수(created_at) 대비 당월 취소(canceled_at) 비율
- * - 기사별: 배정된 티켓 대비 취소 비율 (전체 + 당월)
+ * 선택 연/월 기준 취소율 통계 — 접수건/담당기사별
  */
-export async function getCancelStats(): Promise<CancelStatsData> {
+export async function getCancelStats(year: number, month: number): Promise<CancelStatsData> {
   const supabase = await createClient();
 
-  const now = new Date();
-  const { start: monthStart, end: monthEnd } = monthRange(now.getFullYear(), now.getMonth() + 1);
+  const { start: monthStart, end: monthEnd } = monthRange(year, month);
 
   const { data } = await supabase
     .from("repair_tickets")
@@ -327,17 +335,14 @@ export async function getCancelStats(): Promise<CancelStatsData> {
     ) as unknown as { data: { status: string; created_at: string; canceled_at: string | null; assignee_id: string | null; employees: { name: string } | { name: string }[] | null }[] | null };
 
   const all = data ?? [];
-  const total = all.length;
 
-  // 전체 취소
-  const totalCanceled = all.filter((t) => t.status === "CANCELED").length;
-  const totalRate = total > 0 ? Math.round((totalCanceled / total) * 1000) / 10 : 0;
-
-  // 당월 접수 (created_at 기준)
+  // 선택 월 접수 (created_at 기준)
   const monthlyAll = all.filter(
     (t) => t.created_at >= monthStart && t.created_at < monthEnd
   );
-  // 당월 취소 (canceled_at 기준)
+  const total = monthlyAll.length;
+
+  // 선택 월 취소 (canceled_at 기준)
   const monthlyCanceledTickets = all.filter(
     (t) =>
       t.status === "CANCELED" &&
@@ -345,13 +350,13 @@ export async function getCancelStats(): Promise<CancelStatsData> {
       t.canceled_at >= monthStart &&
       t.canceled_at < monthEnd
   );
-  const monthlyCanceled = monthlyCanceledTickets.length;
-  const monthlyRate =
-    monthlyAll.length > 0
-      ? Math.round((monthlyCanceled / monthlyAll.length) * 1000) / 10
-      : 0;
+  const totalCanceled = monthlyCanceledTickets.length;
+  const totalRate = total > 0 ? Math.round((totalCanceled / total) * 1000) / 10 : 0;
 
-  // 기사별 집계
+  const monthlyCanceled = totalCanceled;
+  const monthlyRate = totalRate;
+
+  // 기사별 집계 (선택 월 내 데이터만)
   type TechAcc = {
     name: string;
     totalCount: number;
@@ -364,6 +369,16 @@ export async function getCancelStats(): Promise<CancelStatsData> {
   for (const t of all) {
     const id = t.assignee_id as string | null;
     if (!id) continue;
+
+    const inMonth = t.created_at >= monthStart && t.created_at < monthEnd;
+    const canceledInMonth =
+      t.status === "CANCELED" &&
+      t.canceled_at &&
+      t.canceled_at >= monthStart &&
+      t.canceled_at < monthEnd;
+
+    if (!inMonth && !canceledInMonth) continue;
+
     const emp = Array.isArray(t.employees) ? t.employees[0] : t.employees;
     const name = (emp as { name: string } | null)?.name ?? "미지정";
 
@@ -371,19 +386,9 @@ export async function getCancelStats(): Promise<CancelStatsData> {
       techMap[id] = { name, totalCount: 0, canceledCount: 0, monthlyTotal: 0, monthlyCanceled: 0 };
     }
 
-    // 전체
-    techMap[id].totalCount += 1;
-    if (t.status === "CANCELED") techMap[id].canceledCount += 1;
-
-    // 당월
-    const inMonth = t.created_at >= monthStart && t.created_at < monthEnd;
+    if (inMonth) techMap[id].totalCount += 1;
+    if (inMonth && t.status === "CANCELED") techMap[id].canceledCount += 1;
     if (inMonth) techMap[id].monthlyTotal += 1;
-
-    const canceledInMonth =
-      t.status === "CANCELED" &&
-      t.canceled_at &&
-      (t.canceled_at as string) >= monthStart &&
-      (t.canceled_at as string) < monthEnd;
     if (canceledInMonth) techMap[id].monthlyCanceled += 1;
   }
 

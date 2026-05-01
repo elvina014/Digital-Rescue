@@ -19,21 +19,21 @@ export default async function StatisticsPage() {
     redirect("/dashboard");
   }
 
-  const [annualRevenue, dailyRevenue, techRevenue, techPerformance, brandBreakdown, statusBreakdown, receiptTypeBreakdown, cancelStats] =
-    await Promise.all([
-      getAnnualRevenue(),
-      getMonthlyDailyRevenue(),
-      getTechnicianMonthlyRevenue(),
-      getTechnicianPerformance(),
-      getBrandBreakdown(),
-      getStatusBreakdown(),
-      getReceiptTypeBreakdown(),
-      getCancelStats(),
-    ]);
-
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
+
+  const [annualRevenue, dailyRevenue, techRevenue, techPerformance, brandBreakdown, statusBreakdown, receiptTypeBreakdown, cancelStats] =
+    await Promise.all([
+      getAnnualRevenue(currentYear),
+      getMonthlyDailyRevenue(currentYear, currentMonth),
+      getTechnicianMonthlyRevenue(currentYear, currentMonth),
+      getTechnicianPerformance(currentYear, currentMonth),
+      getBrandBreakdown(currentYear, currentMonth),
+      getStatusBreakdown(currentYear, currentMonth),
+      getReceiptTypeBreakdown(currentYear, currentMonth),
+      getCancelStats(currentYear, currentMonth),
+    ]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
