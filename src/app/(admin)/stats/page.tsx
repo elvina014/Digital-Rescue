@@ -29,7 +29,7 @@ export default async function StatisticsPage() {
       getMonthlyDailyRevenue(currentYear, currentMonth),
       getTechnicianMonthlyRevenue(currentYear, currentMonth),
       getTechnicianPerformance(currentYear, currentMonth),
-      getBrandBreakdown(currentYear, currentMonth),
+      getBrandBreakdown(),
       getStatusBreakdown(currentYear, currentMonth),
       getReceiptTypeBreakdown(currentYear, currentMonth),
       getCancelStats(currentYear, currentMonth),

@@ -242,17 +242,14 @@ export async function getTechnicianPerformance(year: number, month: number): Pro
 /**
  * 선택 연/월 기준 브랜드별 접수 건수 Top 5 — created_at 기준
  */
-export async function getBrandBreakdown(year: number, month: number): Promise<BrandBreakdownData[]> {
+export async function getBrandBreakdown(): Promise<BrandBreakdownData[]> {
   const supabase = await createClient();
-  const { start, end } = monthRange(year, month);
 
   const { data } = await supabase
     .from("repair_tickets")
     .select("device_brand")
     .not("device_brand", "is", null)
-    .neq("device_brand", "")
-    .gte("created_at", start)
-    .lt("created_at", end);
+    .neq("device_brand", "");
 
   const map: Record<string, number> = {};
   for (const t of data ?? []) {

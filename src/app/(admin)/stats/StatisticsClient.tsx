@@ -31,7 +31,6 @@ import {
   getMonthlyDailyRevenue,
   getTechnicianMonthlyRevenue,
   getTechnicianPerformance,
-  getBrandBreakdown,
   getStatusBreakdown,
   getReceiptTypeBreakdown,
   getCancelStats,
@@ -98,7 +97,6 @@ export function StatisticsClient({
         newDaily,
         newTechRevenue,
         newTechPerf,
-        newBrand,
         newStatus,
         newReceiptType,
         newCancel,
@@ -107,7 +105,6 @@ export function StatisticsClient({
         getMonthlyDailyRevenue(year, month),
         getTechnicianMonthlyRevenue(year, month),
         getTechnicianPerformance(year, month),
-        getBrandBreakdown(year, month),
         getStatusBreakdown(year, month),
         getReceiptTypeBreakdown(year, month),
         getCancelStats(year, month),
@@ -116,7 +113,6 @@ export function StatisticsClient({
       setDailyRevenue(newDaily);
       setTechRevenue(newTechRevenue);
       setTechPerformance(newTechPerf);
-      setBrandBreakdown(newBrand);
       setStatusBreakdown(newStatus);
       setReceiptTypeBreakdown(newReceiptType);
       setCancelStats(newCancel);
@@ -487,9 +483,7 @@ export function StatisticsClient({
           {/* 브랜드별 접수 Top 5 */}
           <div className="rounded-xl border bg-white p-6 shadow-sm">
             <h2 className="mb-1 text-base font-semibold text-gray-900">브랜드별 접수 Top 5</h2>
-            <p className="mb-4 text-xs text-gray-400">
-              {selectedYear}년 {selectedMonth}월 접수 기준
-            </p>
+            <p className="mb-4 text-xs text-gray-400">전체 접수 기준</p>
             {brandBreakdown.length === 0 ? (
               <EmptyChart />
             ) : (
