@@ -6,6 +6,8 @@ export interface DashboardStats {
   thisMonthTicketCount: number;
   statusCounts: Record<string, number>;
   receiptTypeCounts: Record<string, number>;
+  /** 당월 접수건 기준 접수 방식별 카운트 (created_at 기준) */
+  thisMonthReceiptTypeCounts: Record<string, number>;
   monthlyRevenue: number;
   monthlyProfit: number;
   /** 당월 완료 건수 (completed_at 기준) */
@@ -76,7 +78,7 @@ export async function getDashboardStats(
     statusCounts[t.status] = (statusCounts[t.status] ?? 0) + 1;
   }
 
-  // 3) 접수 방식별 카운트
+  // 3) 접수 방식별 카운트 (전체)
   const receiptTypeCounts: Record<string, number> = {};
   for (const t of all) {
     receiptTypeCounts[t.receipt_type] = (receiptTypeCounts[t.receipt_type] ?? 0) + 1;
@@ -86,6 +88,15 @@ export async function getDashboardStats(
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+
+  // 3-1) 당월 접수건 기준 접수 방식별 카운트 (created_at 기준)
+  const thisMonthReceiptTypeCounts: Record<string, number> = {};
+  for (const t of all) {
+    if (t.created_at >= monthStart && t.created_at < monthEnd) {
+      thisMonthReceiptTypeCounts[t.receipt_type] =
+        (thisMonthReceiptTypeCounts[t.receipt_type] ?? 0) + 1;
+    }
+  }
 
   // 4) 당월 접수건 (created_at 기준)
   const thisMonthTicketCount = all.filter(
@@ -161,6 +172,7 @@ export async function getDashboardStats(
     thisMonthTicketCount,
     statusCounts,
     receiptTypeCounts,
+    thisMonthReceiptTypeCounts,
     monthlyRevenue,
     monthlyProfit,
     thisMonthCompletedCount,

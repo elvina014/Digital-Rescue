@@ -242,7 +242,7 @@ export default async function DashboardPage() {
     },
   ];
 
-  const totalReceipts = Object.values(stats.receiptTypeCounts).reduce((a, b) => a + b, 0);
+  const totalReceipts = Object.values(stats.thisMonthReceiptTypeCounts).reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-8">
@@ -358,13 +358,15 @@ export default async function DashboardPage() {
 
         {/* 접수 방식별 비율 */}
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-2">
-          <h2 className="mb-4 text-base font-semibold text-gray-800">접수 방식별 비율</h2>
+          <h2 className="mb-4 text-base font-semibold text-gray-800">
+            이달 접수 방식별 비율
+          </h2>
           {totalReceipts === 0 ? (
-            <p className="text-sm text-gray-400">아직 접수 데이터가 없습니다.</p>
+            <p className="text-sm text-gray-400">이달 접수 데이터가 없습니다.</p>
           ) : (
             <div className="space-y-4">
               {Object.entries(RECEIPT_LABEL).map(([key, { label, icon: RIcon }]) => {
-                const count = stats.receiptTypeCounts[key] ?? 0;
+                const count = stats.thisMonthReceiptTypeCounts[key] ?? 0;
                 const pct = totalReceipts > 0 ? Math.round((count / totalReceipts) * 100) : 0;
                 return (
                   <div key={key}>
