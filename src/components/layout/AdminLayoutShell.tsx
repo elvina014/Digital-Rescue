@@ -3,11 +3,21 @@
 import { useState, useCallback } from "react";
 import type { EmployeeRole } from "@/types";
 import { AdminSidebar } from "./AdminSidebar";
+import { MyPageModal } from "./MyPageModal";
+
+interface MyPageData {
+  id: string;
+  name: string;
+  role: EmployeeRole;
+  phone: string | null;
+  email: string;
+}
 
 interface AdminLayoutShellProps {
   employeeName: string;
   employeeRole: EmployeeRole;
   logoutButton: React.ReactNode;
+  myPageData: MyPageData;
   children: React.ReactNode;
 }
 
@@ -15,9 +25,11 @@ export function AdminLayoutShell({
   employeeName,
   employeeRole,
   logoutButton,
+  myPageData,
   children,
 }: AdminLayoutShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [myPageOpen, setMyPageOpen] = useState(false);
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
@@ -83,12 +95,30 @@ export function AdminLayoutShell({
           {/* 데스크탑 빈 공간 */}
           <div className="hidden md:block" />
 
-          {logoutButton}
+          {/* 헤더 우측: 내 정보 + 로그아웃 */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMyPageOpen(true)}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600
+                         transition-colors hover:bg-gray-100"
+            >
+              내 정보
+            </button>
+            {logoutButton}
+          </div>
         </header>
 
         {/* 콘텐츠 */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
       </div>
+
+      {/* 마이페이지 모달 */}
+      <MyPageModal
+        open={myPageOpen}
+        onClose={() => setMyPageOpen(false)}
+        employee={myPageData}
+      />
     </div>
   );
 }
