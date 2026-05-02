@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/utils/supabase/middleware";
+import { canonicalBrandSlug } from "@/lib/brands";
 
 /**
  * Proxy (Route Guard) — Next.js 16
@@ -40,6 +41,20 @@ export async function proxy(request: NextRequest) {
       mainUrl.pathname = "/";
       return NextResponse.redirect(mainUrl);
     }
+
+    // 브랜드 슬러그 대소문자 정규화: /Lenovo, /SAMSUNG → /lenovo, /samsung (308)
+    // [brand]/page.tsx 는 dynamicParams=false 로 소문자 슬러그만 정적 생성하므로,
+    // 다른 케이스로 들어온 요청을 정규 형태로 redirect 해 준다.
+    const segments = pathname.split("/").filter(Boolean);
+    if (segments.length === 1) {
+      const canonical = canonicalBrandSlug(segments[0]);
+      if (canonical && canonical !== segments[0]) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = `/${canonical}`;
+        return NextResponse.redirect(redirectUrl, 308);
+      }
+    }
+
     // 메인 도메인 일반 요청 → 통과
     return supabaseResponse;
   }

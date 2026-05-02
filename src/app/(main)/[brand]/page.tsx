@@ -1,19 +1,31 @@
+import { notFound } from "next/navigation";
+import mainData from "@/data/mainPageData.json";
+import brandData from "@/data/brandLandingData.json";
+import { findBrandRoute, BRAND_ROUTES } from "@/lib/brands";
+import { BrandIntroSection } from "@/components/brand/BrandIntroSection";
+import { SymptomsSection } from "@/components/common/SymptomsSection";
 import { ProcessSection } from "@/components/common/ProcessSection";
 import { ContactForm } from "@/components/common/ContactForm";
 import { RealtimeStatus } from "@/components/common/RealtimeStatus";
-import Link from "next/link";
+import type {
+  BrandIntroData,
+  ContactFormData,
+  ProcessSectionData,
+  RealtimeStatusData,
+  SymptomsSectionData,
+  ThemeData,
+} from "@/types/sections";
 
-const BRAND_NAMES: Record<string, string> = {
-  samsung: "삼성",
-  lg: "LG",
-  msi: "MSI",
-  asus: "ASUS",
-  lenovo: "레노버",
-  hp: "HP",
-  dell: "델",
-  acer: "에이서",
-  apple: "애플",
-};
+/**
+ * 정적으로 허용된 14개의 브랜드 슬러그만 빌드 시점에 생성한다.
+ * dynamicParams = false 와 함께 사용해 그 외 슬러그는 모두 404 처리된다.
+ * 슬러그 정의는 src/lib/brands.ts 의 BRAND_ROUTES 가 단일 출처.
+ */
+export async function generateStaticParams() {
+  return BRAND_ROUTES.map((b) => ({ brand: b.slug }));
+}
+
+export const dynamicParams = false;
 
 interface BrandPageProps {
   params: Promise<{ brand: string }>;
@@ -21,45 +33,51 @@ interface BrandPageProps {
 
 export default async function BrandPage({ params }: BrandPageProps) {
   const { brand } = await params;
-  const brandName = BRAND_NAMES[brand.toLowerCase()] ?? brand.toUpperCase();
+  const route = findBrandRoute(brand);
+
+  // generateStaticParams + dynamicParams=false 로 이미 보장되지만
+  // 타입 좁히기 + 안전망 차원에서 한 번 더 확인.
+  if (!route) notFound();
+
+  const entry = (brandData.brands as Record<string, unknown>)[route.slug];
+  if (!entry) notFound();
+
+  const intro = (entry as { intro: BrandIntroData }).intro;
 
   return (
     <>
-      {/* 브랜드 히어로 */}
-      <section className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 py-20 sm:py-28">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
-          <span className="inline-block rounded-full bg-blue-500/20 px-4 py-1.5 text-xs font-semibold tracking-wide text-blue-300">
-            {brandName} 공식 파트너 수준의 전문 수리
-          </span>
-          <h1 className="mt-6 text-3xl font-extrabold leading-tight text-white sm:text-5xl">
-            {brandName} 노트북 수리 전문
-            <br />
-            <span className="text-blue-400">디지털레스큐</span>
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-            {brandName} 노트북의 모든 고장을 직영 기술진이 직접 진단·수리합니다.
-            투명한 전자 견적과 체계적인 수리 프로세스로 안심하세요.
-          </p>
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center sm:gap-4">
-            <Link
-              href="#contact"
-              className="w-full rounded-lg bg-blue-600 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 transition-all hover:bg-blue-500 hover:shadow-blue-500/40 sm:w-auto"
-            >
-              무료 견적 받기
-            </Link>
-            <Link
-              href="#process"
-              className="w-full rounded-lg border border-white/20 px-8 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-white/10 sm:w-auto"
-            >
-              수리 과정 보기
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* 섹션 1: 서비스 및 회사 소개 (브랜드 전용, 화려한 인터랙션) */}
+      <BrandIntroSection
+        data={intro}
+        theme={mainData.theme as ThemeData}
+        displayName={route.displayName}
+      />
 
-      <ProcessSection />
-      <ContactForm />
-      <RealtimeStatus />
+      {/* 섹션 2: 다양한 고장 증상들 (메인페이지 공통) */}
+      <SymptomsSection
+        data={mainData.symptoms as SymptomsSectionData}
+        theme={mainData.theme as ThemeData}
+      />
+
+      {/* 섹션 3: 서비스 과정 안내 (메인페이지 공통) */}
+      <ProcessSection
+        data={mainData.process as ProcessSectionData}
+        theme={mainData.theme as ThemeData}
+      />
+
+      {/* 섹션 4: 온라인 서비스 접수 (메인페이지 공통, URL 기반 브랜드 자동 주입) */}
+      <ContactForm
+        data={mainData.contactForm as ContactFormData}
+        theme={mainData.theme as ThemeData}
+        defaultBrand={route.formBrandValue}
+        defaultDeviceType={route.formDeviceType}
+      />
+
+      {/* 섹션 5: 실시간 수리 현황 (현황 유지) */}
+      <RealtimeStatus
+        data={mainData.realtimeStatus as RealtimeStatusData}
+        theme={mainData.theme as ThemeData}
+      />
     </>
   );
 }

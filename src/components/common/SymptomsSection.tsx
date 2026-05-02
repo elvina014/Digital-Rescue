@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import data from "@/data/mainPageData.json";
+import type { SymptomsSectionData, ThemeData } from "@/types/sections";
 import { ServiceIcon, type IconName } from "./icons";
 import { SymptomModal, type SymptomData } from "./SymptomModal";
 
-const symptoms = data.symptoms;
-const theme = data.theme;
+interface SymptomsSectionProps {
+  data: SymptomsSectionData;
+  theme: ThemeData;
+}
 
-export function SymptomsSection() {
+export function SymptomsSection({ data, theme }: SymptomsSectionProps) {
   const [active, setActive] = useState<SymptomData | null>(null);
 
   return (
@@ -23,55 +25,55 @@ export function SymptomsSection() {
             className="inline-block text-xs font-semibold uppercase tracking-[0.2em]"
             style={{ color: theme.accentColor }}
           >
-            {symptoms.eyebrow}
+            {data.eyebrow}
           </span>
           <h2
             className="mx-auto mt-5 max-w-3xl text-3xl leading-[1.2] tracking-tight sm:text-4xl lg:text-5xl"
             style={{ color: theme.textPrimary, fontWeight: 800 }}
           >
-            {symptoms.title}
+            {data.title}
           </h2>
           <p
             className="mx-auto mt-5 max-w-2xl text-base leading-relaxed sm:text-lg"
             style={{ color: theme.textSecondary }}
           >
-            {symptoms.subtitle}
+            {data.subtitle}
           </p>
         </div>
 
         <ul className="mt-14 grid grid-cols-2 gap-4 sm:mt-16 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-          {symptoms.items.map((item, i) => (
+          {data.items.map((item, i) => (
             <SymptomCard
               key={item.id}
               index={i}
-              title={item.title}
-              shortDescription={item.shortDescription}
-              imageUrl={item.imageUrl}
-              iconName={item.iconName as IconName}
+              item={item}
+              theme={theme}
               onSelect={() => setActive(item)}
             />
           ))}
         </ul>
       </div>
 
-      <SymptomModal symptom={active} onClose={() => setActive(null)} />
+      <SymptomModal
+        symptom={active}
+        onClose={() => setActive(null)}
+        theme={theme}
+        ctaLabel={data.ctaLabel}
+        ctaHref={data.ctaHref}
+      />
     </section>
   );
 }
 
 function SymptomCard({
   index,
-  title,
-  shortDescription,
-  imageUrl,
-  iconName,
+  item,
+  theme,
   onSelect,
 }: {
   index: number;
-  title: string;
-  shortDescription: string;
-  imageUrl: string;
-  iconName: IconName;
+  item: SymptomData;
+  theme: ThemeData;
   onSelect: () => void;
 }) {
   const ref = useRef<HTMLLIElement>(null);
@@ -123,14 +125,14 @@ function SymptomCard({
             color: theme.accentColor,
           }}
         >
-          {imageUrl ? (
+          {item.imageUrl ? (
             <img
-              src={imageUrl}
-              alt={title}
+              src={item.imageUrl}
+              alt={item.title}
               className="h-full w-full rounded-2xl object-cover"
             />
           ) : (
-            <ServiceIcon name={iconName} className="h-6 w-6" />
+            <ServiceIcon name={item.iconName as IconName} className="h-6 w-6" />
           )}
         </div>
 
@@ -138,13 +140,13 @@ function SymptomCard({
           className="relative mt-4 text-base tracking-tight transition-colors duration-300 group-hover:text-blue-700 sm:text-lg"
           style={{ color: theme.textPrimary, fontWeight: 700 }}
         >
-          {title}
+          {item.title}
         </h3>
         <p
           className="relative mt-1.5 text-xs leading-relaxed sm:text-sm"
           style={{ color: theme.textSecondary }}
         >
-          {shortDescription}
+          {item.shortDescription}
         </p>
 
         <span

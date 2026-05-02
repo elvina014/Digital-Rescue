@@ -1,20 +1,25 @@
 "use client";
 
 import { useEffect } from "react";
-import data from "@/data/mainPageData.json";
+import type { SymptomsSectionData, ThemeData } from "@/types/sections";
 
-const theme = data.theme;
-const symptoms = data.symptoms;
+export type SymptomData = SymptomsSectionData["items"][number];
 
-export type SymptomData = (typeof symptoms.items)[number];
+interface SymptomModalProps {
+  symptom: SymptomData | null;
+  onClose: () => void;
+  theme: ThemeData;
+  ctaLabel: string;
+  ctaHref: string;
+}
 
 export function SymptomModal({
   symptom,
   onClose,
-}: {
-  symptom: SymptomData | null;
-  onClose: () => void;
-}) {
+  theme,
+  ctaLabel,
+  ctaHref,
+}: SymptomModalProps) {
   useEffect(() => {
     if (!symptom) return;
     const onKey = (e: KeyboardEvent) => {
@@ -131,7 +136,7 @@ export function SymptomModal({
           style={{ background: theme.surfaceMuted }}
         >
           <a
-            href={symptoms.ctaHref}
+            href={ctaHref}
             onClick={onClose}
             className="group flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-4 text-base font-semibold transition-all duration-200 hover:brightness-110"
             style={{
@@ -140,7 +145,7 @@ export function SymptomModal({
               boxShadow: "0 14px 32px -12px rgba(37, 99, 235, 0.55)",
             }}
           >
-            {symptoms.ctaLabel}
+            {ctaLabel}
             <svg
               className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
               viewBox="0 0 24 24"
@@ -155,7 +160,6 @@ export function SymptomModal({
           </a>
         </div>
       </div>
-
     </div>
   );
 }

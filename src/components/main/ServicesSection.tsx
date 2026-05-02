@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import data from "@/data/mainPageData.json";
-import { ServiceIcon, type IconName } from "./icons";
+import { ServiceIcon, type IconName } from "@/components/common/icons";
 
 const services = data.services;
 const theme = data.theme;

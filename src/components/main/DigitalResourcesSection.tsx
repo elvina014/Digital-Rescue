@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import data from "@/data/mainPageData.json";
-import { ServiceIcon, type IconName } from "./icons";
+import { ServiceIcon, type IconName } from "@/components/common/icons";
 
 const dr = data.digitalResources;
 const theme = data.theme;

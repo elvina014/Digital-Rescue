@@ -1,0 +1,359 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "editableAt": "https://edit.digital-rescue.com",
+    "note": "이 파일은 edit.digital-rescue.com 에서 편집됩니다. brands 키(슬러그)는 변경하지 마세요. src/lib/brands.ts 의 BRAND_ROUTES 와 짝을 이룹니다."
+  },
+  "brands": {
+    "samsung": {
+      "slug": "samsung",
+      "displayName": "삼성",
+      "formBrandValue": "삼성",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "Samsung Specialist",
+        "headline": {
+          "lines": [
+            { "text": "삼성", "emphasis": true },
+            { "text": "IT기기 수리 전문가", "emphasis": false }
+          ]
+        },
+        "subheadline": "갤럭시북·노트북·데스크탑·데이터복구까지. 삼성의 모든 IT기기를 직영 기술진이 직접 진단·수리합니다.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "삼성 전 모델 대응", "description": "갤럭시북·노트북·올인원·데스크탑 — 모든 라인업을 자체 기술진이 직접 수리합니다." },
+          { "iconName": "wrench", "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "dell": {
+      "slug": "dell",
+      "displayName": "델",
+      "formBrandValue": "델",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "Dell Specialist",
+        "headline": {
+          "lines": [
+            { "text": "Dell", "emphasis": true },
+            { "text": "노트북·워크스테이션 수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "XPS·Latitude·Inspiron·Precision 워크스테이션까지. Dell의 모든 IT기기를 끝까지 책임집니다.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "Dell 전 라인업 전문", "description": "XPS, Latitude, Inspiron, Precision — 직영 기술진이 직접 진단·수리." },
+          { "iconName": "wrench", "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "lg": {
+      "slug": "lg",
+      "displayName": "LG",
+      "formBrandValue": "LG",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "LG Specialist",
+        "headline": {
+          "lines": [
+            { "text": "LG", "emphasis": true },
+            { "text": "그램·울트라PC 수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "그램(Gram), 울트라PC, LG 데스크탑까지. LG의 모든 IT기기를 직영 기술진이 직접 수리합니다.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "LG 그램 전문", "description": "그램·울트라PC 모든 모델 메인보드·LCD·키보드 직접 수리." },
+          { "iconName": "wrench", "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "surface": {
+      "slug": "surface",
+      "displayName": "Surface",
+      "formBrandValue": "Surface",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "Microsoft Surface Specialist",
+        "headline": {
+          "lines": [
+            { "text": "Surface", "emphasis": true },
+            { "text": "Pro · Laptop · Book 수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "Surface Pro, Laptop, Book, Studio. 일체형 설계의 까다로운 Surface도 직영 기술진이 정밀 수리합니다.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "Surface 전 모델 대응", "description": "Pro·Laptop·Book·Studio. 일체형 분해·LCD·배터리 정밀 작업." },
+          { "iconName": "wrench", "title": "노트북·태블릿·데이터복구", "description": "Surface 특유의 일체형 구조에 맞춘 전문 진단 프로세스." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "apple": {
+      "slug": "apple",
+      "displayName": "애플",
+      "formBrandValue": "애플",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "Apple Specialist",
+        "headline": {
+          "lines": [
+            { "text": "MacBook · iMac", "emphasis": true },
+            { "text": "수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "MacBook Pro/Air, iMac, Mac mini까지. Apple Silicon 시대에 맞춘 전문 진단·수리 서비스.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "Apple Silicon 대응", "description": "M1/M2/M3/M4 전 세대 메인보드·SSD·배터리 정밀 수리." },
+          { "iconName": "wrench", "title": "MacBook·iMac·데이터복구", "description": "침수, 파손, 부팅 불가 등 모든 증상 끝까지 해결." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "acer": {
+      "slug": "acer",
+      "displayName": "에이서",
+      "formBrandValue": "에이서",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "Acer Specialist",
+        "headline": {
+          "lines": [
+            { "text": "Acer", "emphasis": true },
+            { "text": "Swift · Predator 수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "Acer Swift·Aspire·Predator 게이밍 라인까지. 에이서의 모든 IT기기를 직영 기술진이 직접 수리합니다.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "Acer 전 라인업 전문", "description": "Swift·Aspire·Nitro·Predator 전 모델 직접 수리." },
+          { "iconName": "wrench", "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "hp": {
+      "slug": "hp",
+      "displayName": "HP",
+      "formBrandValue": "HP",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "HP Specialist",
+        "headline": {
+          "lines": [
+            { "text": "HP", "emphasis": true },
+            { "text": "Pavilion · Spectre · Omen 수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "HP Pavilion·Spectre·Envy·Omen 게이밍까지. HP의 모든 IT기기를 직영 기술진이 직접 수리합니다.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "HP 전 라인업 전문", "description": "Pavilion·Spectre·Envy·Omen·EliteBook 모든 모델 직접 수리." },
+          { "iconName": "wrench", "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "asus": {
+      "slug": "asus",
+      "displayName": "ASUS",
+      "formBrandValue": "ASUS",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "ASUS Specialist",
+        "headline": {
+          "lines": [
+            { "text": "ASUS", "emphasis": true },
+            { "text": "ROG · ZenBook · TUF 수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "ROG 게이밍, ZenBook, VivoBook, TUF까지. ASUS의 모든 IT기기를 직영 기술진이 직접 수리합니다.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "ASUS 전 라인업 전문", "description": "ROG·TUF·ZenBook·VivoBook·ProArt 모든 모델 직접 수리." },
+          { "iconName": "wrench", "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "msi": {
+      "slug": "msi",
+      "displayName": "MSI",
+      "formBrandValue": "MSI",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "MSI Specialist",
+        "headline": {
+          "lines": [
+            { "text": "MSI", "emphasis": true },
+            { "text": "게이밍·크리에이터 노트북 수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "MSI Stealth·Raider·Vector·Creator까지. 게이밍 노트북의 발열·성능 이슈도 정밀 진단합니다.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "MSI 게이밍 전문", "description": "Stealth·Raider·Vector·Creator 전 모델 메인보드·GPU 정밀 작업." },
+          { "iconName": "wrench", "title": "노트북·데스크탑·데이터복구", "description": "발열·소음·성능 저하까지 끝까지 해결합니다." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "hansung": {
+      "slug": "hansung",
+      "displayName": "한성",
+      "formBrandValue": "한성",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "한성컴퓨터 Specialist",
+        "headline": {
+          "lines": [
+            { "text": "한성", "emphasis": true },
+            { "text": "노트북·데스크탑 수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "한성 보스몬스터, 게이밍 노트북, 데스크탑까지. 한성컴퓨터의 모든 기기를 직영 기술진이 직접 수리합니다.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "한성 전 라인업 전문", "description": "보스몬스터·노트북·데스크탑 모든 모델 직접 수리." },
+          { "iconName": "wrench", "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "lenovo": {
+      "slug": "lenovo",
+      "displayName": "레노버",
+      "formBrandValue": "레노버",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "Lenovo Specialist",
+        "headline": {
+          "lines": [
+            { "text": "Lenovo", "emphasis": true },
+            { "text": "ThinkPad · IdeaPad · LOQ 수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "ThinkPad, IdeaPad, Yoga, LOQ 게이밍까지. 레노버의 모든 IT기기를 직영 기술진이 직접 수리합니다.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "Lenovo 전 라인업 전문", "description": "ThinkPad·IdeaPad·Yoga·LOQ·Legion 모든 모델 직접 수리." },
+          { "iconName": "wrench", "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "sandisk": {
+      "slug": "sandisk",
+      "displayName": "SanDisk",
+      "formBrandValue": "SanDisk",
+      "formDeviceType": "기타저장장치",
+      "intro": {
+        "eyebrow": "SanDisk Recovery Specialist",
+        "headline": {
+          "lines": [
+            { "text": "SanDisk", "emphasis": true },
+            { "text": "SSD · USB · SD카드 데이터복구", "emphasis": false }
+          ]
+        },
+        "subheadline": "SanDisk SSD, USB 메모리, SD/microSD까지. 인식 불가, 펌웨어 손상, 컨트롤러 이슈를 전문 복구합니다.",
+        "highlights": [
+          { "iconName": "hard-drive", "title": "SanDisk 저장장치 전문", "description": "SSD·USB·SD/microSD 컨트롤러·펌웨어 손상 정밀 복구." },
+          { "iconName": "database", "title": "물리·논리 데이터복구", "description": "포맷·삭제·랜섬웨어·인식 불가 모든 케이스 대응." },
+          { "iconName": "search", "title": "투명한 견적", "description": "복구 가능 영역 무료 진단 후 합리적인 견적 제공." }
+        ],
+        "ctas": [
+          { "label": "무료 진단 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "razer": {
+      "slug": "razer",
+      "displayName": "Razer",
+      "formBrandValue": "Razer",
+      "formDeviceType": null,
+      "intro": {
+        "eyebrow": "Razer Specialist",
+        "headline": {
+          "lines": [
+            { "text": "Razer", "emphasis": true },
+            { "text": "Blade 게이밍 노트북 수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "Razer Blade 시리즈의 슬림한 알루미늄 섀시, 고성능 GPU, RGB 키보드까지. 까다로운 게이밍 노트북도 직영 기술진이 정밀 수리합니다.",
+        "highlights": [
+          { "iconName": "shield-check", "title": "Razer Blade 전문", "description": "Blade 14·15·17·Stealth 모든 모델 메인보드·GPU·키보드 정밀 작업." },
+          { "iconName": "wrench", "title": "노트북·데이터복구", "description": "발열·소음·RGB 이슈·SSD 인식 불가까지 끝까지 해결." },
+          { "iconName": "search", "title": "투명한 견적", "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+        ],
+        "ctas": [
+          { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    },
+    "nas": {
+      "slug": "nas",
+      "displayName": "NAS",
+      "formBrandValue": null,
+      "formDeviceType": "나스",
+      "intro": {
+        "eyebrow": "NAS · Server Specialist",
+        "headline": {
+          "lines": [
+            { "text": "NAS · 서버", "emphasis": true },
+            { "text": "데이터복구·구축·수리 전문", "emphasis": false }
+          ]
+        },
+        "subheadline": "Synology, QNAP, ASUSTOR 등 모든 NAS와 서버. RAID 깨짐·디스크 인식 불가·볼륨 손상까지 정밀 복구합니다.",
+        "highlights": [
+          { "iconName": "database", "title": "RAID·볼륨 복구 전문", "description": "RAID 0/1/5/6/10 깨짐, 볼륨 마운트 실패, 디스크 인식 불가 정밀 복구." },
+          { "iconName": "wrench", "title": "NAS·서버·저장장치", "description": "Synology·QNAP·ASUSTOR 전 모델, 자작 NAS·서버까지 대응." },
+          { "iconName": "search", "title": "투명한 견적", "description": "복구 가능 영역 무료 진단 후 합리적인 견적 제공." }
+        ],
+        "ctas": [
+          { "label": "무료 진단 받기", "href": "#contact", "variant": "primary" },
+          { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+        ]
+      }
+    }
+  }
+}
