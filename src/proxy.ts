@@ -142,10 +142,22 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // 이미 로그인된 사용자가 /login 접근 → /dashboard
+  // 이미 로그인된 사용자가 /login 접근 → redirect 파라미터 우선, 없으면 /dashboard
   if (pathname === LOGIN_PATH && user) {
+    const redirectParam = request.nextUrl.searchParams.get("redirect");
+    // 신뢰 도메인(digital-rescue.com 하위 또는 localhost)의 절대 URL이면 그대로 사용
+    const isTrustedAbsoluteUrl =
+      !!redirectParam &&
+      (redirectParam.startsWith("http://") || redirectParam.startsWith("https://")) &&
+      (redirectParam.includes(".digital-rescue.com") || redirectParam.includes("localhost"));
+
+    if (isTrustedAbsoluteUrl) {
+      return NextResponse.redirect(redirectParam!);
+    }
+
     const dashUrl = request.nextUrl.clone();
     dashUrl.pathname = "/dashboard";
+    dashUrl.search = "";
     return NextResponse.redirect(dashUrl);
   }
 
