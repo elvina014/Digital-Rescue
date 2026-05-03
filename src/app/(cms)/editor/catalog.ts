@@ -1,4 +1,6 @@
 import { BRAND_ROUTES } from "@/lib/brands";
+import mainDefaults from "@/data/mainPageData.json";
+import brandDefaults from "@/data/brandLandingData.json";
 
 /**
  * CMS 에디터에서 편집 가능한 (page_key, section_key) 카탈로그.
@@ -61,3 +63,29 @@ export function findSection(
 
 export const DEFAULT_PAGE_KEY = "main";
 export const DEFAULT_SECTION_KEY = "theme";
+
+/**
+ * 섹션별 기본 데이터 (mainPageData.json / brandLandingData.json 에서 추출).
+ * DB에 해당 섹션 row 가 없거나 빈 {} 일 때 deep merge 의 base 로 사용한다.
+ * 이를 통해 Inspector 가 항상 완전한 구조의 폼을 렌더링할 수 있다.
+ */
+const _m = mainDefaults as unknown as Record<string, Record<string, unknown>>;
+const _b = brandDefaults as unknown as {
+  brands: { samsung: { intro: Record<string, unknown> } };
+};
+
+export const SECTION_DEFAULTS: Record<string, Record<string, unknown>> = {
+  theme:            _m.theme            ?? {},
+  header:           _m.header           ?? {},
+  hero:             _m.hero             ?? {},
+  about:            _m.about            ?? {},
+  services:         _m.services         ?? {},
+  symptoms:         _m.symptoms         ?? {},
+  process:          _m.process          ?? {},
+  contactForm:      _m.contactForm      ?? {},
+  realtimeStatus:   _m.realtimeStatus   ?? {},
+  digitalResources: _m.digitalResources ?? {},
+  footer:           _m.footer           ?? {},
+  // 브랜드 섹션 공통 폴백 — 실제 콘텐츠는 DB 값으로 덮어쓴다
+  intro:            _b.brands.samsung.intro ?? {},
+};

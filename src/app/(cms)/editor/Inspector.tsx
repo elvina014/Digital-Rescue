@@ -53,6 +53,9 @@ const SLIDER_KEY_RE =
   /(weight|size|duration|strength|interval|count|fontsize|opacity|ms)$/i;
 
 function inferFieldKind(key: string, val: unknown): FieldKind {
+  // null / undefined → 빈 문자열 텍스트 필드로 처리 (크래시 방지)
+  if (val === null || val === undefined) return "text";
+
   const lk = key.toLowerCase();
 
   if (typeof val === "boolean") return "boolean";
@@ -125,7 +128,11 @@ function ObjectField({
   onChange: (next: Record<string, unknown>) => void;
   depth: number;
 }) {
-  const entries = Object.entries(value);
+  // null/undefined 방어 — 빈 객체로 폴백해 크래시 방지
+  const safeValue = (value !== null && typeof value === "object" && !Array.isArray(value))
+    ? value
+    : {} as Record<string, unknown>;
+  const entries = Object.entries(safeValue);
   return (
     <div
       className={
@@ -141,7 +148,7 @@ function ObjectField({
           path={path ? `${path}.${k}` : k}
           value={v}
           onChange={(next) => {
-            const updated = { ...value, [k]: next };
+            const updated = { ...safeValue, [k]: next };
             onChange(updated);
           }}
           depth={depth + 1}
@@ -176,7 +183,7 @@ function DispatchField({
           <label className="inline-flex items-center gap-2">
             <input
               type="checkbox"
-              checked={value as boolean}
+              checked={Boolean(value)}
               onChange={(e) => onChange(e.target.checked)}
               className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
             />
@@ -257,22 +264,27 @@ function DispatchField({
         </FieldRow>
       );
 
-    case "array":
+    case "array": {
+      // null/undefined 방어 — 빈 배열로 폴백
+      const arr = Array.isArray(value) ? (value as unknown[]) : [];
       return (
-        <FieldRow
-          label={label}
-          hint={`(목록 · ${(value as unknown[]).length}개)`}
-        >
+        <FieldRow label={label} hint={`(목록 · ${arr.length}개)`}>
           <ArrayField
             path={path}
-            value={value as unknown[]}
+            value={arr}
             onChange={onChange}
             depth={depth}
           />
         </FieldRow>
       );
+    }
 
-    case "object":
+    case "object": {
+      // null/undefined 방어 — 빈 객체로 폴백
+      const obj =
+        value !== null && typeof value === "object" && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : {};
       return (
         <details
           open={depth <= 1}
@@ -285,13 +297,14 @@ function DispatchField({
           <div className="px-3 pb-3 pt-2">
             <ObjectField
               path={path}
-              value={value as Record<string, unknown>}
+              value={obj}
               onChange={onChange as (v: Record<string, unknown>) => void}
               depth={depth}
             />
           </div>
         </details>
       );
+    }
   }
 }
 
