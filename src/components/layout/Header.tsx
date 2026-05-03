@@ -34,22 +34,22 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         {/* 로고 */}
-        <Link href={data.brand.href} className="flex items-center gap-2">
+        <Link href={data.brand?.href ?? '/'} className="flex items-center gap-2">
           <span
             className="text-xl font-extrabold tracking-tight"
             style={{ color: theme.textPrimary }}
           >
-            {data.brand.leadText}
-            <span style={{ color: theme.accentColor }}>{data.brand.accentText}</span>
+            {data.brand?.leadText}
+            <span style={{ color: theme.accentColor }}>{data.brand?.accentText}</span>
           </span>
         </Link>
 
         {/* 데스크톱 네비게이션 */}
         <nav className="hidden items-center gap-1 md:flex">
-          {data.navLinks.map((link) => (
+          {(data.navLinks ?? []).map((link) => (
             <Link
-              key={link.href}
-              href={link.href}
+              key={link.href ?? link.label}
+              href={link.href ?? '#'}
               className="rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-slate-100"
               style={{ color: theme.textSecondary }}
             >
@@ -57,11 +57,11 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
             </Link>
           ))}
           <Link
-            href={data.cta.href}
+            href={data.cta?.href ?? '#'}
             className="ml-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
             style={{ background: theme.accentColor }}
           >
-            {data.cta.label}
+            {data.cta?.label}
           </Link>
         </nav>
 
@@ -89,10 +89,10 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
           className="border-t px-4 pb-4 md:hidden"
           style={{ borderColor: theme.borderSoft, background: theme.surface }}
         >
-          {data.navLinks.map((link) => (
+          {(data.navLinks ?? []).map((link) => (
             <Link
-              key={link.href}
-              href={link.href}
+              key={link.href ?? link.label}
+              href={link.href ?? '#'}
               onClick={() => setMenuOpen(false)}
               className="block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-slate-100"
               style={{ color: theme.textPrimary }}

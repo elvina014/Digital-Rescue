@@ -34,7 +34,7 @@ export function HeroSection({
   useEffect(() => {
     const el = blobsRef.current;
     if (!el) return;
-    const strength = hero.animation.parallaxStrength;
+    const strength = hero.animation?.parallaxStrength ?? 0;
     let raf = 0;
     const onScroll = () => {
       cancelAnimationFrame(raf);
@@ -61,7 +61,7 @@ export function HeroSection({
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 will-change-transform"
       >
-        {hero.background.blobs.map((blob, i) => (
+        {(hero.background?.blobs ?? []).map((blob, i) => (
           <div
             key={i}
             className="absolute rounded-full opacity-70"
@@ -90,10 +90,10 @@ export function HeroSection({
           style={{
             opacity: mounted ? 1 : 0,
             transform: mounted ? "translateY(0)" : "translateY(24px)",
-            transition: `opacity ${hero.animation.fadeInDurationMs}ms ease-out, transform ${hero.animation.fadeInDurationMs}ms ease-out`,
+            transition: `opacity ${hero.animation?.fadeInDurationMs ?? 600}ms ease-out, transform ${hero.animation?.fadeInDurationMs ?? 600}ms ease-out`,
           }}
         >
-          {hero.badge.show && (
+          {hero.badge?.show && (
             <span
               className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold tracking-wide"
               style={{
@@ -106,19 +106,19 @@ export function HeroSection({
                 className="h-1.5 w-1.5 rounded-full"
                 style={{ background: theme.accentColor }}
               />
-              {hero.badge.text}
+              {hero.badge?.text}
             </span>
           )}
 
           <h1
             className="mt-6 text-4xl leading-[1.1] sm:text-5xl lg:text-6xl"
             style={{
-              fontWeight: hero.headline.weight,
-              letterSpacing: hero.headline.tracking === "tight" ? "-0.025em" : "normal",
+              fontWeight: hero.headline?.weight ?? 700,
+              letterSpacing: (hero.headline?.tracking ?? "tight") === "tight" ? "-0.025em" : "normal",
               color: theme.textPrimary,
             }}
           >
-            {hero.headline.lines.map((line, i) => (
+            {(hero.headline?.lines ?? []).map((line, i) => (
               <span
                 key={i}
                 className="block"
@@ -139,11 +139,11 @@ export function HeroSection({
             className="mx-auto mt-7 max-w-xl text-base leading-relaxed sm:text-lg"
             style={{ color: theme.textSecondary }}
           >
-            {hero.subheadline}
+            {hero.subheadline ?? ''}
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            {(hero.ctas as Cta[]).map((cta) => {
+            {((hero.ctas ?? []) as Cta[]).map((cta) => {
               const isPrimary = cta.variant === "primary";
               return (
                 <Link
@@ -192,7 +192,7 @@ export function HeroSection({
             transition: `opacity 900ms ease-out 400ms, transform 900ms ease-out 400ms`,
           }}
         >
-          {hero.trustStats.map((stat) => (
+          {(hero.trustStats ?? []).map((stat) => (
             <div
               key={stat.label}
               className="rounded-3xl border bg-white/70 px-5 py-5 text-center backdrop-blur-md sm:py-6"

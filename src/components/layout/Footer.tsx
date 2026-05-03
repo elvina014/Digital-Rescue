@@ -21,7 +21,7 @@ interface FooterProps {
  */
 export function Footer({ data = DEFAULT_FOOTER, theme = DEFAULT_THEME }: FooterProps) {
   const year = new Date().getFullYear();
-  const copyright = data.copyright.replace(/%YEAR%/g, String(year));
+  const copyright = (data.copyright ?? '').replace(/%YEAR%/g, String(year));
 
   return (
     <footer
@@ -33,22 +33,22 @@ export function Footer({ data = DEFAULT_FOOTER, theme = DEFAULT_THEME }: FooterP
           {/* 회사 정보 */}
           <div className="sm:col-span-2 lg:col-span-1">
             <Link href="/" className="text-xl font-extrabold text-white">
-              {data.brand.leadText}
-              <span style={{ color: theme.accentColor }}>{data.brand.accentText}</span>
+              {data.brand?.leadText}
+              <span style={{ color: theme.accentColor }}>{data.brand?.accentText}</span>
             </Link>
             <p className="mt-3 whitespace-pre-line text-sm leading-relaxed">
-              {data.brand.intro}
+              {data.brand?.intro}
             </p>
           </div>
 
           {/* 동적 컬럼 (서비스 / 고객센터 등) */}
-          {data.columns.map((col) => (
+          {(data.columns ?? []).map((col) => (
             <div key={col.title}>
               <h4 className="text-sm font-semibold uppercase tracking-wider text-white">
                 {col.title}
               </h4>
               <ul className="mt-3 space-y-2 text-sm">
-                {col.items.map((item, i) => (
+                {(col.items ?? []).map((item, i) => (
                   <li key={`${col.title}-${i}`}>
                     {item.href ? (
                       <Link
@@ -74,7 +74,7 @@ export function Footer({ data = DEFAULT_FOOTER, theme = DEFAULT_THEME }: FooterP
               사업자 정보
             </h4>
             <ul className="mt-3 space-y-1.5 text-xs leading-relaxed">
-              {data.business.map((row) => (
+              {(data.business ?? []).map((row) => (
                 <li key={row.label}>
                   {row.label}: {row.value}
                 </li>
@@ -86,7 +86,7 @@ export function Footer({ data = DEFAULT_FOOTER, theme = DEFAULT_THEME }: FooterP
         {/* 면책 조항 + 저작권 */}
         <div className="mt-10 border-t border-slate-700 pt-6">
           <p className="whitespace-pre-line text-center text-xs leading-relaxed text-slate-500">
-            {data.disclaimer}
+            {data.disclaimer ?? ''}
           </p>
           <p className="mt-4 text-center text-xs text-slate-500">
             {copyright}

@@ -34,9 +34,29 @@ interface PreviewProps {
   theme: Record<string, unknown>;
 }
 
+/**
+ * DB에 해당 섹션 row가 없으면 content = {}.
+ * 빈 객체를 undefined로 변환해 각 컴포넌트의 built-in default가 활성화되도록 한다.
+ * (default 파라미터는 undefined일 때만 작동하므로, {}를 그대로 넘기면 무시됨)
+ */
+function emptyToUndefined(val: unknown): unknown {
+  if (
+    val !== null &&
+    typeof val === "object" &&
+    !Array.isArray(val) &&
+    Object.keys(val as Record<string, unknown>).length === 0
+  ) {
+    return undefined;
+  }
+  return val;
+}
+
 export function Preview({ pageKey, sectionKey, content, theme }: PreviewProps) {
   return (
-    <PreviewBoundary cacheKey={`${pageKey}/${sectionKey}`}>
+    <PreviewBoundary
+      cacheKey={`${pageKey}/${sectionKey}`}
+      contentKey={JSON.stringify(content).slice(0, 300)}
+    >
       <PreviewBody
         pageKey={pageKey}
         sectionKey={sectionKey}
@@ -58,7 +78,8 @@ function PreviewBody({
   // 편집 중인 JSON 은 임의의 모양일 수 있으므로 unknown 으로 좁힌 뒤
   // 각 섹션 컴포넌트의 기대 타입으로 단언한다. 잘못된 모양이면 PreviewBoundary 가 잡는다.
   const t = theme as unknown as ThemeData;
-  const c = content as unknown;
+  // 빈 객체(DB row 미존재)는 undefined로 변환 → 컴포넌트 built-in default 활성화
+  const c = emptyToUndefined(content) as unknown;
 
   // theme 자체 편집 시 — 색/폰트 토큰을 시각적 swatch 로 표시
   if (pageKey === "main" && sectionKey === "theme") {
@@ -220,6 +241,8 @@ interface BoundaryProps {
   children: ReactNode;
   /** 키가 바뀌면 boundary state 가 리셋된다 (페이지/섹션 전환 시) */
   cacheKey: string;
+  /** content 직렬화 일부 — 변경 시 에러 자동 복구 재시도 */
+  contentKey?: string;
 }
 
 interface BoundaryState {
@@ -234,7 +257,11 @@ class PreviewBoundary extends Component<BoundaryProps, BoundaryState> {
   }
 
   componentDidUpdate(prev: BoundaryProps) {
-    if (prev.cacheKey !== this.props.cacheKey && this.state.error) {
+    if (
+      this.state.error &&
+      (prev.cacheKey !== this.props.cacheKey ||
+        prev.contentKey !== this.props.contentKey)
+    ) {
       this.setState({ error: null });
     }
   }
