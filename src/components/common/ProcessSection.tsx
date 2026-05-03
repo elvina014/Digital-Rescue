@@ -45,7 +45,7 @@ export function ProcessSection({
             className="mx-auto mt-5 max-w-3xl text-3xl leading-[1.2] tracking-tight sm:text-4xl lg:text-5xl"
             style={{ color: theme.textPrimary, fontWeight: 800 }}
           >
-            {data.title.split("\n").map((line, i) => (
+            {(data.title ?? '').split("\n").map((line, i) => (
               <span key={i} className="block">
                 {line}
               </span>
@@ -79,15 +79,15 @@ export function ProcessSection({
           />
 
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
-            {data.steps.map((step, i) => (
+            {(data.steps ?? []).map((step, i) => (
               <ProcessCard
-                key={step.step}
+                key={step.step ?? i}
                 index={i}
-                step={step.step}
-                title={step.title}
-                description={step.description}
+                step={step.step ?? ''}
+                title={step.title ?? ''}
+                description={step.description ?? ''}
                 iconName={step.iconName as IconName}
-                ctaTarget={data.ctaTarget}
+                ctaTarget={data.ctaTarget ?? '#'}
                 theme={theme}
               />
             ))}
@@ -147,7 +147,7 @@ function ProcessCard({
       }}
     >
       <a
-        href={ctaTarget}
+        href={ctaTarget ?? '#'}
         onClick={(e) => {
           e.preventDefault();
           smoothScrollTo(ctaTarget);

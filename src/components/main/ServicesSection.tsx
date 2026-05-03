@@ -46,7 +46,7 @@ export function ServicesSection({
         </div>
 
         <ul className="mt-14 grid gap-5 sm:mt-16 sm:grid-cols-2 lg:grid-cols-3">
-          {services.items.map((item, i) => (
+          {(services.items ?? []).map((item, i) => (
             <ServiceCard
               key={item.id}
               index={i}

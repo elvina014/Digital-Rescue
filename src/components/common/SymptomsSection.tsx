@@ -49,7 +49,7 @@ export function SymptomsSection({
         </div>
 
         <ul className="mt-14 grid grid-cols-2 gap-4 sm:mt-16 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
-          {data.items.map((item, i) => (
+          {(data.items ?? []).map((item, i) => (
             <SymptomCard
               key={item.id}
               index={i}

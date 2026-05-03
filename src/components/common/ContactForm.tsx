@@ -66,7 +66,9 @@ export function ContactForm({
   }, [state]);
 
   const guide =
-    receiptType in cf.dynamicGuides ? cf.dynamicGuides[receiptType] : null;
+    cf.dynamicGuides != null && receiptType in cf.dynamicGuides
+      ? cf.dynamicGuides[receiptType]
+      : null;
 
   // 폼 기본값:
   //  1) 서버 액션 재실행 후 돌아온 값(state.values) 우선
@@ -177,7 +179,7 @@ export function ContactForm({
             <div className="grid gap-5 sm:grid-cols-2">
               <Field
                 id="name"
-                label={cf.labels.name}
+                label={cf.labels?.name}
                 required
                 error={state.errors?.name}
               >
@@ -187,14 +189,14 @@ export function ContactForm({
                   type="text"
                   required
                   defaultValue={state.values?.name}
-                  placeholder={cf.labels.namePlaceholder}
+                  placeholder={cf.labels?.namePlaceholder}
                   className={inputBaseClass}
                   style={{ borderColor: theme.borderSoft }}
                 />
               </Field>
               <Field
                 id="phone"
-                label={cf.labels.phone}
+                label={cf.labels?.phone}
                 required
                 error={state.errors?.phone}
               >
@@ -204,20 +206,20 @@ export function ContactForm({
                   type="tel"
                   required
                   defaultValue={state.values?.phone}
-                  placeholder={cf.labels.phonePlaceholder}
+                  placeholder={cf.labels?.phonePlaceholder}
                   className={inputBaseClass}
                   style={{ borderColor: theme.borderSoft }}
                 />
               </Field>
             </div>
 
-            <Field id="address" label={cf.labels.address}>
+            <Field id="address" label={cf.labels?.address}>
               <input
                 id="address"
                 name="address"
                 type="text"
                 defaultValue={state.values?.address}
-                placeholder={cf.labels.addressPlaceholder}
+                placeholder={cf.labels?.addressPlaceholder}
                 className={inputBaseClass}
                 style={{ borderColor: theme.borderSoft }}
               />
@@ -225,12 +227,12 @@ export function ContactForm({
 
             <Field
               id="receiptType"
-              label={cf.labels.receiptType}
+              label={cf.labels?.receiptType}
               required
               error={state.errors?.receiptType}
             >
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {cf.receiptTypes.map((t) => {
+                {(cf.receiptTypes ?? []).map((t) => {
                   const active = receiptType === t.value;
                   return (
                     <label key={t.value} className="cursor-pointer">
@@ -278,7 +280,7 @@ export function ContactForm({
             <div className="grid gap-5 sm:grid-cols-2">
               <Field
                 id="deviceType"
-                label={cf.labels.deviceType}
+                label={cf.labels?.deviceType}
                 required
                 error={state.errors?.deviceType}
               >
@@ -293,7 +295,7 @@ export function ContactForm({
                   <option value="" disabled>
                     선택
                   </option>
-                  {cf.deviceTypes.map((t) => (
+                  {(cf.deviceTypes ?? []).map((t) => (
                     <option key={t.value} value={t.value}>
                       {t.label}
                     </option>
@@ -302,7 +304,7 @@ export function ContactForm({
               </Field>
               <Field
                 id="deviceBrand"
-                label={cf.labels.deviceBrand}
+                label={cf.labels?.deviceBrand}
                 required
                 error={state.errors?.deviceBrand}
               >
@@ -317,7 +319,7 @@ export function ContactForm({
                   <option value="" disabled>
                     선택
                   </option>
-                  {cf.brands.map((b) => (
+                  {(cf.brands ?? []).map((b) => (
                     <option key={b} value={b}>
                       {b}
                     </option>
@@ -327,20 +329,20 @@ export function ContactForm({
                     select 가 빈 값으로 떨어지지 않도록 보강용 옵션을 끝에 추가.
                   */}
                   {defaultBrand &&
-                    !cf.brands.includes(defaultBrand) && (
+                    !(cf.brands ?? []).includes(defaultBrand) && (
                       <option value={defaultBrand}>{defaultBrand}</option>
                     )}
                 </select>
               </Field>
             </div>
 
-            <Field id="deviceModel" label={cf.labels.deviceModel}>
+            <Field id="deviceModel" label={cf.labels?.deviceModel}>
               <input
                 id="deviceModel"
                 name="deviceModel"
                 type="text"
                 defaultValue={state.values?.deviceModel}
-                placeholder={cf.labels.deviceModelPlaceholder}
+                placeholder={cf.labels?.deviceModelPlaceholder}
                 className={inputBaseClass}
                 style={{ borderColor: theme.borderSoft }}
               />
@@ -348,7 +350,7 @@ export function ContactForm({
 
             <Field
               id="symptoms"
-              label={cf.labels.symptoms}
+              label={cf.labels?.symptoms}
               required
               error={state.errors?.symptoms}
             >
@@ -358,7 +360,7 @@ export function ContactForm({
                 rows={5}
                 required
                 defaultValue={state.values?.symptoms}
-                placeholder={cf.labels.symptomsPlaceholder}
+                placeholder={cf.labels?.symptomsPlaceholder}
                 className={`${inputBaseClass} resize-none`}
                 style={{ borderColor: theme.borderSoft }}
               />
@@ -369,7 +371,7 @@ export function ContactForm({
               theme={theme}
               entries={imageEntries}
               onChange={setImageEntries}
-              max={cf.maxImages}
+              max={cf.maxImages ?? 5}
             />
 
             <div className="pt-2">
@@ -388,10 +390,10 @@ export function ContactForm({
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    {cf.labels.submitting}
+                    {cf.labels?.submitting}
                   </span>
                 ) : (
-                  cf.labels.submit
+                  cf.labels?.submit
                 )}
               </button>
               <p
@@ -578,7 +580,7 @@ function PhotoAttacher({
   return (
     <div>
       <label className={labelClass}>
-        {cf.labels.photos}{" "}
+        {cf.labels?.photos}{" "}
         <span
           className="ml-1 text-xs font-normal"
           style={{ color: theme.textSecondary }}

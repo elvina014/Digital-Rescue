@@ -140,7 +140,7 @@ export function BrandIntroSection({
           </span>
 
           <h1 className="mx-auto mt-7 max-w-4xl text-4xl leading-[1.1] tracking-tight text-white sm:text-6xl lg:text-7xl">
-            {data.headline.lines.map((line, i) => (
+            {(data.headline?.lines ?? []).map((line, i) => (
               <span
                 key={`${i}-${line.text}`}
                 className="block overflow-hidden"
@@ -187,10 +187,10 @@ export function BrandIntroSection({
                 "opacity 800ms ease-out 900ms, transform 800ms ease-out 900ms",
             }}
           >
-            {data.ctas.map((cta) => (
+            {(data.ctas ?? []).map((cta) => (
               <Link
                 key={cta.label}
-                href={cta.href}
+                href={cta.href ?? '#'}
                 className={
                   cta.variant === "primary"
                     ? "group relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-8 py-4 text-sm font-bold text-white shadow-[0_18px_40px_-16px_rgba(59,130,246,0.7)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_22px_50px_-16px_rgba(96,165,250,0.85)] sm:w-auto"
@@ -229,7 +229,7 @@ export function BrandIntroSection({
         </div>
 
         <ul className="mt-20 grid gap-4 sm:mt-24 sm:grid-cols-3 sm:gap-5">
-          {data.highlights.map((h, i) => (
+          {(data.highlights ?? []).map((h, i) => (
             <HighlightCard
               key={`${i}-${h.title}`}
               index={i}

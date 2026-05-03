@@ -81,7 +81,7 @@ export function DigitalResourcesSection({
                       : "none",
                   }}
                 >
-                  {dr.tabs[key]}
+                  {dr.tabs?.[key] ?? key}
                 </button>
               );
             })}
@@ -90,13 +90,13 @@ export function DigitalResourcesSection({
 
         <div className="mt-12">
           {tab === "news" && (
-            <NewsList items={dr.news.items} onSelect={setActiveNews} theme={theme} />
+            <NewsList items={dr.news?.items ?? []} onSelect={setActiveNews} theme={theme} />
           )}
           {tab === "emergency" && (
-            <EmergencyGrid items={dr.emergency.items} theme={theme} />
+            <EmergencyGrid items={dr.emergency?.items ?? []} theme={theme} />
           )}
           {tab === "brands" && (
-            <BrandLinks items={dr.brands.items} theme={theme} />
+            <BrandLinks items={dr.brands?.items ?? []} theme={theme} />
           )}
         </div>
       </div>

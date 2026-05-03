@@ -69,7 +69,7 @@ export function AboutSection({
             className="mx-auto mt-5 max-w-3xl text-3xl leading-[1.2] tracking-tight sm:text-4xl lg:text-5xl"
             style={{ color: theme.textPrimary, fontWeight: 800 }}
           >
-            {about.title.split("\n").map((line, i) => (
+            {(about.title ?? '').split("\n").map((line, i) => (
               <span key={i} className="block">
                 {line}
               </span>
@@ -86,7 +86,7 @@ export function AboutSection({
         <ul className="mt-16 grid gap-px overflow-hidden rounded-3xl border bg-slate-100 sm:mt-20 sm:grid-cols-2"
           style={{ borderColor: theme.borderSoft }}
         >
-          {about.statements.map((stmt, i) => (
+          {(about.statements ?? []).map((stmt, i) => (
             <Statement
               key={stmt.lead}
               index={i}

@@ -147,8 +147,8 @@ export function HeroSection({
               const isPrimary = cta.variant === "primary";
               return (
                 <Link
-                  key={cta.label}
-                  href={cta.href}
+                  key={cta.label ?? cta.variant}
+                  href={cta.href ?? '#'}
                   className="inline-flex items-center justify-center rounded-2xl px-7 py-3.5 text-sm font-semibold transition-all duration-200 sm:text-base"
                   style={
                     isPrimary

@@ -22,12 +22,16 @@ function pickRandom<T>(arr: readonly T[]): T {
 }
 
 function generateEntries(count: number, data: RealtimeStatusData): FakeEntry[] {
-  return Array.from({ length: count }, (_, i) => ({
+  const names    = data.dummyData?.names    ?? ["홍길동"];
+  const devices  = data.dummyData?.devices  ?? ["노트북"];
+  const symptoms = data.dummyData?.symptoms ?? ["화면 불량"];
+  const statuses = data.statuses            ?? [{ label: "접수", color: "#64748b" }];
+  return Array.from({ length: count ?? 0 }, (_, i) => ({
     id: i,
-    name: pickRandom(data.dummyData.names),
-    device: pickRandom(data.dummyData.devices),
-    symptom: pickRandom(data.dummyData.symptoms),
-    status: pickRandom(data.statuses),
+    name:    pickRandom(names),
+    device:  pickRandom(devices),
+    symptom: pickRandom(symptoms),
+    status:  pickRandom(statuses) as StatusItem,
   }));
 }
 
@@ -44,7 +48,7 @@ export function RealtimeStatus({
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   const refresh = useCallback(() => {
-    setEntries(generateEntries(data.rowCount, data));
+    setEntries(generateEntries(data.rowCount ?? 5, data));
     setLastRefresh(new Date());
   }, [data]);
 
@@ -52,7 +56,7 @@ export function RealtimeStatus({
     refresh();
     const interval = setInterval(
       refresh,
-      data.refreshIntervalMinutes * 60 * 1000
+      (data.refreshIntervalMinutes ?? 5) * 60 * 1000
     );
     return () => clearInterval(interval);
   }, [refresh, data.refreshIntervalMinutes]);
@@ -119,25 +123,25 @@ export function RealtimeStatus({
                   className="px-6 py-4 text-xs font-semibold uppercase tracking-wider"
                   style={{ color: theme.textSecondary }}
                 >
-                  {data.columns.name}
+                  {data.columns?.name}
                 </th>
                 <th
                   className="px-6 py-4 text-xs font-semibold uppercase tracking-wider"
                   style={{ color: theme.textSecondary }}
                 >
-                  {data.columns.device}
+                  {data.columns?.device}
                 </th>
                 <th
                   className="px-6 py-4 text-xs font-semibold uppercase tracking-wider"
                   style={{ color: theme.textSecondary }}
                 >
-                  {data.columns.symptom}
+                  {data.columns?.symptom}
                 </th>
                 <th
                   className="px-6 py-4 text-xs font-semibold uppercase tracking-wider"
                   style={{ color: theme.textSecondary }}
                 >
-                  {data.columns.status}
+                  {data.columns?.status}
                 </th>
               </tr>
             </thead>

@@ -82,19 +82,21 @@ function PreviewBody({
   const c = emptyToUndefined(content) as unknown;
 
   // theme 자체 편집 시 — 색/폰트 토큰을 시각적 swatch 로 표시
+  // ⚠️ c(=content)가 undefined일 수 있으므로 t(=theme prop)를 사용한다.
   if (pageKey === "main" && sectionKey === "theme") {
-    return <ThemePreview theme={c as ThemeData} />;
+    return <ThemePreview theme={t} />;
   }
 
   // 브랜드 페이지 — intro 섹션
   if (pageKey.startsWith("brand:") && sectionKey === "intro") {
     const slug = pageKey.slice("brand:".length);
-    const data = c as BrandIntroData & { displayName?: string };
+    // c가 undefined일 수 있으므로 옵셔널 체이닝으로 displayName을 읽는다.
+    const data = c as (BrandIntroData & { displayName?: string }) | undefined;
     return (
       <BrandIntroSection
         data={data}
         theme={t}
-        displayName={data.displayName ?? slug}
+        displayName={data?.displayName ?? slug}
       />
     );
   }
