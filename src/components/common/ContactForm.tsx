@@ -7,11 +7,15 @@ import {
   useState,
   type ChangeEvent,
 } from "react";
+import defaults from "@/data/mainPageData.json";
 import type { ContactFormData, ThemeData } from "@/types/sections";
 import {
   submitTicketAction,
   type TicketFormState,
 } from "@/app/actions/ticketActions";
+
+const DEFAULT_CONTACT_FORM = defaults.contactForm as ContactFormData;
+const DEFAULT_THEME = defaults.theme as ThemeData;
 
 const initialState: TicketFormState = { success: false, message: "" };
 
@@ -21,8 +25,8 @@ const labelClass =
   "mb-2 block text-sm font-semibold tracking-tight text-slate-700";
 
 interface ContactFormProps {
-  data: ContactFormData;
-  theme: ThemeData;
+  data?: ContactFormData;
+  theme?: ThemeData;
   /** URL 기반 자동 주입 — 랜딩페이지에서 브랜드를 미리 선택해둔다. */
   defaultBrand?: string | null;
   /** URL 기반 자동 주입 — 랜딩페이지에서 기기 종류를 미리 선택해둔다. */
@@ -30,8 +34,8 @@ interface ContactFormProps {
 }
 
 export function ContactForm({
-  data: cf,
-  theme,
+  data: cf = DEFAULT_CONTACT_FORM,
+  theme = DEFAULT_THEME,
   defaultBrand,
   defaultDeviceType,
 }: ContactFormProps) {

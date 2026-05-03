@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import data from "@/data/mainPageData.json";
+import defaults from "@/data/mainPageData.json";
+import type { HeroSectionData, ThemeData } from "@/types/sections";
 
 type Cta = {
   label: string;
@@ -10,10 +11,18 @@ type Cta = {
   variant: "primary" | "ghost";
 };
 
-const hero = data.hero;
-const theme = data.theme;
+const DEFAULT_HERO = defaults.hero as HeroSectionData;
+const DEFAULT_THEME = defaults.theme as ThemeData;
 
-export function HeroSection() {
+interface HeroSectionProps {
+  data?: HeroSectionData;
+  theme?: ThemeData;
+}
+
+export function HeroSection({
+  data: hero = DEFAULT_HERO,
+  theme = DEFAULT_THEME,
+}: HeroSectionProps) {
   const [mounted, setMounted] = useState(false);
   const blobsRef = useRef<HTMLDivElement>(null);
 

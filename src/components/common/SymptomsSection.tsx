@@ -1,16 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import defaults from "@/data/mainPageData.json";
 import type { SymptomsSectionData, ThemeData } from "@/types/sections";
 import { ServiceIcon, type IconName } from "./icons";
 import { SymptomModal, type SymptomData } from "./SymptomModal";
 
+const DEFAULT_SYMPTOMS = defaults.symptoms as SymptomsSectionData;
+const DEFAULT_THEME = defaults.theme as ThemeData;
+
 interface SymptomsSectionProps {
-  data: SymptomsSectionData;
-  theme: ThemeData;
+  data?: SymptomsSectionData;
+  theme?: ThemeData;
 }
 
-export function SymptomsSection({ data, theme }: SymptomsSectionProps) {
+export function SymptomsSection({
+  data = DEFAULT_SYMPTOMS,
+  theme = DEFAULT_THEME,
+}: SymptomsSectionProps) {
   const [active, setActive] = useState<SymptomData | null>(null);
 
   return (

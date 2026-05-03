@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import defaults from "@/data/mainPageData.json";
 import type { RealtimeStatusData, ThemeData } from "@/types/sections";
+
+const DEFAULT_REALTIME_STATUS = defaults.realtimeStatus as RealtimeStatusData;
+const DEFAULT_THEME = defaults.theme as ThemeData;
 
 type StatusItem = RealtimeStatusData["statuses"][number];
 
@@ -28,11 +32,14 @@ function generateEntries(count: number, data: RealtimeStatusData): FakeEntry[] {
 }
 
 interface RealtimeStatusProps {
-  data: RealtimeStatusData;
-  theme: ThemeData;
+  data?: RealtimeStatusData;
+  theme?: ThemeData;
 }
 
-export function RealtimeStatus({ data, theme }: RealtimeStatusProps) {
+export function RealtimeStatus({
+  data = DEFAULT_REALTIME_STATUS,
+  theme = DEFAULT_THEME,
+}: RealtimeStatusProps) {
   const [entries, setEntries] = useState<FakeEntry[]>([]);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 

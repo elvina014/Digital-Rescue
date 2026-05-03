@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import data from "@/data/mainPageData.json";
+import defaults from "@/data/mainPageData.json";
+import type { AboutSectionData, ThemeData } from "@/types/sections";
 
-const about = data.about;
-const theme = data.theme;
+const DEFAULT_ABOUT = defaults.about as AboutSectionData;
+const DEFAULT_THEME = defaults.theme as ThemeData;
+
+interface AboutSectionProps {
+  data?: AboutSectionData;
+  theme?: ThemeData;
+}
 
 function useReveal<T extends HTMLElement>(threshold = 0.18) {
   const ref = useRef<T>(null);
@@ -30,7 +36,10 @@ function useReveal<T extends HTMLElement>(threshold = 0.18) {
   return { ref, visible };
 }
 
-export function AboutSection() {
+export function AboutSection({
+  data: about = DEFAULT_ABOUT,
+  theme = DEFAULT_THEME,
+}: AboutSectionProps) {
   const header = useReveal<HTMLDivElement>();
   const closing = useReveal<HTMLDivElement>();
 
@@ -83,6 +92,7 @@ export function AboutSection() {
               index={i}
               lead={stmt.lead}
               body={stmt.body}
+              theme={theme}
             />
           ))}
         </ul>
@@ -116,10 +126,12 @@ function Statement({
   index,
   lead,
   body,
+  theme,
 }: {
   index: number;
   lead: string;
   body: string;
+  theme: ThemeData;
 }) {
   const { ref, visible } = useReveal<HTMLLIElement>();
   return (

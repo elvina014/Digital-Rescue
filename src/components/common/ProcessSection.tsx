@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import defaults from "@/data/mainPageData.json";
 import type { ProcessSectionData, ThemeData } from "@/types/sections";
 import { ServiceIcon, type IconName } from "./icons";
+
+const DEFAULT_PROCESS = defaults.process as ProcessSectionData;
+const DEFAULT_THEME = defaults.theme as ThemeData;
 
 function smoothScrollTo(target: string) {
   const id = target.startsWith("#") ? target.slice(1) : target;
@@ -15,11 +19,14 @@ function smoothScrollTo(target: string) {
 }
 
 interface ProcessSectionProps {
-  data: ProcessSectionData;
-  theme: ThemeData;
+  data?: ProcessSectionData;
+  theme?: ThemeData;
 }
 
-export function ProcessSection({ data, theme }: ProcessSectionProps) {
+export function ProcessSection({
+  data = DEFAULT_PROCESS,
+  theme = DEFAULT_THEME,
+}: ProcessSectionProps) {
   return (
     <section
       id="process"

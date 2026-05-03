@@ -1,5 +1,6 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import type { EmployeeRole } from "@/types";
+import { EmployeeRole } from "@/types";
 
 export interface CurrentEmployee {
   id: string;
@@ -61,4 +62,30 @@ export async function getCurrentEmployeeFull(): Promise<CurrentEmployeeFull | nu
     ...(data as { id: string; name: string; role: EmployeeRole; phone: string | null }),
     email: user.email ?? "",
   };
+}
+
+/**
+ * CMS(/editor) 접근 가드 — 서버 컴포넌트 / Server Action 에서 사용.
+ *
+ * - 미로그인:        /login 으로 리다이렉트 (편집 페이지로 돌아올 redirect 쿼리 포함)
+ * - 권한 부족(직급): /login?error=insufficient_role 로 리다이렉트
+ * - ADMIN 또는 MANAGER 만 통과
+ *
+ * 통과 시 현재 직원 정보를 반환한다. redirect() 가 throw 하므로
+ * 함수가 정상적으로 반환했다면 이미 권한 검증이 끝난 상태가 보장된다.
+ */
+export async function requireCmsAccess(
+  redirectAfterLogin: string = "/editor"
+): Promise<CurrentEmployee> {
+  const employee = await getCurrentEmployee();
+
+  if (!employee) {
+    redirect(`/login?redirect=${encodeURIComponent(redirectAfterLogin)}`);
+  }
+
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    redirect("/login?error=insufficient_role");
+  }
+
+  return employee;
 }

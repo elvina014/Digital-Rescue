@@ -148,3 +148,115 @@ export interface BrandLandingEntry {
   formDeviceType: string | null;
   intro: BrandIntroData;
 }
+
+// ---------- 레이아웃 (Header / Footer) ----------
+
+export interface HeaderData {
+  brand: {
+    /** 강조 전 부분 — 예: "디지털" */
+    leadText: string;
+    /** 강조 부분 — 예: "레스큐" */
+    accentText: string;
+    href: string;
+  };
+  navLinks: { label: string; href: string }[];
+  cta: {
+    label: string;
+    href: string;
+  };
+}
+
+export interface FooterColumn {
+  title: string;
+  items: { label: string; href?: string; external?: boolean }[];
+}
+
+export interface FooterData {
+  brand: {
+    leadText: string;
+    accentText: string;
+    intro: string;
+  };
+  columns: FooterColumn[];
+  business: { label: string; value: string }[];
+  disclaimer: string;
+  /** %YEAR% 토큰은 현재 연도로 자동 치환 */
+  copyright: string;
+}
+
+// ---------- 메인 전용 섹션 ----------
+
+export interface HeroSectionData {
+  badge: { text: string; show: boolean };
+  headline: {
+    lines: { text: string; emphasis: boolean }[];
+    weight: number;
+    tracking: string;
+  };
+  subheadline: string;
+  ctas: { label: string; href: string; variant: "primary" | "ghost" }[];
+  background: {
+    type: string;
+    imageUrl: string;
+    blobs: { color: string; x: string; y: string; size: string; blur: string }[];
+  };
+  trustStats: { value: string; label: string }[];
+  animation: { fadeInDurationMs: number; parallaxStrength: number };
+}
+
+export interface AboutSectionData {
+  eyebrow: string;
+  title: string;
+  intro: string;
+  statements: { lead: string; body: string }[];
+  closing: string;
+}
+
+export interface ServiceItem {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  iconName: string;
+  accent: string;
+}
+
+export interface ServicesSectionData {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  items: ServiceItem[];
+}
+
+export interface DigitalResourcesNewsItem {
+  id: string;
+  title: string;
+  date: string;
+  source: string;
+  summary: string;
+  body: string;
+}
+
+export interface DigitalResourcesEmergencyItem {
+  id: string;
+  title: string;
+  iconName: string;
+  summary: string;
+  steps: string[];
+}
+
+export interface DigitalResourcesBrandItem {
+  name: string;
+  url: string;
+  domain: string;
+}
+
+export interface DigitalResourcesData {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  tabs: { news: string; emergency: string; brands: string };
+  news: { items: DigitalResourcesNewsItem[] };
+  emergency: { items: DigitalResourcesEmergencyItem[] };
+  brands: { items: DigitalResourcesBrandItem[] };
+}

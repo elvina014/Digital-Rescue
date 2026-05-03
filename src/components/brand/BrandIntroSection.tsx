@@ -2,14 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import brandDefaults from "@/data/brandLandingData.json";
+import mainDefaults from "@/data/mainPageData.json";
 import type { BrandIntroData, ThemeData } from "@/types/sections";
 import { ServiceIcon, type IconName } from "@/components/common/icons";
 
+// 기본값: brandLandingData.json 의 samsung 항목을 일반 폴백으로 사용
+//  - 실제 운영에서는 DB(page_contents) 의 brand:{slug} / intro 행에서 주입됨
+const DEFAULT_BRAND_INTRO = brandDefaults.brands.samsung.intro as BrandIntroData;
+const DEFAULT_THEME = mainDefaults.theme as ThemeData;
+const DEFAULT_DISPLAY_NAME = brandDefaults.brands.samsung.displayName;
+
 interface BrandIntroSectionProps {
-  data: BrandIntroData;
-  theme: ThemeData;
+  data?: BrandIntroData;
+  theme?: ThemeData;
   /** 표시용 브랜드 이름. 화려한 외곽 텍스트(워터마크) 등에 사용된다. */
-  displayName: string;
+  displayName?: string;
 }
 
 /**
@@ -20,9 +28,9 @@ interface BrandIntroSectionProps {
  * - CMS(edit.digital-rescue.com) 에서 brandLandingData.json 의 intro 항목을 편집해 모든 텍스트 변경
  */
 export function BrandIntroSection({
-  data,
-  theme,
-  displayName,
+  data = DEFAULT_BRAND_INTRO,
+  theme = DEFAULT_THEME,
+  displayName = DEFAULT_DISPLAY_NAME,
 }: BrandIntroSectionProps) {
   const sectionRef = useRef<HTMLElement>(null);
   const [mounted, setMounted] = useState(false);

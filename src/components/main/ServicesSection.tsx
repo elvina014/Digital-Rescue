@@ -1,13 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import data from "@/data/mainPageData.json";
+import defaults from "@/data/mainPageData.json";
+import type { ServicesSectionData, ThemeData } from "@/types/sections";
 import { ServiceIcon, type IconName } from "@/components/common/icons";
 
-const services = data.services;
-const theme = data.theme;
+const DEFAULT_SERVICES = defaults.services as ServicesSectionData;
+const DEFAULT_THEME = defaults.theme as ThemeData;
 
-export function ServicesSection() {
+interface ServicesSectionProps {
+  data?: ServicesSectionData;
+  theme?: ThemeData;
+}
+
+export function ServicesSection({
+  data: services = DEFAULT_SERVICES,
+  theme = DEFAULT_THEME,
+}: ServicesSectionProps) {
   return (
     <section
       id="services"
@@ -46,6 +55,7 @@ export function ServicesSection() {
               imageUrl={item.imageUrl}
               iconName={item.iconName as IconName}
               accent={item.accent}
+              theme={theme}
             />
           ))}
         </ul>
@@ -61,6 +71,7 @@ function ServiceCard({
   imageUrl,
   iconName,
   accent,
+  theme,
 }: {
   index: number;
   title: string;
@@ -68,6 +79,7 @@ function ServiceCard({
   imageUrl: string;
   iconName: IconName;
   accent: string;
+  theme: ThemeData;
 }) {
   const ref = useRef<HTMLLIElement>(null);
   const [visible, setVisible] = useState(false);

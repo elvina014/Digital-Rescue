@@ -1,16 +1,31 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import data from "@/data/mainPageData.json";
+import defaults from "@/data/mainPageData.json";
+import type {
+  DigitalResourcesData,
+  DigitalResourcesNewsItem,
+  DigitalResourcesEmergencyItem,
+  DigitalResourcesBrandItem,
+  ThemeData,
+} from "@/types/sections";
 import { ServiceIcon, type IconName } from "@/components/common/icons";
 
-const dr = data.digitalResources;
-const theme = data.theme;
+const DEFAULT_DIGITAL_RESOURCES = defaults.digitalResources as DigitalResourcesData;
+const DEFAULT_THEME = defaults.theme as ThemeData;
 
-type NewsItem = (typeof dr.news.items)[number];
+type NewsItem = DigitalResourcesNewsItem;
 type TabKey = "news" | "emergency" | "brands";
 
-export function DigitalResourcesSection() {
+interface DigitalResourcesSectionProps {
+  data?: DigitalResourcesData;
+  theme?: ThemeData;
+}
+
+export function DigitalResourcesSection({
+  data: dr = DEFAULT_DIGITAL_RESOURCES,
+  theme = DEFAULT_THEME,
+}: DigitalResourcesSectionProps) {
   const [tab, setTab] = useState<TabKey>("news");
   const [activeNews, setActiveNews] = useState<NewsItem | null>(null);
 
@@ -75,14 +90,18 @@ export function DigitalResourcesSection() {
 
         <div className="mt-12">
           {tab === "news" && (
-            <NewsList items={dr.news.items} onSelect={setActiveNews} />
+            <NewsList items={dr.news.items} onSelect={setActiveNews} theme={theme} />
           )}
-          {tab === "emergency" && <EmergencyGrid items={dr.emergency.items} />}
-          {tab === "brands" && <BrandLinks items={dr.brands.items} />}
+          {tab === "emergency" && (
+            <EmergencyGrid items={dr.emergency.items} theme={theme} />
+          )}
+          {tab === "brands" && (
+            <BrandLinks items={dr.brands.items} theme={theme} />
+          )}
         </div>
       </div>
 
-      <NewsModal news={activeNews} onClose={() => setActiveNews(null)} />
+      <NewsModal news={activeNews} onClose={() => setActiveNews(null)} theme={theme} />
     </section>
   );
 }
@@ -90,9 +109,11 @@ export function DigitalResourcesSection() {
 function NewsList({
   items,
   onSelect,
+  theme,
 }: {
   items: readonly NewsItem[];
   onSelect: (n: NewsItem) => void;
+  theme: ThemeData;
 }) {
   return (
     <ul
@@ -157,9 +178,11 @@ function NewsList({
 function NewsModal({
   news,
   onClose,
+  theme,
 }: {
   news: NewsItem | null;
   onClose: () => void;
+  theme: ThemeData;
 }) {
   useEffect(() => {
     if (!news) return;
@@ -246,8 +269,10 @@ function NewsModal({
 
 function EmergencyGrid({
   items,
+  theme,
 }: {
-  items: typeof dr.emergency.items;
+  items: DigitalResourcesEmergencyItem[];
+  theme: ThemeData;
 }) {
   return (
     <ul className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-2">
@@ -310,8 +335,10 @@ function EmergencyGrid({
 
 function BrandLinks({
   items,
+  theme,
 }: {
-  items: typeof dr.brands.items;
+  items: DigitalResourcesBrandItem[];
+  theme: ThemeData;
 }) {
   return (
     <ul className="mx-auto grid max-w-5xl grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
