@@ -3,9 +3,9 @@
   "scope": "디지털레스큐 — 브랜드 랜딩페이지 + CMS(/editor) 구축 세션",
 
   "현재작업": {
-    "title": "CMS 이미지 업로드 → Supabase Storage 연결 + revalidatePath 캐시 갱신",
-    "summary": "에디터 ImageField 가 파일 선택 시 클라이언트 압축(webp) → page-content-images 버킷으로 업로드 → public URL 을 content_data JSON 에 저장. 저장 액션은 revalidatePath('/', 'layout') 으로 모든 (main) 라우트의 서버 캐시 무효화.",
-    "status": "구현 완료, 사용자 셋업 단계 대기 중"
+    "title": "edit.digital-rescue.com 서브도메인 라우팅 설정",
+    "summary": "edit.digital-rescue.com 접속 시 URL 유지하면서 /editor 내용을 서빙하도록 next.config.ts beforeFiles rewrite + proxy.ts 인증 가드 추가. 서브도메인 간 세션 공유를 위해 쿠키 domain=.digital-rescue.com 설정. login/logout 크로스 도메인 리다이렉트도 수정.",
+    "status": "코드 구현 완료. 사용자가 NEXT_PUBLIC_SITE_DOMAIN 환경변수 추가 후 배포하면 완성."
   },
 
   "완료된것": [
@@ -31,6 +31,7 @@
       "category": "CMS 인증/인가",
       "items": [
         "src/lib/auth.ts — requireCmsAccess(): 미로그인 → /login, ADMIN/MANAGER 외 → /login?error=insufficient_role",
+        "src/lib/auth.ts — getCmsLoginBase(): edit. 도메인에서 호출 시 login. 도메인의 절대 URL 반환 (크로스 도메인 리다이렉트)",
         "src/app/(cms)/layout.tsx — 모든 (cms) 자식 라우트에 권한 가드 자동 적용",
         "기존 employees 테이블의 role enum (ADMIN, MANAGER) 재사용"
       ]
@@ -73,28 +74,43 @@
         "Inspector ImageField — 파일 선택 시 즉시 업로드, URL 만 JSON 에 저장 (데이터 URL 인라인 폐기)",
         "revalidatePath('/', 'layout') — 저장 시 (main) 전체 라우트 캐시 무효화"
       ]
+    },
+    {
+      "category": "edit.digital-rescue.com 서브도메인 라우팅 (2026-05-03)",
+      "items": [
+        "next.config.ts — beforeFiles rewrite: edit.* 호스트 + '/' → '/editor' (브라우저 URL edit. 유지)",
+        "src/proxy.ts — isEditHost() + buildLoginUrlFromEdit() 추가; onEdit 인증 가드: 미인증 시 login.도메인/login?redirect=현재URL 리다이렉트",
+        "src/utils/supabase/middleware.ts — getCookieDomain(): NEXT_PUBLIC_SITE_DOMAIN 기반 쿠키 domain=.digital-rescue.com 설정 (서브도메인 간 세션 공유)",
+        "src/utils/supabase/client.ts — 브라우저 클라이언트 setAll 에도 Domain=.digital-rescue.com 추가 (이미지 업로드 등 클라이언트 Supabase 호출 지원)",
+        "src/lib/auth.ts — getCmsLoginBase() 헬퍼: edit. 도메인에서 requireCmsAccess() 실패 시 login. 도메인의 절대 URL 로 리다이렉트",
+        "src/app/(admin)/login/actions.ts — loginAction: 신뢰 도메인 절대 URL redirect 지원 (edit. 복귀); logoutAction: edit. 도메인에서 login. 도메인으로 이동"
+      ]
     }
   ],
 
   "남은작업": {
     "사용자가직접해야할것": [
       "1) .env.local 에 NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY 확인",
-      "2) 마이그레이션 021, 022, 023 순서대로 적용 (supabase db push 또는 SQL Editor)",
-      "3) Supabase 대시보드 → Storage 에서 page-content-images 버킷 생성 확인",
-      "4) Supabase Auth 에서 직원 user 생성 후 employees 테이블에 role='ADMIN' 행 INSERT (최소 1명)",
-      "5) 프로덕션: digital-rescue.com + login.digital-rescue.com DNS 등록 (둘 다 같은 배포 가리킴)",
-      "6) /editor 접속 → 텍스트/슬라이더/이미지 편집 → 저장 → 메인 페이지 반영 확인"
+      "2) .env.local 에 NEXT_PUBLIC_SITE_DOMAIN=digital-rescue.com 추가 (서브도메인 간 쿠키 공유 필수)",
+      "3) Vercel Dashboard → digital-rescue 프로젝트 → Settings → Environment Variables 에 NEXT_PUBLIC_SITE_DOMAIN=digital-rescue.com 추가 후 재배포",
+      "4) 마이그레이션 021, 022, 023 순서대로 적용 (supabase db push 또는 SQL Editor) — 미적용 시",
+      "5) Supabase 대시보드 → Storage 에서 page-content-images 버킷 생성 확인 — 미적용 시",
+      "6) Supabase Auth 에서 직원 user 생성 후 employees 테이블에 role='ADMIN' 행 INSERT (최소 1명) — 미완료 시",
+      "7) edit.digital-rescue.com DNS 확인 (Vercel MCP 조회 결과 이미 도메인 등록되어 있음 — DNS 레코드만 확인)",
+      "8) Supabase Auth → URL Configuration → Redirect URLs 에 https://edit.digital-rescue.com/** 추가 (매직링크/OAuth 사용 시 필요)",
+      "9) 배포 후 동작 확인: edit.digital-rescue.com 미인증 → login. 리다이렉트 → 로그인 → edit. 에디터 표시"
     ],
     "코드레벨미완성": [
       "MobileCTA.tsx 는 아직 하드코딩 (props 리팩터 안 됨) — 사용자가 명시적으로 요청하지 않아 보류",
       "이미지 alt 텍스트가 자동 (콘텐츠에 alt 필드 없음) — 접근성/SEO 개선 시 추가 필요",
-      "에디터에서 새 (page_key, section_key) 행 생성 UI 없음 — catalog.ts + 시드 SQL 수동 추가 필요"
+      "에디터에서 새 (page_key, section_key) 행 생성 UI 없음 — catalog.ts + 시드 SQL 수동 추가 필요",
+      "LoginForm 에서 ?error=insufficient_role 쿼리를 읽어 친절한 안내 메시지 표시하는 UI 없음"
     ]
   },
 
   "제약조건": [
     "코드 수정은 반드시 프로젝트 루트(C:/Users/BRAD/Documents/workspace/Digital-Rescue)에 적용 — worktree 사용 금지 (memory: feedback_no_worktree, feedback_worktree_file_location)",
-    "Next.js 16 — APIs/conventions 가 다를 수 있어 node_modules/next/dist/docs/ 참조 후 작성 (AGENTS.md)",
+    "Next.js 16 — middleware 규약 변경: src/proxy.ts 가 미들웨어 진입점 (함수명 proxy, config export). src/middleware.ts 는 사용 금지 (충돌 발생)",
     "EmployeeRole enum 의 '팀장' = MANAGER (TEAM_LEADER 아님)",
     "기존 employees 테이블과 auth.users 1:1 매핑, get_my_role() RLS 헬퍼 재사용",
     "Karpathy 원칙: 요청 안 한 것 추가 금지, 단순함 우선, 인접 코드 임의 수정 금지",
@@ -115,9 +131,9 @@
       "resolution": "해결됨 — Supabase Storage 로 전환, URL 만 JSON 에 저장"
     },
     {
-      "issue": "/editor 가 proxy.ts ADMIN_PATHS 에 포함 — 메인 도메인에서 차단되어 login.digital-rescue.com/editor 형태로만 접근 가능",
+      "issue": "/editor 가 proxy.ts ADMIN_PATHS 에 포함 — 메인 도메인에서 차단, login.digital-rescue.com/editor 또는 edit.digital-rescue.com 으로만 접근 가능",
       "severity": "design choice",
-      "resolution": "그대로 유지 — CMS 가 직원 포털 일부로 동작. edit. 서브도메인 별도 운영 시 proxy 분기 추가 필요"
+      "resolution": "유지 — edit. 서브도메인 전용 진입점 구현 완료 (2026-05-03)"
     },
     {
       "issue": "HeroSection 의 parallax useEffect 가 hero.animation.parallaxStrength 를 deps 에서 누락",
@@ -127,23 +143,28 @@
     {
       "issue": "이미지 교체/되돌리기 시 Storage 의 이전 파일이 orphan 으로 남음",
       "severity": "low",
-      "resolution": "미해결 (운영 단계 cleanup cron 권장) — 셋업 가이드에 명시"
+      "resolution": "미해결 (운영 단계 cleanup cron 권장)"
+    },
+    {
+      "issue": "Next.js 16 미들웨어 규약: src/proxy.ts 가 진입점 (proxy 함수명 + config export). src/middleware.ts 를 별도 생성하면 충돌 에러 발생",
+      "severity": "info",
+      "resolution": "확인됨 (2026-05-03) — src/middleware.ts 생성 시도 후 빌드 에러로 발견, 즉시 삭제. 제약조건에 반영."
     }
   ],
 
   "다음에할일": {
     "단기 (다음 세션 후보)": [
+      "NEXT_PUBLIC_SITE_DOMAIN 환경변수 추가 후 배포 → edit.digital-rescue.com 동작 최종 확인",
+      "LoginForm 에서 ?error=insufficient_role 쿼리 처리해 친절한 안내 메시지 표시",
       "MobileCTA 도 props + defaults 패턴으로 리팩터 — Header/Footer 와 일관성",
       "이미지 alt 필드를 데이터 스키마에 추가 — SEO/접근성",
       "에디터에서 페이지 추가/섹션 추가 UI (현재 catalog.ts 수동 편집 필요)",
-      "LoginForm 에서 ?error=insufficient_role 쿼리 처리해 친절한 안내 메시지 표시",
       "에디터 JSON 직접 편집 모드 (raw JSONB textarea + 검증) — 휴리스틱이 못 다루는 케이스 대응"
     ],
     "중기 (운영 안정화)": [
       "Storage orphan 파일 정리 cron — page_contents.content_data 의 모든 URL 스캔 → 미참조 파일 삭제",
       "page_content_history 테이블로 버전 히스토리 보존 — 실수 복구",
       "메인/브랜드 페이지를 unstable_cache + tag-based revalidation 으로 전환 — ƒ Dynamic → ○ Static 으로 성능 개선하면서 즉시 갱신 유지",
-      "edit.digital-rescue.com 서브도메인 분리 검토 (현재는 login. 하위)",
       "에디터 변경 사항 diff 미리보기 — 저장 전 어떤 필드가 어떻게 바뀔지 표시"
     ],
     "장기 (확장)": [
@@ -156,10 +177,19 @@
   },
 
   "주요파일맵": {
-    "라우팅": [
+    "미들웨어/라우팅": [
+      "src/proxy.ts — Next.js 16 미들웨어 진입점 (proxy 함수 + config export). 서브도메인 분기: login.→관리자포털, edit.→CMS, 메인→랜딩",
+      "next.config.ts — edit.* 호스트 beforeFiles rewrite: / → /editor",
       "src/lib/brands.ts",
-      "src/app/(main)/[brand]/page.tsx",
-      "src/proxy.ts"
+      "src/app/(main)/[brand]/page.tsx"
+    ],
+    "인증/세션": [
+      "src/lib/auth.ts — getCurrentEmployee(), requireCmsAccess(), getCmsLoginBase()",
+      "src/utils/supabase/middleware.ts — updateSession() + 서브도메인 쿠키 도메인 공유",
+      "src/utils/supabase/client.ts — 브라우저용 Supabase 클라이언트 + 쿠키 도메인",
+      "src/utils/supabase/server.ts — 서버용 Supabase 클라이언트",
+      "src/app/(admin)/login/actions.ts — loginAction, logoutAction (크로스 도메인 리다이렉트 포함)",
+      "src/app/(cms)/layout.tsx — CMS 레이아웃 권한 가드"
     ],
     "데이터": [
       "src/data/mainPageData.json",
@@ -171,10 +201,6 @@
       "supabase/migrations/021_page_contents.sql",
       "supabase/migrations/022_page_contents_header_footer.sql",
       "supabase/migrations/023_cms_image_storage.sql"
-    ],
-    "인증": [
-      "src/lib/auth.ts",
-      "src/app/(cms)/layout.tsx"
     ],
     "에디터": [
       "src/app/(cms)/editor/page.tsx",

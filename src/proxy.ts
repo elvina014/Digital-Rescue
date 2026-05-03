@@ -7,12 +7,16 @@ import { canonicalBrandSlug } from "@/lib/brands";
  *
  * 서브도메인 기반 라우팅:
  * - login.digital-rescue.com (login.localhost) → 관리자 포털 /(admin)
+ * - edit.digital-rescue.com (edit.localhost)   → CMS 에디터 /(cms)/editor
  * - digital-rescue.com (localhost)             → 대고객 홈페이지 /(main)
  *
- * 1) admin 서브도메인 + "/" → 인증 여부에 따라 /dashboard 또는 /login 리다이렉트
- * 2) 메인 도메인에서 관리자 경로 접근 → "/" 로 차단
- * 3) admin 서브도메인 보호 경로 미인증 → /login 리다이렉트
- * 4) admin 서브도메인 로그인 페이지 인증 완료 → /dashboard 리다이렉트
+ * 1) edit. 서브도메인 미인증 → login.digital-rescue.com/login 으로 리다이렉트
+ * 2) login. 서브도메인의 /editor* → edit.digital-rescue.com/editor* 로 강제 리다이렉트
+ *    (에디터는 edit. 도메인 전용 — 단일 진입점 강제)
+ * 3) admin 서브도메인 + "/" → 인증 여부에 따라 /dashboard 또는 /login 리다이렉트
+ * 4) 메인 도메인에서 관리자 경로 접근 → "/" 로 차단
+ * 5) admin 서브도메인 보호 경로 미인증 → /login 리다이렉트
+ * 6) admin 서브도메인 로그인 페이지 인증 완료 → /dashboard 리다이렉트
  */
 
 // admin 서브도메인에서만 접근 가능한 경로
@@ -94,6 +98,15 @@ export async function proxy(request: NextRequest) {
   }
 
   // ── 이하 admin 서브도메인 로직 ──
+
+  // /editor* 는 edit.digital-rescue.com 전용 → 강제 리다이렉트
+  // (인증 체크보다 먼저: 로그인 흐름은 edit. 측 가드가 처리)
+  if (pathname === "/editor" || pathname.startsWith("/editor/")) {
+    const editUrl = request.nextUrl.clone();
+    const host = request.headers.get("host") ?? "";
+    editUrl.host = host.replace(/^login\./, "edit.");
+    return NextResponse.redirect(editUrl);
+  }
 
   // 루트("/") 접속 → 인증 여부에 따라 분기
   if (pathname === "/") {
