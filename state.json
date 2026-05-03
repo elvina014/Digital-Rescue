@@ -1,0 +1,199 @@
+{
+  "lastUpdated": "2026-05-03",
+  "scope": "디지털레스큐 — 브랜드 랜딩페이지 + CMS(/editor) 구축 세션",
+
+  "현재작업": {
+    "title": "CMS 이미지 업로드 → Supabase Storage 연결 + revalidatePath 캐시 갱신",
+    "summary": "에디터 ImageField 가 파일 선택 시 클라이언트 압축(webp) → page-content-images 버킷으로 업로드 → public URL 을 content_data JSON 에 저장. 저장 액션은 revalidatePath('/', 'layout') 으로 모든 (main) 라우트의 서버 캐시 무효화.",
+    "status": "구현 완료, 사용자 셋업 단계 대기 중"
+  },
+
+  "완료된것": [
+    {
+      "category": "라우팅 (14개 브랜드 랜딩)",
+      "items": [
+        "src/lib/brands.ts — 14개 슬러그 + canonicalBrandSlug() 단일 출처",
+        "src/app/(main)/[brand]/page.tsx — generateStaticParams + dynamicParams=false 로 외 슬러그 전부 404",
+        "src/proxy.ts — /Lenovo, /SAMSUNG 등 대소문자 혼합 URL 을 소문자 정규형으로 308 redirect (case-insensitive)",
+        "src/data/brandLandingData.json — 14개 브랜드별 intro 데이터"
+      ]
+    },
+    {
+      "category": "공통 섹션 모듈화 + 메인/랜딩 통합",
+      "items": [
+        "src/components/common/{SymptomsSection,ProcessSection,ContactForm,RealtimeStatus,SymptomModal,icons}.tsx — 메인↔랜딩 공유",
+        "ContactForm: defaultBrand/defaultDeviceType props — URL 기반 자동 주입(/hp → 'HP' 자동선택)",
+        "src/components/brand/BrandIntroSection.tsx — 섹션 1 (다크 그라디언트 + 워터마크 + 마우스 스포트라이트 애니메이션)",
+        "src/types/sections.ts — 모든 섹션의 데이터 타입 정의"
+      ]
+    },
+    {
+      "category": "CMS 인증/인가",
+      "items": [
+        "src/lib/auth.ts — requireCmsAccess(): 미로그인 → /login, ADMIN/MANAGER 외 → /login?error=insufficient_role",
+        "src/app/(cms)/layout.tsx — 모든 (cms) 자식 라우트에 권한 가드 자동 적용",
+        "기존 employees 테이블의 role enum (ADMIN, MANAGER) 재사용"
+      ]
+    },
+    {
+      "category": "DB 스키마",
+      "items": [
+        "supabase/migrations/021_page_contents.sql — page_contents 테이블 + (page_key, section_key) UNIQUE + updated_at 트리거 + RLS(SELECT anon+auth, write ADMIN/MANAGER) + 23개 시드(main 9 + brand 14)",
+        "supabase/migrations/022_page_contents_header_footer.sql — main:header, main:footer 시드 추가 (총 25행)",
+        "supabase/migrations/023_cms_image_storage.sql — page-content-images 버킷(public, 10MB, 이미지 MIME) + storage.objects RLS 4개"
+      ]
+    },
+    {
+      "category": "CMS 에디터 UI (3-pane)",
+      "items": [
+        "src/app/(cms)/editor/catalog.ts — 페이지(메인+14브랜드)/섹션 목록 정의",
+        "src/app/(cms)/editor/page.tsx (서버) — searchParams 검증 + page_contents 조회",
+        "src/app/(cms)/editor/EditorClient.tsx — draft state, dirty 추적, 저장/되돌리기, dirty 상태 페이지 전환 confirm",
+        "src/app/(cms)/editor/Sidebar.tsx — 페이지 드롭다운(optgroup) + 섹션 리스트",
+        "src/app/(cms)/editor/Inspector.tsx — 재귀적 schema-aware 폼 (텍스트/textarea/슬라이더/숫자/컬러피커/이미지/체크박스/배열/객체)",
+        "src/app/(cms)/editor/Preview.tsx — 실제 사이트 컴포넌트로 라이브 렌더 + ErrorBoundary + theme swatch 미리보기",
+        "src/app/(cms)/editor/actions.ts — savePageContentAction (권한검증, UPSERT, revalidatePath)"
+      ]
+    },
+    {
+      "category": "DB-driven 데이터 흐름 (props + defaults)",
+      "items": [
+        "Header.tsx, Footer.tsx — props 기반 + theme 토큰 인라인 스타일 + mainPageData.json 폴백",
+        "메인 섹션 4개 (Hero/About/Services/DigitalResources) — props 리팩터 + defaults",
+        "공통 섹션 4개 + BrandIntroSection — defaults 옵셔널 props",
+        "src/lib/pageContents.ts — getPageSections(pageKey) (React cache() dedup)",
+        "(main)/layout, page, [brand]/page — async, DB 조회 후 props 주입",
+        "데이터 흐름: DB(page_contents) → getPageSections → 컴포넌트 props (data?, theme?) → 미주입 시 mainPageData.json defaults"
+      ]
+    },
+    {
+      "category": "이미지 업로드 + 캐시 갱신",
+      "items": [
+        "src/lib/cmsImageUpload.ts — 클라이언트 압축(webp 1MB/2400px) → Storage 업로드 → public URL 반환",
+        "Inspector ImageField — 파일 선택 시 즉시 업로드, URL 만 JSON 에 저장 (데이터 URL 인라인 폐기)",
+        "revalidatePath('/', 'layout') — 저장 시 (main) 전체 라우트 캐시 무효화"
+      ]
+    }
+  ],
+
+  "남은작업": {
+    "사용자가직접해야할것": [
+      "1) .env.local 에 NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY 확인",
+      "2) 마이그레이션 021, 022, 023 순서대로 적용 (supabase db push 또는 SQL Editor)",
+      "3) Supabase 대시보드 → Storage 에서 page-content-images 버킷 생성 확인",
+      "4) Supabase Auth 에서 직원 user 생성 후 employees 테이블에 role='ADMIN' 행 INSERT (최소 1명)",
+      "5) 프로덕션: digital-rescue.com + login.digital-rescue.com DNS 등록 (둘 다 같은 배포 가리킴)",
+      "6) /editor 접속 → 텍스트/슬라이더/이미지 편집 → 저장 → 메인 페이지 반영 확인"
+    ],
+    "코드레벨미완성": [
+      "MobileCTA.tsx 는 아직 하드코딩 (props 리팩터 안 됨) — 사용자가 명시적으로 요청하지 않아 보류",
+      "이미지 alt 텍스트가 자동 (콘텐츠에 alt 필드 없음) — 접근성/SEO 개선 시 추가 필요",
+      "에디터에서 새 (page_key, section_key) 행 생성 UI 없음 — catalog.ts + 시드 SQL 수동 추가 필요"
+    ]
+  },
+
+  "제약조건": [
+    "코드 수정은 반드시 프로젝트 루트(C:/Users/BRAD/Documents/workspace/Digital-Rescue)에 적용 — worktree 사용 금지 (memory: feedback_no_worktree, feedback_worktree_file_location)",
+    "Next.js 16 — APIs/conventions 가 다를 수 있어 node_modules/next/dist/docs/ 참조 후 작성 (AGENTS.md)",
+    "EmployeeRole enum 의 '팀장' = MANAGER (TEAM_LEADER 아님)",
+    "기존 employees 테이블과 auth.users 1:1 매핑, get_my_role() RLS 헬퍼 재사용",
+    "Karpathy 원칙: 요청 안 한 것 추가 금지, 단순함 우선, 인접 코드 임의 수정 금지",
+    "사용자가 요청하지 않으면 docs(*.md) 파일 생성 금지",
+    "이모지는 사용자 명시 요청시에만",
+    "주석/UI 텍스트는 한국어 일관성 유지"
+  ],
+
+  "발견한버그": [
+    {
+      "issue": "초기 /Lenovo 슬러그가 대문자 — 다른 13개 브랜드는 소문자, 일관성 없음",
+      "severity": "low",
+      "resolution": "해결됨 — 모든 슬러그를 소문자 canonical 로 통일하고 proxy.ts 에서 case-insensitive 308 redirect"
+    },
+    {
+      "issue": "이미지를 데이터 URL 로 JSONB 에 인라인 저장 → 큰 이미지 시 row 비대화",
+      "severity": "medium",
+      "resolution": "해결됨 — Supabase Storage 로 전환, URL 만 JSON 에 저장"
+    },
+    {
+      "issue": "/editor 가 proxy.ts ADMIN_PATHS 에 포함 — 메인 도메인에서 차단되어 login.digital-rescue.com/editor 형태로만 접근 가능",
+      "severity": "design choice",
+      "resolution": "그대로 유지 — CMS 가 직원 포털 일부로 동작. edit. 서브도메인 별도 운영 시 proxy 분기 추가 필요"
+    },
+    {
+      "issue": "HeroSection 의 parallax useEffect 가 hero.animation.parallaxStrength 를 deps 에서 누락",
+      "severity": "low",
+      "resolution": "미해결 — 사전 존재하던 이슈, 인접 코드 임의 수정 금지 원칙에 따라 보존"
+    },
+    {
+      "issue": "이미지 교체/되돌리기 시 Storage 의 이전 파일이 orphan 으로 남음",
+      "severity": "low",
+      "resolution": "미해결 (운영 단계 cleanup cron 권장) — 셋업 가이드에 명시"
+    }
+  ],
+
+  "다음에할일": {
+    "단기 (다음 세션 후보)": [
+      "MobileCTA 도 props + defaults 패턴으로 리팩터 — Header/Footer 와 일관성",
+      "이미지 alt 필드를 데이터 스키마에 추가 — SEO/접근성",
+      "에디터에서 페이지 추가/섹션 추가 UI (현재 catalog.ts 수동 편집 필요)",
+      "LoginForm 에서 ?error=insufficient_role 쿼리 처리해 친절한 안내 메시지 표시",
+      "에디터 JSON 직접 편집 모드 (raw JSONB textarea + 검증) — 휴리스틱이 못 다루는 케이스 대응"
+    ],
+    "중기 (운영 안정화)": [
+      "Storage orphan 파일 정리 cron — page_contents.content_data 의 모든 URL 스캔 → 미참조 파일 삭제",
+      "page_content_history 테이블로 버전 히스토리 보존 — 실수 복구",
+      "메인/브랜드 페이지를 unstable_cache + tag-based revalidation 으로 전환 — ƒ Dynamic → ○ Static 으로 성능 개선하면서 즉시 갱신 유지",
+      "edit.digital-rescue.com 서브도메인 분리 검토 (현재는 login. 하위)",
+      "에디터 변경 사항 diff 미리보기 — 저장 전 어떤 필드가 어떻게 바뀔지 표시"
+    ],
+    "장기 (확장)": [
+      "다국어 지원 (i18n) — page_key 에 locale 추가하거나 별도 컬럼",
+      "역할별 편집 권한 세분화 (예: ADMIN 만 theme 편집, MANAGER 는 콘텐츠만)",
+      "프리뷰에서 viewport size toggle (모바일/태블릿/데스크탑)",
+      "이미지 CDN 통합 (Supabase Storage → Cloudflare Images 등) — 자동 리사이즈/포맷 변환",
+      "감사 로그 — 누가 언제 무엇을 바꿨는지 page_contents.updated_by 기반으로 활동 피드"
+    ]
+  },
+
+  "주요파일맵": {
+    "라우팅": [
+      "src/lib/brands.ts",
+      "src/app/(main)/[brand]/page.tsx",
+      "src/proxy.ts"
+    ],
+    "데이터": [
+      "src/data/mainPageData.json",
+      "src/data/brandLandingData.json",
+      "src/lib/pageContents.ts",
+      "src/types/sections.ts"
+    ],
+    "DB": [
+      "supabase/migrations/021_page_contents.sql",
+      "supabase/migrations/022_page_contents_header_footer.sql",
+      "supabase/migrations/023_cms_image_storage.sql"
+    ],
+    "인증": [
+      "src/lib/auth.ts",
+      "src/app/(cms)/layout.tsx"
+    ],
+    "에디터": [
+      "src/app/(cms)/editor/page.tsx",
+      "src/app/(cms)/editor/EditorClient.tsx",
+      "src/app/(cms)/editor/Sidebar.tsx",
+      "src/app/(cms)/editor/Inspector.tsx",
+      "src/app/(cms)/editor/Preview.tsx",
+      "src/app/(cms)/editor/catalog.ts",
+      "src/app/(cms)/editor/actions.ts"
+    ],
+    "이미지업로드": [
+      "src/lib/cmsImageUpload.ts"
+    ],
+    "사이트컴포넌트": [
+      "src/components/layout/Header.tsx",
+      "src/components/layout/Footer.tsx",
+      "src/components/main/{Hero,About,Services,DigitalResources}Section.tsx",
+      "src/components/common/{Symptoms,Process,ContactForm,RealtimeStatus,SymptomModal,icons}.tsx",
+      "src/components/brand/BrandIntroSection.tsx"
+    ]
+  }
+}

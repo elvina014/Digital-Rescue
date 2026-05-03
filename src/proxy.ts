@@ -25,11 +25,45 @@ function isAdminHost(request: NextRequest): boolean {
   return host.startsWith("login.");
 }
 
+/** hostname이 edit 서브도메인인지 판별 */
+function isEditHost(request: NextRequest): boolean {
+  const host = request.headers.get("host") ?? "";
+  return host.startsWith("edit.");
+}
+
+/** edit 서브도메인에서 login 서브도메인의 로그인 페이지 URL 생성 */
+function buildLoginUrlFromEdit(request: NextRequest, params?: Record<string, string>): URL {
+  const url = request.nextUrl.clone();
+  const host = request.headers.get("host") ?? "";
+  url.host = host.replace(/^edit\./, "login.");
+  url.pathname = LOGIN_PATH;
+  url.search = "";
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v);
+    }
+  }
+  return url;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const { user, supabaseResponse } = await updateSession(request);
 
   const onAdmin = isAdminHost(request);
+  const onEdit = isEditHost(request);
+
+  // ── edit 서브도메인: 인증 가드 ──
+  // next.config.ts beforeFiles 리라이트가 / → /editor 를 처리하므로
+  // 여기서는 인증 체크만 수행. role 검증은 (cms)/layout.tsx 의 requireCmsAccess() 에서.
+  if (onEdit) {
+    if (!user) {
+      return NextResponse.redirect(
+        buildLoginUrlFromEdit(request, { redirect: request.url })
+      );
+    }
+    return supabaseResponse;
+  }
 
   // ── 메인 도메인 가드: 관리자 전용 경로 차단 ──
   if (!onAdmin) {

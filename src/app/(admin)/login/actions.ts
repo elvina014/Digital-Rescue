@@ -36,7 +36,14 @@ export async function loginAction(formData: FormData) {
   }
 
   const origin = await getAdminOrigin();
-  redirect(`${origin}${redirectTo}`);
+
+  // edit 서브도메인에서 로그인 후 복귀: redirect 값이 절대 URL 이고 신뢰 도메인이면 그대로 사용.
+  // 신뢰 도메인: digital-rescue.com 하위 서브도메인 또는 localhost
+  const isTrustedAbsoluteUrl =
+    (redirectTo.startsWith("http://") || redirectTo.startsWith("https://")) &&
+    (redirectTo.includes(".digital-rescue.com") || redirectTo.includes("localhost"));
+
+  redirect(isTrustedAbsoluteUrl ? redirectTo : `${origin}${redirectTo}`);
 }
 
 /**
@@ -45,6 +52,15 @@ export async function loginAction(formData: FormData) {
 export async function logoutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  const origin = await getAdminOrigin();
-  redirect(`${origin}/login`);
+
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+
+  // edit 서브도메인에서 로그아웃 시 login 서브도메인 /login 으로 이동
+  const loginHost = host.startsWith("edit.")
+    ? host.replace(/^edit\./, "login.")
+    : host;
+
+  redirect(`${proto}://${loginHost}/login`);
 }
