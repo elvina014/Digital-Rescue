@@ -57,15 +57,31 @@ export async function proxy(request: NextRequest) {
   const onAdmin = isAdminHost(request);
   const onEdit = isEditHost(request);
 
-  // ── edit 서브도메인: 인증 가드 ──
-  // next.config.ts beforeFiles 리라이트가 / → /editor 를 처리하므로
-  // 여기서는 인증 체크만 수행. role 검증은 (cms)/layout.tsx 의 requireCmsAccess() 에서.
+  // ── edit 서브도메인: 인증 가드 + 루트 리라이트 ──
+  // 미인증 → login. 도메인 로그인으로
+  // 인증됨 + "/"  → /editor 로 내부 rewrite (브라우저 URL 은 edit. 도메인 그대로 유지)
+  // 인증됨 + 그외 → 통과 (예: /editor?page=...&section=... 직접 접근)
+  // role 검증은 (cms)/layout.tsx 의 requireCmsAccess() 가 담당.
   if (onEdit) {
     if (!user) {
       return NextResponse.redirect(
         buildLoginUrlFromEdit(request, { redirect: request.url })
       );
     }
+
+    if (pathname === "/") {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = "/editor";
+      const response = NextResponse.rewrite(rewriteUrl);
+      // updateSession 이 supabaseResponse 에 설정한 갱신 쿠키(.digital-rescue.com 도메인 포함)
+      // 를 rewrite 응답으로 그대로 전달 (Set-Cookie 전체 보존)
+      const setCookies = supabaseResponse.headers.getSetCookie();
+      setCookies.forEach((cookie) =>
+        response.headers.append("set-cookie", cookie)
+      );
+      return response;
+    }
+
     return supabaseResponse;
   }
 
