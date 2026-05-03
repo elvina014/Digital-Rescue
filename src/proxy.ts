@@ -142,19 +142,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // 이미 로그인된 사용자가 /login 접근 → redirect 파라미터 우선, 없으면 /dashboard
+  // 이미 로그인된 사용자가 /login 접근 → /dashboard
+  // ⚠️ 여기서 redirect 파라미터(절대 URL)로 이동하면 쿠키가 공유되지 않은 edit. 도메인에서
+  //    user=null → login. 으로 다시 튕겨 무한 루프 발생.
+  //    절대 URL redirect 는 실제 로그인 성공 후 loginAction 에서만 수행한다.
   if (pathname === LOGIN_PATH && user) {
-    const redirectParam = request.nextUrl.searchParams.get("redirect");
-    // 신뢰 도메인(digital-rescue.com 하위 또는 localhost)의 절대 URL이면 그대로 사용
-    const isTrustedAbsoluteUrl =
-      !!redirectParam &&
-      (redirectParam.startsWith("http://") || redirectParam.startsWith("https://")) &&
-      (redirectParam.includes(".digital-rescue.com") || redirectParam.includes("localhost"));
-
-    if (isTrustedAbsoluteUrl) {
-      return NextResponse.redirect(redirectParam!);
-    }
-
     const dashUrl = request.nextUrl.clone();
     dashUrl.pathname = "/dashboard";
     dashUrl.search = "";
