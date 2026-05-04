@@ -82,6 +82,7 @@ export default async function BrandPage({ params }: BrandPageProps) {
         theme={theme}
         defaultBrand={route.formBrandValue}
         defaultDeviceType={route.formDeviceType}
+        hideReceiptType={true}
       />
 
       {/* 섹션 5: 실시간 수리 현황 (현황 유지) */}

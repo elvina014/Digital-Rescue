@@ -319,12 +319,20 @@ export async function startRepairAction(formData: FormData) {
 
   const { data: ticket } = await supabase
     .from("repair_tickets")
-    .select("assignee_id, status")
+    .select("assignee_id, status, receipt_type")
     .eq("id", ticketId)
     .single();
 
   if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
   if (ticket.status !== "ASSIGNED") return { error: "배정 완료 상태의 접수건만 수리 시작할 수 있습니다." };
+
+  // 접수방식이 "미정"이면 수리 시작 차단
+  if (ticket.receipt_type === "미정") {
+    return {
+      error:
+        "접수방식이 정해지지 않았습니다. 리스트에서 접수 방식을 먼저 선택해 주세요.",
+    };
+  }
 
   const isTechOrExpert = employee.role === EmployeeRole.TECHNICIAN || employee.role === EmployeeRole.EXPERT_REPAIR;
   if (isTechOrExpert && ticket.assignee_id !== employee.id) {
@@ -1847,5 +1855,63 @@ export async function confirmDisposalAction(ticketId: string) {
 
   revalidatePath("/dashboard");
   revalidatePath(`/tickets/${ticketId}`);
+  return { success: true };
+}
+
+// ----- 접수방식 변경 (RECEPTION / MANAGER / ADMIN — 수리 시작 전만 가능) -----
+const RECEIPT_TYPE_LABELS: Record<string, string> = {
+  WALK_IN: "내방",
+  VISIT: "방문",
+  QUICK: "퀵",
+  PARCEL: "택배",
+};
+const VALID_RECEIPT_TYPES = Object.keys(RECEIPT_TYPE_LABELS);
+
+export async function updateReceiptTypeAction(formData: FormData) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  const canUpdate = [EmployeeRole.ADMIN, EmployeeRole.MANAGER, EmployeeRole.RECEPTION];
+  if (!canUpdate.includes(employee.role)) {
+    return { error: "접수방식 변경 권한이 없습니다." };
+  }
+
+  const ticketId = formData.get("ticketId") as string;
+  const receiptType = formData.get("receiptType") as string;
+
+  if (!ticketId) return { error: "접수건 ID가 필요합니다." };
+  if (!VALID_RECEIPT_TYPES.includes(receiptType)) {
+    return { error: "유효한 접수 방식을 선택해 주세요." };
+  }
+
+  const supabase = createAdminClient();
+
+  const { data: ticket } = await supabase
+    .from("repair_tickets")
+    .select("status")
+    .eq("id", ticketId)
+    .single();
+
+  if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
+
+  if (!["NEW", "ASSIGNED"].includes(ticket.status)) {
+    return { error: "수리 시작 전 상태(신규·배정)에서만 접수방식을 변경할 수 있습니다." };
+  }
+
+  const { error } = await supabase
+    .from("repair_tickets")
+    .update({ receipt_type: receiptType })
+    .eq("id", ticketId);
+
+  if (error) return { error: "접수방식 변경 실패: " + error.message };
+
+  await supabase.from("ticket_logs").insert({
+    ticket_id: ticketId,
+    employee_id: employee.id,
+    message: `시스템: 접수방식이 '${RECEIPT_TYPE_LABELS[receiptType]}'(으)로 변경되었습니다.`,
+  });
+
+  revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath("/tickets");
   return { success: true };
 }

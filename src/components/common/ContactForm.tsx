@@ -31,6 +31,8 @@ interface ContactFormProps {
   defaultBrand?: string | null;
   /** URL 기반 자동 주입 — 랜딩페이지에서 기기 종류를 미리 선택해둔다. */
   defaultDeviceType?: string | null;
+  /** 브랜드 랜딩페이지에서 접수방식 필드를 숨길 때 true. 미제출 시 "미정"으로 저장. */
+  hideReceiptType?: boolean;
 }
 
 export function ContactForm({
@@ -38,6 +40,7 @@ export function ContactForm({
   theme = DEFAULT_THEME,
   defaultBrand,
   defaultDeviceType,
+  hideReceiptType = false,
 }: ContactFormProps) {
   const [state, formAction, isPending] = useActionState(
     submitTicketAction,
@@ -151,6 +154,11 @@ export function ContactForm({
           <form
             key={formKey}
             action={(formData) => {
+              // 브랜드 페이지에서 접수방식 미선택 시 "미정" 주입
+              if (hideReceiptType && !formData.get("receiptType")) {
+                formData.set("receiptType", "미정");
+              }
+
               const visitDateTime =
                 visitDate && visitTimeSlot ? `${visitDate} ${visitTimeSlot}` : "";
               if (visitDateTime)
@@ -229,45 +237,47 @@ export function ContactForm({
               />
             </Field>
 
-            <Field
-              id="receiptType"
-              label={cf.labels?.receiptType}
-              required
-              error={state.errors?.receiptType}
-            >
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {(cf.receiptTypes ?? []).map((t) => {
-                  const active = receiptType === t.value;
-                  return (
-                    <label key={t.value} className="cursor-pointer">
-                      <input
-                        type="radio"
-                        name="receiptType"
-                        value={t.value}
-                        required
-                        checked={active}
-                        onChange={() => setReceiptType(t.value)}
-                        className="peer sr-only"
-                      />
-                      <span
-                        className="flex h-full items-center justify-center rounded-2xl border px-3 py-3 text-center text-sm font-semibold transition-all"
-                        style={{
-                          borderColor: active
-                            ? theme.accentColor
-                            : theme.borderSoft,
-                          background: active ? theme.accentSoft : "#ffffff",
-                          color: active
-                            ? theme.accentColor
-                            : theme.textSecondary,
-                        }}
-                      >
-                        {t.label}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </Field>
+            {!hideReceiptType && (
+              <Field
+                id="receiptType"
+                label={cf.labels?.receiptType}
+                required
+                error={state.errors?.receiptType}
+              >
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {(cf.receiptTypes ?? []).map((t) => {
+                    const active = receiptType === t.value;
+                    return (
+                      <label key={t.value} className="cursor-pointer">
+                        <input
+                          type="radio"
+                          name="receiptType"
+                          value={t.value}
+                          required
+                          checked={active}
+                          onChange={() => setReceiptType(t.value)}
+                          className="peer sr-only"
+                        />
+                        <span
+                          className="flex h-full items-center justify-center rounded-2xl border px-3 py-3 text-center text-sm font-semibold transition-all"
+                          style={{
+                            borderColor: active
+                              ? theme.accentColor
+                              : theme.borderSoft,
+                            background: active ? theme.accentSoft : "#ffffff",
+                            color: active
+                              ? theme.accentColor
+                              : theme.textSecondary,
+                          }}
+                        >
+                          {t.label}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </Field>
+            )}
 
             {guide && (
               <DynamicGuide

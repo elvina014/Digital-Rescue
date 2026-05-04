@@ -20,6 +20,7 @@ import {
   requestMaterialDispatchAction,
   cancelMaterialDispatchAction,
   registerReturnMaterialAction,
+  updateReceiptTypeAction,
 } from "../actions";
 import EstimateCard from "./EstimateCard";
 
@@ -129,6 +130,7 @@ const RECEIPT_LABEL: Record<string, string> = {
   VISIT: "방문",
   QUICK: "퀵",
   PARCEL: "택배",
+  미정: "미정",
 };
 
 export default function TicketDetailForm({
@@ -146,11 +148,16 @@ export default function TicketDetailForm({
   const [materials, setMaterials] = useState(initialMaterials);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [deviceDisposal, setDeviceDisposal] = useState<"RETURN" | "DISPOSE" | "">("");
+  const [currentReceiptType, setCurrentReceiptType] = useState(ticket.receipt_type);
 
   // 서버 데이터 재검증 시 props 변경을 동기화
   useEffect(() => {
     setMaterials(initialMaterials);
   }, [initialMaterials]);
+
+  useEffect(() => {
+    setCurrentReceiptType(ticket.receipt_type);
+  }, [ticket.receipt_type]);
 
   const role = currentEmployee.role;
   const isAdmin = role === "ADMIN";
@@ -163,6 +170,12 @@ export default function TicketDetailForm({
   const isLocked = ticket.is_approved && !isAdmin && !isManager;
   // ADMIN/MANAGER는 승인 완료 후에도 조회 가능 (금액 수정은 별도 제한)
   const isFullyLocked = ticket.is_approved && !isAdmin;
+
+  // 접수방식 변경 가능: RECEPTION/MANAGER/ADMIN + 수리 시작 전(NEW/ASSIGNED) 상태
+  const canEditReceiptType =
+    (isReception || isManager || isAdmin) &&
+    ["NEW", "ASSIGNED"].includes(ticket.status) &&
+    !ticket.is_approved;
 
   // 담당기사 배정/변경 가능: RECEPTION/MANAGER/ADMIN + NEW/ASSIGNED/IN_PROGRESS 상태
   const canAssign =
@@ -255,7 +268,44 @@ export default function TicketDetailForm({
           </div>
           <div>
             <dt className="text-xs font-medium text-gray-500">접수 방식</dt>
-            <dd className="mt-0.5 text-sm text-gray-900">{RECEIPT_LABEL[ticket.receipt_type] ?? ticket.receipt_type}</dd>
+            <dd className="mt-0.5">
+              {canEditReceiptType ? (
+                <form
+                  action={(fd) => handleAction(updateReceiptTypeAction as Parameters<typeof handleAction>[0], fd)}
+                  className="flex flex-wrap items-center gap-2"
+                >
+                  <input type="hidden" name="ticketId" value={ticket.id} />
+                  <select
+                    name="receiptType"
+                    value={currentReceiptType}
+                    onChange={(e) => setCurrentReceiptType(e.target.value)}
+                    className="rounded-lg border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="미정">미정 (선택 필요)</option>
+                    <option value="WALK_IN">내방</option>
+                    <option value="VISIT">방문</option>
+                    <option value="QUICK">퀵</option>
+                    <option value="PARCEL">택배</option>
+                  </select>
+                  <button
+                    type="submit"
+                    disabled={isPending || currentReceiptType === "미정"}
+                    className="rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    변경
+                  </button>
+                  {currentReceiptType === "미정" && (
+                    <span className="text-xs font-medium text-red-500">
+                      ⚠ 수리 시작 전 선택 필요
+                    </span>
+                  )}
+                </form>
+              ) : (
+                <span className="text-sm text-gray-900">
+                  {RECEIPT_LABEL[ticket.receipt_type] ?? ticket.receipt_type}
+                </span>
+              )}
+            </dd>
           </div>
           <div>
             <dt className="text-xs font-medium text-gray-500">기기 브랜드</dt>
