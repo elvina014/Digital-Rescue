@@ -242,6 +242,33 @@ export async function submitTicketAction(
       }
     }
 
+    // ── 7. n8n 웹훅 전송 (Non-blocking) ──
+    const webhookUrl = process.env.N8N_NEW_TICKET_WEBHOOK_URL;
+    if (webhookUrl) {
+      const payload = {
+        ticket_id: newTicket.id,
+        submitted_at: new Date().toISOString(),
+        customer: {
+          name: data.name,
+          phone: data.phone,
+          address: data.address || null,
+        },
+        ticket: {
+          receipt_type: data.receiptType,
+          device_type: data.deviceType,
+          device_brand: data.deviceBrand,
+          device_model: data.deviceModel || null,
+          symptoms: data.symptoms,
+          status: "NEW",
+        },
+      };
+      fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).catch((err) => console.error("[submitTicketAction] Webhook failed:", err));
+    }
+
     return {
       success: true,
       message: "접수가 완료되었습니다. 담당자가 곧 연락드리겠습니다.",
