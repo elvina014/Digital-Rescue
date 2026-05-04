@@ -19,9 +19,22 @@ export default function LoginForm() {
     setError(null);
     formData.set("redirect", redirectTo);
 
-    const result = await loginAction(formData);
-    if (result?.error) {
-      setError(result.error);
+    try {
+      const result = await loginAction(formData);
+      if (result?.error) {
+        setError(result.error);
+        setIsLoading(false);
+      }
+    } catch {
+      // 세션 잔재(localStorage의 sb-* 항목)를 제거하고 재시도 유도
+      try {
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith("sb-")) localStorage.removeItem(key);
+        });
+      } catch {
+        // localStorage 접근 불가 환경이면 무시
+      }
+      setError("로그인 중 문제가 발생했습니다. 다시 시도해 주세요.");
       setIsLoading(false);
     }
   }

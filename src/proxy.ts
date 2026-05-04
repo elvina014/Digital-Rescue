@@ -96,7 +96,12 @@ export async function proxy(request: NextRequest) {
             });
           }
         });
-        response.cookies.set(ACTIVITY_COOKIE, "", { maxAge: 0, path: "/" });
+        // dr_last_activity 도 생성 시와 동일한 domain 으로 삭제해야 브라우저가 실제로 제거함
+        response.cookies.set(ACTIVITY_COOKIE, "", {
+          maxAge: 0,
+          path: "/",
+          ...(cookieDomain ? { domain: cookieDomain } : {}),
+        });
         return response;
       }
     }
