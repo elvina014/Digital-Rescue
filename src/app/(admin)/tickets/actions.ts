@@ -1871,7 +1871,7 @@ export async function updateReceiptTypeAction(formData: FormData) {
   const employee = await getCurrentEmployee();
   if (!employee) return { error: "인증이 필요합니다." };
 
-  const canUpdate = [EmployeeRole.ADMIN, EmployeeRole.MANAGER, EmployeeRole.RECEPTION];
+  const canUpdate = [EmployeeRole.ADMIN, EmployeeRole.MANAGER, EmployeeRole.RECEPTION, EmployeeRole.TECHNICIAN, EmployeeRole.EXPERT_REPAIR];
   if (!canUpdate.includes(employee.role)) {
     return { error: "접수방식 변경 권한이 없습니다." };
   }

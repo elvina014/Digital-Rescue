@@ -171,9 +171,9 @@ export default function TicketDetailForm({
   // ADMIN/MANAGER는 승인 완료 후에도 조회 가능 (금액 수정은 별도 제한)
   const isFullyLocked = ticket.is_approved && !isAdmin;
 
-  // 접수방식 변경 가능: RECEPTION/MANAGER/ADMIN + 수리 시작 전(NEW/ASSIGNED) 상태
+  // 접수방식 변경 가능: 모든 직원 + 수리 시작 전(NEW/ASSIGNED) 상태
   const canEditReceiptType =
-    (isReception || isManager || isAdmin) &&
+    (isReception || isManager || isAdmin || isTechnician || isExpertRepair) &&
     ["NEW", "ASSIGNED"].includes(ticket.status) &&
     !ticket.is_approved;
 
