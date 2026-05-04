@@ -10,7 +10,12 @@
       "mcp__aae57ce1-6431-4a95-848c-44de48836553__list_projects",
       "mcp__aae57ce1-6431-4a95-848c-44de48836553__get_project",
       "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__list_projects",
-      "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__execute_sql"
+      "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__execute_sql",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__apply_migration",
+      "Bash(rm \"C:/Users/BRAD/Documents/workspace/Digital-Rescue/.git/index.lock\")"
     ]
   }
 }
