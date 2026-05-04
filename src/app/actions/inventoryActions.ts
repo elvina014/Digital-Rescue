@@ -367,6 +367,30 @@ export async function addInventoryItem(data: {
 
   const supabase = await createClient();
 
+  // 중복 재고 체크: 카테고리·사양·제품명·용량·상태가 모두 동일한 항목이 이미 존재하는지 확인
+  const capacityValue = data.capacity?.trim() || null;
+  let duplicateQuery = supabase
+    .from("inventory_items")
+    .select("id")
+    .eq("category_id", data.category_id)
+    .eq("spec_id", data.spec_id)
+    .eq("product_id", data.product_id)
+    .eq("condition", data.condition);
+
+  if (capacityValue === null) {
+    duplicateQuery = duplicateQuery.is("capacity", null);
+  } else {
+    duplicateQuery = duplicateQuery.eq("capacity", capacityValue);
+  }
+
+  const { data: existing } = await duplicateQuery.maybeSingle();
+  if (existing) {
+    return {
+      error:
+        "이미 같은 이름의 재고 리스트가 존재합니다. 리스트 확인 후 관리자에게 문의하세요.",
+    };
+  }
+
   const { data: inserted, error } = await supabase.from("inventory_items").insert({
     category_id: data.category_id,
     spec_id: data.spec_id,

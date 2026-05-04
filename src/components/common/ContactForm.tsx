@@ -49,7 +49,8 @@ export function ContactForm({
     { file: File; description: string }[]
   >([]);
   const [receiptType, setReceiptType] = useState<string>("");
-  const [visitDateTime, setVisitDateTime] = useState("");
+  const [visitDate, setVisitDate] = useState("");
+  const [visitTimeSlot, setVisitTimeSlot] = useState("");
   const [parcelMethod, setParcelMethod] = useState("");
   const [formKey, setFormKey] = useState(0);
 
@@ -58,7 +59,8 @@ export function ContactForm({
     if (state.success) {
       setShowToast(true);
       setImageEntries([]);
-      setVisitDateTime("");
+      setVisitDate("");
+      setVisitTimeSlot("");
       setParcelMethod("");
       const t = setTimeout(() => setShowToast(false), 5000);
       return () => clearTimeout(t);
@@ -149,6 +151,8 @@ export function ContactForm({
           <form
             key={formKey}
             action={(formData) => {
+              const visitDateTime =
+                visitDate && visitTimeSlot ? `${visitDate} ${visitTimeSlot}` : "";
               if (visitDateTime)
                 formData.append("visitDateTime", visitDateTime);
               if (parcelMethod) formData.append("parcelMethod", parcelMethod);
@@ -270,8 +274,10 @@ export function ContactForm({
                 cf={cf}
                 theme={theme}
                 receiptType={receiptType}
-                visitDateTime={visitDateTime}
-                onVisitDateTime={setVisitDateTime}
+                visitDate={visitDate}
+                onVisitDate={setVisitDate}
+                visitTimeSlot={visitTimeSlot}
+                onVisitTimeSlot={setVisitTimeSlot}
                 parcelMethod={parcelMethod}
                 onParcelMethod={setParcelMethod}
               />
@@ -435,20 +441,31 @@ function Field({
   );
 }
 
+const VISIT_TIME_SLOTS = [
+  { value: "10:00", label: "10시" },
+  { value: "12:00", label: "12시" },
+  { value: "14:00", label: "14시 (2시)" },
+  { value: "16:00", label: "16시 (4시)" },
+];
+
 function DynamicGuide({
   cf,
   theme,
   receiptType,
-  visitDateTime,
-  onVisitDateTime,
+  visitDate,
+  onVisitDate,
+  visitTimeSlot,
+  onVisitTimeSlot,
   parcelMethod,
   onParcelMethod,
 }: {
   cf: ContactFormData;
   theme: ThemeData;
   receiptType: string;
-  visitDateTime: string;
-  onVisitDateTime: (v: string) => void;
+  visitDate: string;
+  onVisitDate: (v: string) => void;
+  visitTimeSlot: string;
+  onVisitTimeSlot: (v: string) => void;
   parcelMethod: string;
   onParcelMethod: (v: string) => void;
 }) {
@@ -482,20 +499,48 @@ function DynamicGuide({
         <div className="mt-4 space-y-3">
           <div>
             <label
-              htmlFor="visitDateTime"
+              htmlFor="visitDate"
               className="mb-2 block text-xs font-semibold tracking-tight"
               style={{ color: theme.textSecondary }}
             >
-              방문 예정 일시
+              방문 예정 날짜
             </label>
             <input
-              id="visitDateTime"
-              type="datetime-local"
-              value={visitDateTime}
-              onChange={(e) => onVisitDateTime(e.target.value)}
+              id="visitDate"
+              type="date"
+              value={visitDate}
+              onChange={(e) => onVisitDate(e.target.value)}
               className={inputBaseClass}
               style={{ borderColor: theme.borderSoft }}
             />
+          </div>
+          <div>
+            <p
+              className="mb-2 text-xs font-semibold tracking-tight"
+              style={{ color: theme.textSecondary }}
+            >
+              방문 예정 시간
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {VISIT_TIME_SLOTS.map((slot) => {
+                const active = visitTimeSlot === slot.value;
+                return (
+                  <button
+                    key={slot.value}
+                    type="button"
+                    onClick={() => onVisitTimeSlot(slot.value)}
+                    className="rounded-2xl border px-3 py-3 text-center text-sm font-semibold transition-all"
+                    style={{
+                      borderColor: active ? theme.accentColor : theme.borderSoft,
+                      background: active ? theme.accentSoft : "#ffffff",
+                      color: active ? theme.accentColor : theme.textSecondary,
+                    }}
+                  >
+                    {slot.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           {guide.address && (
             <div

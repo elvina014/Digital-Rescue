@@ -23,6 +23,15 @@ import { canonicalBrandSlug } from "@/lib/brands";
 const ADMIN_PATHS = ["/dashboard", "/editor", "/tickets", "/inventory", "/employees", "/stats", "/login"];
 const LOGIN_PATH = "/login";
 
+// 비활동 세션 만료 설정
+const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30분
+const ACTIVITY_COOKIE = "dr_last_activity";
+
+function getCookieDomain(): string | undefined {
+  const domain = process.env.NEXT_PUBLIC_SITE_DOMAIN;
+  return domain ? `.${domain}` : undefined;
+}
+
 /** hostname이 admin 서브도메인인지 판별 */
 function isAdminHost(request: NextRequest): boolean {
   const host = request.headers.get("host") ?? "";
@@ -56,6 +65,50 @@ export async function proxy(request: NextRequest) {
 
   const onAdmin = isAdminHost(request);
   const onEdit = isEditHost(request);
+
+  // ── 비활동 세션 만료 체크 (admin / edit 서브도메인 전용) ──
+  if (user && (onAdmin || onEdit)) {
+    const lastActivity = request.cookies.get(ACTIVITY_COOKIE)?.value;
+    const now = Date.now();
+
+    if (lastActivity) {
+      const lastTime = parseInt(lastActivity, 10);
+      if (!isNaN(lastTime) && now - lastTime > INACTIVITY_LIMIT_MS) {
+        // 30분 비활동 초과 → 세션 쿠키 강제 삭제 후 로그인 페이지로 이동
+        const loginUrl = request.nextUrl.clone();
+        if (onEdit) {
+          const host = request.headers.get("host") ?? "";
+          loginUrl.host = host.replace(/^edit\./, "login.");
+        }
+        loginUrl.pathname = LOGIN_PATH;
+        loginUrl.search = "";
+
+        const response = NextResponse.redirect(loginUrl);
+        const cookieDomain = getCookieDomain();
+
+        // Supabase 인증 쿠키 (sb-* 접두사) 전부 무효화
+        request.cookies.getAll().forEach(({ name }) => {
+          if (name.startsWith("sb-")) {
+            response.cookies.set(name, "", {
+              maxAge: 0,
+              path: "/",
+              ...(cookieDomain ? { domain: cookieDomain } : {}),
+            });
+          }
+        });
+        response.cookies.set(ACTIVITY_COOKIE, "", { maxAge: 0, path: "/" });
+        return response;
+      }
+    }
+
+    // 활동 시간 갱신 (세션 쿠키 — maxAge/expires 없음)
+    const cookieDomain = getCookieDomain();
+    supabaseResponse.cookies.set(ACTIVITY_COOKIE, String(Date.now()), {
+      path: "/",
+      sameSite: "lax",
+      ...(cookieDomain ? { domain: cookieDomain } : {}),
+    });
+  }
 
   // ── edit 서브도메인: 인증 가드 + 루트 리라이트 ──
   // 미인증 → login. 도메인 로그인으로
