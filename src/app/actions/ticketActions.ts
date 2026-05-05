@@ -170,7 +170,7 @@ export async function submitTicketAction(
         device_model: data.deviceModel || null,
         symptoms: data.symptoms,
       })
-      .select("id")
+      .select("id, created_at")
       .single();
 
     if (ticketError || !newTicket) {
@@ -251,7 +251,7 @@ export async function submitTicketAction(
     } else {
       const payload = {
         ticket_id: newTicket.id,
-        submitted_at: new Date().toISOString(),
+        submitted_at: newTicket.created_at,
         customer: {
           name: data.name,
           phone: data.phone,
