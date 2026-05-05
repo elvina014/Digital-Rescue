@@ -244,6 +244,9 @@ export async function submitTicketAction(
 
     // ── 7. n8n 웹훅 전송 (Non-blocking) ──
     const webhookUrl = process.env.N8N_NEW_TICKET_WEBHOOK_URL;
+    if (!webhookUrl) {
+      console.warn("[submitTicketAction] N8N_NEW_TICKET_WEBHOOK_URL not set — webhook skipped");
+    }
     if (webhookUrl) {
       const payload = {
         ticket_id: newTicket.id,
