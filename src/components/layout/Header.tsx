@@ -34,7 +34,7 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         {/* 로고 */}
-        <Link href={data.brand?.href ?? '/'} className="flex items-center gap-2">
+        <Link href="#hero" className="flex items-center gap-2">
           <span
             className="text-xl font-extrabold tracking-tight"
             style={{ color: theme.textPrimary }}
