@@ -15,7 +15,8 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__apply_migration",
-      "Bash(rm \"C:/Users/BRAD/Documents/workspace/Digital-Rescue/.git/index.lock\")"
+      "Bash(rm \"C:/Users/BRAD/Documents/workspace/Digital-Rescue/.git/index.lock\")",
+      "mcp__aae57ce1-6431-4a95-848c-44de48836553__get_runtime_logs"
     ]
   }
 }
