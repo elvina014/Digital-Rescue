@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { after } from "next/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 
 // ── Zod 유효성 검사 스키마 ──
@@ -242,12 +243,12 @@ export async function submitTicketAction(
       }
     }
 
-    // ── 7. n8n 웹훅 전송 (Non-blocking) ──
+    // ── 7. n8n 웹훅 전송 ──
+    // after()를 사용해 고객 응답 반환 후 서버리스 함수가 종료되기 전에 완전히 전송됨을 보장
     const webhookUrl = process.env.N8N_NEW_TICKET_WEBHOOK_URL;
     if (!webhookUrl) {
       console.warn("[submitTicketAction] N8N_NEW_TICKET_WEBHOOK_URL not set — webhook skipped");
-    }
-    if (webhookUrl) {
+    } else {
       const payload = {
         ticket_id: newTicket.id,
         submitted_at: new Date().toISOString(),
@@ -265,11 +266,17 @@ export async function submitTicketAction(
           status: "NEW",
         },
       };
-      fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }).catch((err) => console.error("[submitTicketAction] Webhook failed:", err));
+      after(async () => {
+        try {
+          await fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        } catch (err) {
+          console.error("[submitTicketAction] Webhook failed:", err);
+        }
+      });
     }
 
     return {
