@@ -33,37 +33,50 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [pendingImages, setPendingImages] = useState<{ file: File; description: string }[]>([]);
+  const [pendingImages, setPendingImages] = useState<{ file: File; description: string; previewUrl: string }[]>([]);
 
   async function handleSubmit(formData: FormData) {
     setIsLoading(true);
     setError(null);
-    const result = await createTicketAction(formData);
-    if (result?.error) {
-      setError(result.error);
+    try {
+      const result = await createTicketAction(formData);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+
+      // 이미지 업로드 (접수건 생성 성공 후, 1장씩)
+      if (result?.ticketId && pendingImages.length > 0) {
+        const allUploaded: TicketImage[] = [];
+        const uploadErrors: string[] = [];
+        for (let i = 0; i < pendingImages.length; i++) {
+          const { file, description } = pendingImages[i];
+          const { uploaded, error: uploadError } = await compressAndUploadSingle(result.ticketId, file, i, {
+            description,
+            uploaded_by: currentEmployee.id,
+            uploader_name: currentEmployee.name,
+            is_customer: false,
+          });
+          if (uploaded) allUploaded.push(uploaded);
+          else if (uploadError) uploadErrors.push(`${file.name}: ${uploadError}`);
+        }
+        if (allUploaded.length > 0) {
+          await addTicketImagesAction(result.ticketId, allUploaded);
+        }
+        if (uploadErrors.length > 0) {
+          setError(`접수는 등록되었지만 일부 이미지 업로드에 실패했습니다:\n${uploadErrors.join("\n")}`);
+          return;
+        }
+      }
+
+      pendingImages.forEach((entry) => URL.revokeObjectURL(entry.previewUrl));
+      router.push("/tickets");
+    } catch (err) {
+      console.error("Ticket submit failed:", err);
+      setError("서버 통신 중 오류가 발생했습니다.");
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    // 이미지 업로드 (접수건 생성 성공 후, 1장씩)
-    if (result?.ticketId && pendingImages.length > 0) {
-      const allUploaded: TicketImage[] = [];
-      for (let i = 0; i < pendingImages.length; i++) {
-        const { file, description } = pendingImages[i];
-        const { uploaded } = await compressAndUploadSingle(result.ticketId, file, i, {
-          description,
-          uploaded_by: currentEmployee.id,
-          uploader_name: currentEmployee.name,
-          is_customer: false,
-        });
-        if (uploaded) allUploaded.push(uploaded);
-      }
-      if (allUploaded.length > 0) {
-        await addTicketImagesAction(result.ticketId, allUploaded);
-      }
-    }
-
-    router.push("/tickets");
   }
 
   return (
@@ -214,7 +227,7 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
               {pendingImages.map((entry, i) => (
                 <div key={i} className="group relative">
                   <img
-                    src={URL.createObjectURL(entry.file)}
+                    src={entry.previewUrl}
                     alt={entry.description || `이미지 ${i + 1}`}
                     className="h-24 w-full rounded-lg border border-gray-200 object-cover"
                   />
@@ -223,7 +236,10 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
                   )}
                   <button
                     type="button"
-                    onClick={() => setPendingImages((prev) => prev.filter((_, idx) => idx !== i))}
+                    onClick={() => {
+                      URL.revokeObjectURL(entry.previewUrl);
+                      setPendingImages((prev) => prev.filter((_, idx) => idx !== i));
+                    }}
                     className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100"
                   >
                     ✕
@@ -236,7 +252,8 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
           {pendingImages.length < 12 && (
             <ImageUploader
               onUpload={async (file, description) => {
-                setPendingImages((prev) => [...prev, { file, description }]);
+                const previewUrl = URL.createObjectURL(file);
+                setPendingImages((prev) => [...prev, { file, description, previewUrl }]);
               }}
               disabled={pendingImages.length >= 12}
               label={`접수 시 기기 사진을 첨부하세요 (${pendingImages.length}/12)`}

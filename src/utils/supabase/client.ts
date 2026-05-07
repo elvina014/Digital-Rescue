@@ -37,6 +37,11 @@ export function createClient() {
             // 서브도메인 간 세션 공유: .digital-rescue.com 으로 쿠키 범위 확장
             if (siteDomain) str += `; Domain=.${siteDomain}`;
             document.cookie = str;
+            // 동일 이름의 host-only 잔류 쿠키 제거: 이전에 domain 없이 설정된 쿠키가
+            // 남아 있으면 두 쿠키가 동시에 전송돼 토큰 충돌이 발생한다.
+            if (siteDomain) {
+              document.cookie = `${name}=; path=${rest.path ?? "/"}; Max-Age=0`;
+            }
           });
         },
       },
