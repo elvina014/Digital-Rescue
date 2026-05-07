@@ -40,8 +40,8 @@ export function AboutSection({
   data: about = DEFAULT_ABOUT,
   theme = DEFAULT_THEME,
 }: AboutSectionProps) {
-  const header = useReveal<HTMLDivElement>();
-  const closing = useReveal<HTMLDivElement>();
+  const { ref: headerRef, visible: headerVisible } = useReveal<HTMLDivElement>();
+  const { ref: closingRef, visible: closingVisible } = useReveal<HTMLDivElement>();
 
   return (
     <section
@@ -51,11 +51,11 @@ export function AboutSection({
     >
       <div className="mx-auto max-w-5xl px-5 py-20 sm:px-8 sm:py-28 lg:py-32">
         <div
-          ref={header.ref}
+          ref={headerRef}
           className="text-center"
           style={{
-            opacity: header.visible ? 1 : 0,
-            transform: header.visible ? "translateY(0)" : "translateY(24px)",
+            opacity: headerVisible ? 1 : 0,
+            transform: headerVisible ? "translateY(0)" : "translateY(24px)",
             transition: "opacity 800ms ease-out, transform 800ms ease-out",
           }}
         >
@@ -98,11 +98,11 @@ export function AboutSection({
         </ul>
 
         <div
-          ref={closing.ref}
+          ref={closingRef}
           className="mt-20 text-center sm:mt-24"
           style={{
-            opacity: closing.visible ? 1 : 0,
-            transform: closing.visible ? "translateY(0)" : "translateY(24px)",
+            opacity: closingVisible ? 1 : 0,
+            transform: closingVisible ? "translateY(0)" : "translateY(24px)",
             transition: "opacity 800ms ease-out, transform 800ms ease-out",
           }}
         >

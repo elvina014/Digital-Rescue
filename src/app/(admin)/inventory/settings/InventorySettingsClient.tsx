@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import {
   addCategory,
@@ -472,12 +473,12 @@ export default function InventorySettingsClient({
             카테고리 → 사양 → 제품 순서로 분류 옵션을 관리합니다.
           </p>
         </div>
-        <a
+        <Link
           href="/inventory"
           className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
         >
           ← 재고 관리
-        </a>
+        </Link>
       </div>
 
       {/* 기본 서비스 비용 설정 */}

@@ -53,6 +53,7 @@ export function RealtimeStatus({
   }, [data]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
     const interval = setInterval(
       refresh,

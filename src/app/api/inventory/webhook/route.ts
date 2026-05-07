@@ -6,8 +6,10 @@ import type { NextRequest } from "next/server";
 interface WebhookBody {
   partName?: string;
   category?: string;
+  specName?: string;
   specs?: Record<string, unknown>;
   condition?: string;
+  capacity?: string;
   quantity?: number;
   imageUrl?: string;
   apiKey?: string;
@@ -18,7 +20,7 @@ const VALID_CATEGORIES = [
   "BATTERY", "KEYBOARD", "MAINBOARD", "POWER", "LAPTOP", "ETC",
 ] as const;
 
-const VALID_CONDITIONS = ["NEW", "USED", "EXTRACTED"] as const;
+const VALID_CONDITIONS = ["NEW", "USED"] as const;
 
 // ─── POST: n8n → 재고 등록/업데이트 ───
 
@@ -39,10 +41,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  // 헤더 또는 바디에서 apiKey 추출
-  const apiKey =
-    request.headers.get("x-api-key") ?? body.apiKey;
-
+  const apiKey = request.headers.get("x-api-key") ?? body.apiKey;
   if (!apiKey || apiKey !== webhookKey) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -50,10 +49,7 @@ export async function POST(request: NextRequest) {
   // 2) 입력 유효성 검사
   const partName = body.partName?.trim();
   if (!partName) {
-    return Response.json(
-      { error: "partName is required" },
-      { status: 400 }
-    );
+    return Response.json({ error: "partName is required" }, { status: 400 });
   }
 
   const category = body.category?.toUpperCase();
@@ -64,7 +60,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const condition = (body.condition?.toUpperCase() ?? "NEW");
+  const condition = body.condition?.toUpperCase() ?? "NEW";
   if (!VALID_CONDITIONS.includes(condition as typeof VALID_CONDITIONS[number])) {
     return Response.json(
       { error: `Invalid condition. Must be one of: ${VALID_CONDITIONS.join(", ")}` },
@@ -80,57 +76,106 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const capacity = body.capacity?.trim() || null;
+  // n8n이 specName을 명시하지 않으면 "기본" 사용
+  const specName = body.specName?.trim() || "기본";
   const imageUrl = body.imageUrl?.trim() || null;
 
-  // 3) DB 처리 (RLS 우회 — 외부 webhook이므로 service role 사용)
+  // 3) DB 처리 — service role 사용 (외부 webhook)
   const supabase = createAdminClient();
 
-  // 기존 동일 품목 검색 (이름 + 카테고리 + 상태 일치)
-  const { data: existing, error: searchError } = await supabase
-    .from("inventory_items")
-    .select("id, quantity")
-    .eq("name", partName)
-    .eq("category", category)
-    .eq("condition", condition)
+  // 3-1. 카테고리 조회 또는 생성
+  const catResult = await supabase
+    .from("inventory_categories")
+    .select("id")
+    .eq("name", category)
     .maybeSingle();
-
-  if (searchError) {
-    return Response.json(
-      { error: `DB search failed: ${searchError.message}` },
-      { status: 500 }
-    );
+  if (catResult.error) return Response.json({ error: `Category lookup failed: ${catResult.error.message}` }, { status: 500 });
+  let cat = catResult.data;
+  if (!cat) {
+    const { data: newCat, error: newCatErr } = await supabase
+      .from("inventory_categories")
+      .insert({ name: category })
+      .select("id")
+      .single();
+    if (newCatErr || !newCat) return Response.json({ error: `Category create failed: ${newCatErr?.message}` }, { status: 500 });
+    cat = newCat;
   }
 
-  // n8n webhook 전용 시스템 유저 ID (트랜잭션 기록용)
-  // employees 테이블에 시스템 계정이 없으므로 notes에 출처를 기록
-  const systemNotes = body.specs
-    ? `[n8n AI 분석] specs: ${JSON.stringify(body.specs)}`
-    : "[n8n AI 분석]";
+  // 3-2. 스펙 조회 또는 생성
+  const specResult = await supabase
+    .from("inventory_specs")
+    .select("id")
+    .eq("category_id", cat.id)
+    .eq("name", specName)
+    .maybeSingle();
+  if (specResult.error) return Response.json({ error: `Spec lookup failed: ${specResult.error.message}` }, { status: 500 });
+  let spec = specResult.data;
+  if (!spec) {
+    const { data: newSpec, error: newSpecErr } = await supabase
+      .from("inventory_specs")
+      .insert({ category_id: cat.id, name: specName })
+      .select("id")
+      .single();
+    if (newSpecErr || !newSpec) return Response.json({ error: `Spec create failed: ${newSpecErr?.message}` }, { status: 500 });
+    spec = newSpec;
+  }
+
+  // 3-3. 제품 조회 또는 생성
+  const productResult = await supabase
+    .from("inventory_products")
+    .select("id")
+    .eq("spec_id", spec.id)
+    .eq("name", partName)
+    .maybeSingle();
+  if (productResult.error) return Response.json({ error: `Product lookup failed: ${productResult.error.message}` }, { status: 500 });
+  let product = productResult.data;
+  if (!product) {
+    const { data: newProduct, error: newProductErr } = await supabase
+      .from("inventory_products")
+      .insert({ spec_id: spec.id, name: partName })
+      .select("id")
+      .single();
+    if (newProductErr || !newProduct) return Response.json({ error: `Product create failed: ${newProductErr?.message}` }, { status: 500 });
+    product = newProduct;
+  }
+
+  // 3-4. 재고 아이템 조회 (product_id + condition + capacity 조합으로 식별)
+  let itemQuery = supabase
+    .from("inventory_items")
+    .select("id, quantity")
+    .eq("product_id", product.id)
+    .eq("condition", condition);
+  if (capacity) {
+    itemQuery = itemQuery.eq("capacity", capacity);
+  } else {
+    itemQuery = itemQuery.is("capacity", null);
+  }
+  const { data: existing, error: searchError } = await itemQuery.maybeSingle();
+  if (searchError) return Response.json({ error: `Item lookup failed: ${searchError.message}` }, { status: 500 });
+
+  const systemNotes = [
+    "[n8n AI 분석]",
+    body.specs ? `specs: ${JSON.stringify(body.specs)}` : null,
+    imageUrl ? `imageUrl: ${imageUrl}` : null,
+  ].filter(Boolean).join(" | ");
+
+  // 트랜잭션 기록용 admin 계정 조회
+  const { data: adminUser } = await supabase
+    .from("employees")
+    .select("id")
+    .eq("role", "ADMIN")
+    .limit(1)
+    .single();
 
   if (existing) {
     // ── 기존 품목 수량 업데이트 ──
     const newQuantity = existing.quantity + quantity;
-
     const { error: updateError } = await supabase
       .from("inventory_items")
       .update({ quantity: newQuantity })
       .eq("id", existing.id);
-
-    if (updateError) {
-      return Response.json(
-        { error: `Update failed: ${updateError.message}` },
-        { status: 500 }
-      );
-    }
-
-    // INBOUND 트랜잭션 기록 (user_id 없이 — RPC 또는 nullable 필요)
-    // service role이므로 RLS 우회. user_id는 첫 번째 ADMIN 사용
-    const { data: adminUser } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("role", "ADMIN")
-      .limit(1)
-      .single();
+    if (updateError) return Response.json({ error: `Update failed: ${updateError.message}` }, { status: 500 });
 
     if (adminUser) {
       await supabase.from("inventory_transactions").insert({
@@ -139,7 +184,6 @@ export async function POST(request: NextRequest) {
         transaction_type: "INBOUND",
         quantity_changed: quantity,
         notes: systemNotes,
-        image_url: imageUrl,
       });
     }
 
@@ -155,30 +199,17 @@ export async function POST(request: NextRequest) {
     const { data: inserted, error: insertError } = await supabase
       .from("inventory_items")
       .insert({
-        name: partName,
-        category,
+        category_id: cat.id,
+        spec_id: spec.id,
+        product_id: product.id,
+        capacity,
         condition,
         quantity,
-        unit_price: 0,
-        location: null,
+        base_estimate: 0,
       })
       .select("id")
       .single();
-
-    if (insertError) {
-      return Response.json(
-        { error: `Insert failed: ${insertError.message}` },
-        { status: 500 }
-      );
-    }
-
-    // INBOUND 트랜잭션 기록
-    const { data: adminUser } = await supabase
-      .from("employees")
-      .select("id")
-      .eq("role", "ADMIN")
-      .limit(1)
-      .single();
+    if (insertError || !inserted) return Response.json({ error: `Insert failed: ${insertError?.message}` }, { status: 500 });
 
     if (adminUser) {
       await supabase.from("inventory_transactions").insert({
@@ -187,14 +218,9 @@ export async function POST(request: NextRequest) {
         transaction_type: "INBOUND",
         quantity_changed: quantity,
         notes: systemNotes,
-        image_url: imageUrl,
       });
     }
 
-    return Response.json({
-      action: "created",
-      itemId: inserted.id,
-      quantity,
-    });
+    return Response.json({ action: "created", itemId: inserted.id, quantity });
   }
 }

@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Exclude worktrees and dependencies from linting:
+    ".claude/**",
+    "node_modules/**",
   ]),
 ]);
 

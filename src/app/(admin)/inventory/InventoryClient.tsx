@@ -77,6 +77,7 @@ function InlineEditCell({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!editing) setDraft(value);
   }, [value, editing]);
 
@@ -180,6 +181,7 @@ export default function InventoryClient({ items: initialItems, transactions, cur
   }, [items, filterCondition, searchQuery]);
 
   // 필터 변경 시 페이지 리셋
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPage(1); }, [searchQuery, filterCondition]);
 
   // ─── 페이징 ───

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createTicketAction } from "../actions";
 import { addTicketImagesAction } from "../actions";
@@ -32,7 +33,6 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [pendingImages, setPendingImages] = useState<{ file: File; description: string; previewUrl: string }[]>([]);
 
   async function handleSubmit(formData: FormData) {
@@ -266,12 +266,12 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
       </fieldset>
 
       <div className="flex justify-end gap-3">
-        <a
+        <Link
           href="/tickets"
           className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
         >
           취소
-        </a>
+        </Link>
         <button
           type="submit"
           disabled={isLoading}

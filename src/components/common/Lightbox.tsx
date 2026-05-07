@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import type { TicketImage } from "@/lib/imageUpload";
 
@@ -46,12 +46,15 @@ export default function Lightbox({
   });
 
   // 슬라이드 변경 시 부모 상태 동기화
+  // ref 갱신은 렌더 외부(layoutEffect)에서 수행해 React Compiler 규칙 준수
   const onSelectRef = useRef<(() => void) | null>(null);
-  onSelectRef.current = () => {
-    if (!emblaApi) return;
-    const selected = emblaApi.selectedScrollSnap();
-    if (selected !== currentIndex) onNavigate(selected);
-  };
+  useLayoutEffect(() => {
+    onSelectRef.current = () => {
+      if (!emblaApi) return;
+      const selected = emblaApi.selectedScrollSnap();
+      if (selected !== currentIndex) onNavigate(selected);
+    };
+  });
 
   useEffect(() => {
     if (!emblaApi) return;

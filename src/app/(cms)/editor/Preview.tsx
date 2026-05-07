@@ -270,7 +270,7 @@ class PreviewBoundary extends Component<BoundaryProps, BoundaryState> {
 
   // 콘텐츠 변경(편집)으로 새 props 가 들어와 다시 렌더링될 때, 직전 에러를
   // 자동으로 클리어해 사용자가 빠르게 복구할 수 있게 한다.
-  componentWillReceiveProps?(): void {
+  UNSAFE_componentWillReceiveProps?(): void {
     /* noop */
   }
 

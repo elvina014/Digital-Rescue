@@ -813,12 +813,11 @@ export async function cancelTicketAction(formData: FormData) {
 
   const { error } = await supabase
     .from("repair_tickets")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .update({
       status: "CANCELED",
       cancel_device_disposal: deviceDisposal,
       canceled_at: new Date().toISOString(),
-    } as any)
+    })
     .eq("id", ticketId);
 
   if (error) {

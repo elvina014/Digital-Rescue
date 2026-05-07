@@ -186,8 +186,9 @@ export async function submitTicketAction(
     const imageFiles = formData.getAll("images") as File[];
     const imageDescriptions = formData.getAll("imageDescriptions") as string[];
     console.log("[submitTicketAction] imageFiles count:", imageFiles.length, imageFiles.map(f => ({ name: f?.name, size: f?.size, type: f?.type })));
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
     const validImages = imageFiles.filter(
-      (f) => f instanceof File && f.size > 0 && f.type.startsWith("image/")
+      (f) => f instanceof File && f.size > 0 && f.size <= MAX_IMAGE_SIZE && f.type.startsWith("image/")
     ).slice(0, 2);
     console.log("[submitTicketAction] validImages count:", validImages.length);
 
