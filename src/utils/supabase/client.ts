@@ -28,12 +28,14 @@ export function createClient() {
         setAll(cookiesToSet) {
           const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN;
           cookiesToSet.forEach(({ name, value, options }) => {
-            // maxAge/expires 제거 → 브라우저 종료 시 만료되는 세션 쿠키로 설정
-            const { maxAge: _m, expires: _e, ...rest } = options ?? {};
+            const isDeletion = value === "" || options?.maxAge === 0;
+            const { maxAge, expires, ...rest } = options ?? {};
             let str = `${name}=${encodeURIComponent(value)}`;
             str += `; path=${rest.path ?? "/"}`;
             if (rest.sameSite) str += `; SameSite=${rest.sameSite}`;
             if (rest.secure) str += "; Secure";
+            if (isDeletion && maxAge !== undefined) str += `; Max-Age=${maxAge}`;
+            if (isDeletion && expires instanceof Date) str += `; Expires=${expires.toUTCString()}`;
             // 서브도메인 간 세션 공유: .digital-rescue.com 으로 쿠키 범위 확장
             if (siteDomain) str += `; Domain=.${siteDomain}`;
             document.cookie = str;

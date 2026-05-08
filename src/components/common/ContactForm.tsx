@@ -57,8 +57,8 @@ export function ContactForm({
   const [parcelMethod, setParcelMethod] = useState("");
   const [formKey, setFormKey] = useState(0);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
     setFormKey((k) => k + 1);
     if (state.success) {
       setShowToast(true);
@@ -67,11 +67,10 @@ export function ContactForm({
       setVisitTimeSlot("");
       setParcelMethod("");
       const t = setTimeout(() => setShowToast(false), 5000);
-      /* eslint-enable react-hooks/set-state-in-effect */
       return () => clearTimeout(t);
     }
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, [state]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const guide =
     cf.dynamicGuides != null && receiptType in cf.dynamicGuides

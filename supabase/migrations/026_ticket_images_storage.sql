@@ -3,7 +3,7 @@
 -- 접수건 이미지를 보관할 Supabase Storage 버킷 + RLS 정책.
 --
 -- 모델:
---   bucket: ticket-images (비공개 기본, 10MB, 이미지 MIME 만 허용)
+--   bucket: ticket-images (public read, 10MB, 이미지 MIME 만 허용)
 --   - 공개 접수 시 service_role 클라이언트(anon 사용자)가 업로드
 --   - 관리자(ADMIN/MANAGER)가 조회/삭제 가능
 -- =============================================
@@ -13,7 +13,7 @@ INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 VALUES (
   'ticket-images',
   'ticket-images',
-  false,
+  true,
   10485760,                                                         -- 10MB
   ARRAY['image/webp','image/jpeg','image/png','image/gif','image/heic','image/heif']
 )
@@ -29,14 +29,13 @@ DROP POLICY IF EXISTS ticket_images_select ON storage.objects;
 DROP POLICY IF EXISTS ticket_images_insert ON storage.objects;
 DROP POLICY IF EXISTS ticket_images_delete ON storage.objects;
 
--- 조회: 인증된 ADMIN/MANAGER 만
+-- 조회: public URL 표시를 위해 anon/authenticated 허용
 CREATE POLICY ticket_images_select
   ON storage.objects
   FOR SELECT
-  TO authenticated
+  TO anon, authenticated
   USING (
     bucket_id = 'ticket-images'
-    AND public.get_my_role()::text IN ('ADMIN', 'MANAGER')
   );
 
 -- 업로드: service_role 은 RLS 우회하므로 별도 정책 불필요.

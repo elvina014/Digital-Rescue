@@ -185,12 +185,10 @@ export async function submitTicketAction(
     // ── 6. 이미지 업로드 (최대 2장) ──
     const imageFiles = formData.getAll("images") as File[];
     const imageDescriptions = formData.getAll("imageDescriptions") as string[];
-    console.log("[submitTicketAction] imageFiles count:", imageFiles.length, imageFiles.map(f => ({ name: f?.name, size: f?.size, type: f?.type })));
     const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
     const validImages = imageFiles.filter(
       (f) => f instanceof File && f.size > 0 && f.size <= MAX_IMAGE_SIZE && f.type.startsWith("image/")
     ).slice(0, 2);
-    console.log("[submitTicketAction] validImages count:", validImages.length);
 
     if (validImages.length > 0) {
       const uploaded: { path: string; url: string; description: string; uploaded_by: string; uploader_name: string; uploaded_at: string; is_customer: boolean }[] = [];
@@ -235,7 +233,6 @@ export async function submitTicketAction(
         }
       }
 
-      console.log("[submitTicketAction] uploaded:", uploaded.length);
       if (uploaded.length > 0) {
         await supabase
           .from("repair_tickets")

@@ -19,6 +19,20 @@ async function getAdminOrigin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
+function isTrustedRedirectUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1" ||
+      url.hostname === "digital-rescue.com" ||
+      url.hostname.endsWith(".digital-rescue.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 이메일/비밀번호 로그인 Server Action
  */
@@ -54,14 +68,11 @@ export async function loginAction(formData: FormData) {
   });
 
   const origin = await getAdminOrigin();
+  const destination = isTrustedRedirectUrl(redirectTo)
+    ? redirectTo
+    : `${origin}${redirectTo.startsWith("/") ? redirectTo : "/dashboard"}`;
 
-  // edit 서브도메인에서 로그인 후 복귀: redirect 값이 절대 URL 이고 신뢰 도메인이면 그대로 사용.
-  // 신뢰 도메인: digital-rescue.com 하위 서브도메인 또는 localhost
-  const isTrustedAbsoluteUrl =
-    (redirectTo.startsWith("http://") || redirectTo.startsWith("https://")) &&
-    (redirectTo.includes(".digital-rescue.com") || redirectTo.includes("localhost"));
-
-  redirect(isTrustedAbsoluteUrl ? redirectTo : `${origin}${redirectTo}`);
+  return { redirectTo: destination };
 }
 
 /**

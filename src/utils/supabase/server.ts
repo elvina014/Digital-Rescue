@@ -11,6 +11,19 @@ function getCookieDomain(): string | undefined {
   return domain ? `.${domain}` : undefined;
 }
 
+function toSessionCookieOptions(
+  value: string,
+  options: Record<string, unknown> | undefined
+) {
+  const isDeletion = value === "" || options?.maxAge === 0;
+  if (isDeletion) return options ?? {};
+
+  const sessionOptions = { ...(options ?? {}) };
+  delete sessionOptions.maxAge;
+  delete sessionOptions.expires;
+  return sessionOptions;
+}
+
 /**
  * 서버 컴포넌트 / Server Actions / Route Handlers 용 Supabase 클라이언트
  * 매 요청마다 새 인스턴스를 생성해야 합니다.
@@ -31,7 +44,7 @@ export async function createClient() {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, {
-                ...options,
+                ...toSessionCookieOptions(value, options),
                 // 서브도메인 간 세션 공유: .digital-rescue.com 으로 쿠키 범위 확장
                 ...(cookieDomain ? { domain: cookieDomain } : {}),
               })

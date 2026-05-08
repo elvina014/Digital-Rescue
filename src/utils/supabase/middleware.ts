@@ -11,6 +11,19 @@ function getCookieDomain(): string | undefined {
   return domain ? `.${domain}` : undefined;
 }
 
+function toSessionCookieOptions(
+  value: string,
+  options: Record<string, unknown> | undefined
+) {
+  const isDeletion = value === "" || options?.maxAge === 0;
+  if (isDeletion) return options ?? {};
+
+  const sessionOptions = { ...(options ?? {}) };
+  delete sessionOptions.maxAge;
+  delete sessionOptions.expires;
+  return sessionOptions;
+}
+
 /**
  * 미들웨어에서 세션을 갱신하고, 인증 상태를 확인하는 Supabase 클라이언트
  */
@@ -32,10 +45,8 @@ export async function updateSession(request: NextRequest) {
           );
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) => {
-            // maxAge/expires 제거 → 브라우저 종료 시 만료되는 세션 쿠키로 설정
-            const { maxAge: _maxAge, expires: _expires, ...sessionOptions } = options ?? {};
             supabaseResponse.cookies.set(name, value, {
-              ...sessionOptions,
+              ...toSessionCookieOptions(value, options),
               // 서브도메인 간 세션 공유: .digital-rescue.com 으로 쿠키 범위 확장
               ...(cookieDomain ? { domain: cookieDomain } : {}),
             });
@@ -49,6 +60,18 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (user) {
+    request.cookies.getAll().forEach(({ name, value }) => {
+      if (!name.startsWith("sb-")) return;
+      supabaseResponse.cookies.set(name, value, {
+        path: "/",
+        sameSite: "lax",
+        secure: request.nextUrl.protocol === "https:",
+        ...(cookieDomain ? { domain: cookieDomain } : {}),
+      });
+    });
+  }
 
   return { user, supabaseResponse };
 }

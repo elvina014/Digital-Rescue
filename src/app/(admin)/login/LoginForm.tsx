@@ -21,6 +21,10 @@ export default function LoginForm() {
 
     try {
       const result = await loginAction(formData);
+      if (result?.redirectTo) {
+        window.location.assign(result.redirectTo);
+        return;
+      }
       if (result?.error) {
         setError(result.error);
         setIsLoading(false);
