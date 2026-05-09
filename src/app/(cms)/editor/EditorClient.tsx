@@ -95,17 +95,32 @@ function normalizeSectionData(
 ): Record<string, unknown> {
   if (sectionKey !== "services" || !Array.isArray(data.items)) return data;
 
+  const serviceDefaults = SECTION_DEFAULTS.services as
+    | { items?: Record<string, unknown>[] }
+    | undefined;
+  const defaultsById = new Map(
+    (serviceDefaults?.items ?? [])
+      .filter((item) => typeof item.id === "string")
+      .map((item) => [item.id as string, item]),
+  );
+
   const items = data.items.map((item) => {
     if (item === null || typeof item !== "object" || Array.isArray(item)) {
       return item;
     }
 
     const service = item as Record<string, unknown>;
+    const defaults =
+      typeof service.id === "string" ? defaultsById.get(service.id) : undefined;
+
     return {
+      ...defaults,
       ...service,
       modalDetails: Array.isArray(service.modalDetails)
         ? service.modalDetails
-        : [],
+        : Array.isArray(defaults?.modalDetails)
+          ? defaults.modalDetails
+          : [],
     };
   });
 
