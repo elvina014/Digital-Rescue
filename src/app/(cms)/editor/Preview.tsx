@@ -112,7 +112,7 @@ function PreviewBody({
       case "about":
         return <AboutSection data={c as AboutSectionData} theme={t} />;
       case "services":
-        return <ServicesSection data={c as ServicesSectionData} theme={t} />;
+        return <ServicesSection data={c as ServicesSectionData} theme={t} previewMode />;
       case "symptoms":
         return <SymptomsSection data={c as SymptomsSectionData} theme={t} />;
       case "process":

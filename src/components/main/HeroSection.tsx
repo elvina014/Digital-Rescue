@@ -192,9 +192,9 @@ export function HeroSection({
             transition: `opacity 900ms ease-out 400ms, transform 900ms ease-out 400ms`,
           }}
         >
-          {(hero.trustStats ?? []).map((stat) => (
+          {(hero.trustStats ?? []).map((stat, i) => (
             <div
-              key={stat.label}
+              key={stat.id ?? `${stat.label}-${stat.value}-${i}`}
               className="rounded-3xl border bg-white/70 px-5 py-5 text-center backdrop-blur-md sm:py-6"
               style={{ borderColor: theme.borderSoft }}
             >

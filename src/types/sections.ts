@@ -200,7 +200,7 @@ export interface HeroSectionData {
     imageUrl: string;
     blobs: { color: string; x: string; y: string; size: string; blur: string }[];
   };
-  trustStats: { value: string; label: string }[];
+  trustStats: { id?: string; value: string; label: string }[];
   animation: { fadeInDurationMs: number; parallaxStrength: number };
 }
 
@@ -219,6 +219,7 @@ export interface ServiceItem {
   imageUrl: string;
   iconName: string;
   accent: string;
+  modalDetails: string[];
 }
 
 export interface ServicesSectionData {

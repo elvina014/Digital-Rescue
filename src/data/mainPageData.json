@@ -102,9 +102,9 @@
       ]
     },
     "trustStats": [
-      { "value": "12,000+", "label": "누적 수리 건수" },
-      { "value": "98%", "label": "고객 만족도" },
-      { "value": "All Brands", "label": "전 브랜드 대응" }
+      { "id": "repair-count", "value": "12,000+", "label": "누적 수리 건수" },
+      { "id": "satisfaction", "value": "98%", "label": "고객 만족도" },
+      { "id": "all-brands", "value": "All Brands", "label": "전 브랜드 대응" }
     ],
     "animation": {
       "fadeInDurationMs": 900,
@@ -154,7 +154,12 @@
         "description": "삼성·LG·한성·ASUS·MSI·레노버·HP·델·애플 등 모든 브랜드의 노트북을 자체 기술진이 직접 수리합니다.",
         "imageUrl": "",
         "iconName": "laptop",
-        "accent": "#2563eb"
+        "accent": "#2563eb",
+        "modalDetails": [
+          "액정, 키보드, 배터리, 힌지, 충전 포트 등 주요 부품 교체",
+          "전원 불량, 부팅 불가, 발열, 침수 등 메인보드 단위 진단",
+          "수리 전 상태와 견적을 투명하게 안내하고 데이터 보존을 우선합니다."
+        ]
       },
       {
         "id": "desktop",
@@ -162,7 +167,12 @@
         "description": "조립 PC부터 브랜드 PC까지. 부팅 불가, 발열, 파츠 교체 등 전 영역을 정밀 진단합니다.",
         "imageUrl": "",
         "iconName": "desktop",
-        "accent": "#0ea5e9"
+        "accent": "#0ea5e9",
+        "modalDetails": [
+          "파워, 메인보드, 그래픽카드, 저장장치, 쿨링 시스템 점검",
+          "부팅 실패, 블루스크린, 성능 저하, 소음 문제 원인 분리",
+          "사용 목적에 맞는 부품 교체와 안정화 테스트를 함께 진행합니다."
+        ]
       },
       {
         "id": "tablet",
@@ -170,7 +180,12 @@
         "description": "아이패드·갤럭시탭 등 태블릿의 액정·배터리·메인보드 수리를 신속하게 진행합니다.",
         "imageUrl": "",
         "iconName": "tablet",
-        "accent": "#6366f1"
+        "accent": "#6366f1",
+        "modalDetails": [
+          "액정 파손, 터치 불량, 배터리 수명 저하, 충전 불량 대응",
+          "일체형 구조에 맞춘 분해 공정으로 외관 손상을 최소화",
+          "작업 전 데이터 보존 가능 여부와 예상 비용을 먼저 안내합니다."
+        ]
       },
       {
         "id": "data-recovery",
@@ -178,7 +193,12 @@
         "description": "HDD·SSD·NAS·서버까지. 물리·논리 손상 모두 대응하는 전문 데이터 복구 서비스.",
         "imageUrl": "",
         "iconName": "database",
-        "accent": "#0d9488"
+        "accent": "#0d9488",
+        "modalDetails": [
+          "삭제, 포맷, 파티션 손상, 인식 불가 등 논리 장애 복구",
+          "HDD, SSD, USB, NAS, RAID, 서버 저장장치 물리 장애 진단",
+          "추가 손상을 막기 위해 원본 보존 원칙으로 복구 가능성을 확인합니다."
+        ]
       },
       {
         "id": "software",
@@ -186,7 +206,25 @@
         "description": "OS 설치·바이러스 제거·최적화·드라이버·업무용 소프트웨어 설정까지 종합 지원합니다.",
         "imageUrl": "",
         "iconName": "code",
-        "accent": "#7c3aed"
+        "accent": "#7c3aed",
+        "modalDetails": [
+          "Windows, macOS 재설치와 드라이버, 펌웨어, BIOS 설정 지원",
+          "악성코드 제거, 부팅 오류 복구, 업무용 프로그램 환경 설정",
+          "기존 데이터와 사용 환경을 최대한 보존하는 방향으로 작업합니다."
+        ]
+      },
+      {
+        "id": "system-upgrade",
+        "title": "시스템구축&업그레이드",
+        "description": "업무용 PC·워크스테이션·저장장치 환경을 목적에 맞게 설계하고 부품 업그레이드까지 지원합니다.",
+        "imageUrl": "",
+        "iconName": "wrench",
+        "accent": "#059669",
+        "modalDetails": [
+          "사용 목적에 맞춘 CPU, RAM, SSD, GPU, 네트워크 구성 제안",
+          "기존 장비 성능 진단 후 병목 구간을 중심으로 업그레이드 설계",
+          "설치 후 드라이버, 백업, 안정화 테스트까지 한 번에 진행합니다."
+        ]
       }
     ]
   },

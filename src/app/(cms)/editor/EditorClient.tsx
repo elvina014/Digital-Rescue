@@ -86,7 +86,30 @@ function buildSaved(
 ): Record<string, unknown> {
   const defaults = SECTION_DEFAULTS[sectionKey] ?? {};
   const dbData = contentMap[sectionKey]?.data;
-  return deepMerge(defaults, dbData);
+  return normalizeSectionData(sectionKey, deepMerge(defaults, dbData));
+}
+
+function normalizeSectionData(
+  sectionKey: string,
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  if (sectionKey !== "services" || !Array.isArray(data.items)) return data;
+
+  const items = data.items.map((item) => {
+    if (item === null || typeof item !== "object" || Array.isArray(item)) {
+      return item;
+    }
+
+    const service = item as Record<string, unknown>;
+    return {
+      ...service,
+      modalDetails: Array.isArray(service.modalDetails)
+        ? service.modalDetails
+        : [],
+    };
+  });
+
+  return { ...data, items };
 }
 
 // ────────────────────────── 컴포넌트 ──────────────────────────
