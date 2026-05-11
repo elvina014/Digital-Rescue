@@ -6,9 +6,8 @@ import { createClient } from "@/utils/supabase/client";
 const MAX_IMAGES_PER_TICKET = 12;
 const BUCKET = "ticket-images";
 
-/** 압축 옵션: 최대 1MB, 최대 1920px, WebP 변환 */
+/** 압축 옵션: 긴 변 최대 1920px, WebP 변환 */
 const COMPRESSION_OPTIONS: Parameters<typeof imageCompression>[1] = {
-  maxSizeMB: 1,
   maxWidthOrHeight: 1920,
   useWebWorker: true,
   fileType: "image/webp",

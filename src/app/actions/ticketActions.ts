@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { after } from "next/server";
+import sharp from "sharp";
 import { createAdminClient } from "@/utils/supabase/admin";
 
 // ── Zod 유효성 검사 스키마 ──
@@ -186,6 +187,7 @@ export async function submitTicketAction(
     const imageFiles = formData.getAll("images") as File[];
     const imageDescriptions = formData.getAll("imageDescriptions") as string[];
     const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+    const MAX_IMAGE_DIMENSION = 1920;
     const validImages = imageFiles.filter(
       (f) => f instanceof File && f.size > 0 && f.size <= MAX_IMAGE_SIZE && f.type.startsWith("image/")
     ).slice(0, 2);
@@ -202,16 +204,25 @@ export async function submitTicketAction(
           .replace(/[^a-zA-Z0-9_-]/g, "_")
           .replace(/_+/g, "_")
           .slice(0, 40);
-        const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-        const filePath = `${newTicket.id}/${timestamp}_${safeName}.${ext}`;
+        const filePath = `${newTicket.id}/${timestamp}_${safeName}.webp`;
 
         const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        const inputBuffer = Buffer.from(arrayBuffer);
+        const outputBuffer = await sharp(inputBuffer, { failOn: "none" })
+          .rotate()
+          .resize({
+            width: MAX_IMAGE_DIMENSION,
+            height: MAX_IMAGE_DIMENSION,
+            fit: "inside",
+            withoutEnlargement: true,
+          })
+          .webp()
+          .toBuffer();
 
         const { error: uploadError } = await supabase.storage
           .from("ticket-images")
-          .upload(filePath, buffer, {
-            contentType: file.type,
+          .upload(filePath, outputBuffer, {
+            contentType: "image/webp",
             upsert: false,
           });
 

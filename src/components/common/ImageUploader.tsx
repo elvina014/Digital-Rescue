@@ -111,7 +111,7 @@ export default function ImageUploader({
             클릭하거나 이미지를 여기에 드래그하세요
           </p>
           <p className="mt-1 text-xs text-gray-400">
-            JPG, PNG, WebP · 1장씩 업로드 · 각 20MB 이하
+            JPG, PNG, WebP · 1장씩 업로드 · 각 20MB 이하 · WebP 변환
           </p>
           <input
             ref={inputRef}

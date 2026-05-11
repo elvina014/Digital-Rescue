@@ -19,8 +19,7 @@ import { createClient } from "@/utils/supabase/client";
 export const CMS_IMAGE_BUCKET = "page-content-images";
 
 const COMPRESSION = {
-  maxSizeMB: 1,
-  maxWidthOrHeight: 2400,
+  maxWidthOrHeight: 1920,
   useWebWorker: true,
   fileType: "image/webp" as const,
 };
