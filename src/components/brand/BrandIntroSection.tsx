@@ -287,7 +287,7 @@ function HighlightCard({
       <h3 className="mt-5 text-lg font-bold tracking-tight text-white sm:text-xl">
         {title}
       </h3>
-      <p className="mt-2 text-sm leading-relaxed text-slate-300 sm:text-[15px]">
+      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-300 sm:text-[15px]">
         {description}
       </p>
     </li>

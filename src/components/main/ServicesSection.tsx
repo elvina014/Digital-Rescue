@@ -166,7 +166,7 @@ function ServiceCard({
           {title}
         </h3>
         <p
-          className="mt-3 text-sm leading-relaxed sm:text-base"
+          className="mt-3 whitespace-pre-line text-sm leading-relaxed sm:text-base"
           style={{ color: theme.textSecondary }}
         >
           {description}
@@ -323,7 +323,7 @@ function ServiceModal({
 
         <div className="max-h-[56vh] overflow-y-auto px-6 py-6 sm:px-8 sm:py-8">
           <p
-            className="text-sm leading-relaxed sm:text-base"
+            className="whitespace-pre-line text-sm leading-relaxed sm:text-base"
             style={{ color: theme.textSecondary }}
           >
             {service.description}

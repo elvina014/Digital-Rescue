@@ -186,7 +186,7 @@ function ProcessCard({
           {title}
         </h3>
         <p
-          className="mt-2 text-sm leading-relaxed sm:text-[15px]"
+          className="mt-2 whitespace-pre-line text-sm leading-relaxed sm:text-[15px]"
           style={{ color: theme.textSecondary }}
         >
           {description}
