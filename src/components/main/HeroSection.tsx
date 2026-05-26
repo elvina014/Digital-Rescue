@@ -136,7 +136,7 @@ export function HeroSection({
           </h1>
 
           <p
-            className="mx-auto mt-7 max-w-xl text-base leading-relaxed sm:text-lg"
+            className="mx-auto mt-7 max-w-xl whitespace-pre-line text-base leading-relaxed sm:text-lg"
             style={{ color: theme.textSecondary }}
           >
             {hero.subheadline ?? ''}

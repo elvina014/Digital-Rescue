@@ -168,7 +168,7 @@ export function BrandIntroSection({
           </h1>
 
           <p
-            className="mx-auto mt-7 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg"
+            className="mx-auto mt-7 max-w-2xl whitespace-pre-line text-base leading-relaxed text-slate-300 sm:text-lg"
             style={{
               opacity: mounted ? 1 : 0,
               transform: mounted ? "translateY(0)" : "translateY(12px)",

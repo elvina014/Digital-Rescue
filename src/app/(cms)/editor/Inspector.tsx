@@ -51,8 +51,8 @@ type FieldKind =
 const HEX_COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const SLIDER_KEY_RE =
   /(weight|size|duration|strength|interval|count|fontsize|opacity|ms)$/i;
-// body 계열 키는 값 길이와 무관하게 항상 줄바꿈 가능한 textarea 로 렌더링
-const TEXTAREA_KEY_RE = /body/i;
+// body / subheadline 계열 키는 값 길이와 무관하게 항상 줄바꿈 가능한 textarea 로 렌더링
+const TEXTAREA_KEY_RE = /(body|subheadline)/i;
 
 function inferFieldKind(key: string, val: unknown): FieldKind {
   // null / undefined → 빈 문자열 텍스트 필드로 처리 (크래시 방지)
