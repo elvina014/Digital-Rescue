@@ -252,7 +252,7 @@ function NewsModal({
           {news.body.split("\n\n").map((para, i) => (
             <p
               key={i}
-              className="text-sm leading-relaxed sm:text-base"
+              className="whitespace-pre-line text-sm leading-relaxed sm:text-base"
               style={{
                 color: theme.textPrimary,
                 marginTop: i === 0 ? 0 : "1.25rem",

@@ -159,7 +159,7 @@ function Statement({
         </h3>
       </div>
       <p
-        className="mt-4 text-sm leading-relaxed sm:text-base"
+        className="mt-4 whitespace-pre-line text-sm leading-relaxed sm:text-base"
         style={{ color: theme.textSecondary }}
       >
         {body}
