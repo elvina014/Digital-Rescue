@@ -8,6 +8,7 @@ import { addTicketImagesAction } from "../actions";
 import ImageUploader from "@/components/common/ImageUploader";
 import { compressAndUploadSingle } from "@/lib/imageUpload";
 import type { TicketImage } from "@/lib/imageUpload";
+import { EmployeeRole } from "@/types";
 
 const RECEIPT_TYPE_OPTIONS = [
   { value: "WALK_IN", label: "내방" },
@@ -29,11 +30,16 @@ const BRAND_OPTIONS = [
   "Samsung", "LG", "한성", "MSI", "ASUS", "Lenovo", "HP", "Dell", "Acer", "Apple", "기타",
 ] as const;
 
-export default function NewTicketForm({ currentEmployee }: { currentEmployee: { id: string; name: string } }) {
+export default function NewTicketForm({ currentEmployee }: { currentEmployee: { id: string; name: string; role: EmployeeRole } }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingImages, setPendingImages] = useState<{ file: File; description: string; previewUrl: string }[]>([]);
+
+  // 테스트 접수 체크박스는 ADMIN/MANAGER만 노출 (RECEPTION 제외)
+  const canMarkAsTest =
+    currentEmployee.role === EmployeeRole.ADMIN ||
+    currentEmployee.role === EmployeeRole.MANAGER;
 
   async function handleSubmit(formData: FormData) {
     setIsLoading(true);
@@ -214,6 +220,20 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
+
+          {canMarkAsTest && (
+            <div className="sm:col-span-3">
+              <label className="flex items-center gap-2 rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-900">
+                <input
+                  type="checkbox"
+                  name="isTest"
+                  value="true"
+                  className="h-4 w-4 rounded border-yellow-400 text-yellow-600 focus:ring-yellow-500"
+                />
+                <span className="font-medium">테스트 접수입니다 (통계·일반 화면에서 제외)</span>
+              </label>
+            </div>
+          )}
         </div>
       </fieldset>
 

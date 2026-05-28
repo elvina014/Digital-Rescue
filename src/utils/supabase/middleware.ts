@@ -5,10 +5,19 @@ import { type NextRequest, NextResponse } from "next/server";
  * login. / edit. 서브도메인 간 세션 공유를 위해 쿠키 domain 을 상위 도메인으로 설정.
  * NEXT_PUBLIC_SITE_DOMAIN=digital-rescue.com 이 설정된 경우 .digital-rescue.com 반환.
  * 미설정(로컬 개발)이면 undefined → 브라우저 기본 동작(현재 도메인만).
+ *
+ * 단, 요청 호스트가 실제로 해당 도메인(또는 그 서브도메인)일 때만 domain 을 부여한다.
+ * env 가 설정돼 있더라도 호스트가 localhost 라면 undefined — 그렇지 않으면 브라우저가
+ * domain 불일치로 Set-Cookie 를 거부해 세션이 저장되지 않는다.
  */
-function getCookieDomain(): string | undefined {
+function getCookieDomain(host: string | null | undefined): string | undefined {
   const domain = process.env.NEXT_PUBLIC_SITE_DOMAIN;
-  return domain ? `.${domain}` : undefined;
+  if (!domain || !host) return undefined;
+  const hostname = host.split(":")[0];
+  if (hostname === domain || hostname.endsWith(`.${domain}`)) {
+    return `.${domain}`;
+  }
+  return undefined;
 }
 
 function toSessionCookieOptions(
@@ -29,7 +38,7 @@ function toSessionCookieOptions(
  */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
-  const cookieDomain = getCookieDomain();
+  const cookieDomain = getCookieDomain(request.headers.get("host"));
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

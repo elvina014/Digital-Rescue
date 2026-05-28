@@ -6,9 +6,17 @@ import { headers, cookies } from "next/headers";
 
 const ACTIVITY_COOKIE = "dr_last_activity";
 
-function getCookieDomain(): string | undefined {
+async function getCookieDomain(): Promise<string | undefined> {
   const domain = process.env.NEXT_PUBLIC_SITE_DOMAIN;
-  return domain ? `.${domain}` : undefined;
+  if (!domain) return undefined;
+  const h = await headers();
+  const host = h.get("host");
+  if (!host) return undefined;
+  const hostname = host.split(":")[0];
+  if (hostname === domain || hostname.endsWith(`.${domain}`)) {
+    return `.${domain}`;
+  }
+  return undefined;
 }
 
 /** 현재 요청의 Host 헤더에서 origin을 구성 */
@@ -59,7 +67,7 @@ export async function loginAction(formData: FormData) {
   // 로그인 성공 직후 활동 시간 쿠키를 현재 시간으로 초기화
   // (오래된 dr_last_activity 잔재가 미들웨어에서 만료로 오판되는 것을 방지)
   const cookieStore = await cookies();
-  const cookieDomain = getCookieDomain();
+  const cookieDomain = await getCookieDomain();
   cookieStore.set(ACTIVITY_COOKIE, String(Date.now()), {
     path: "/",
     sameSite: "lax",

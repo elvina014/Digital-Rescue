@@ -34,6 +34,10 @@ export async function createTicketAction(formData: FormData) {
   const deviceBrand = (formData.get("deviceBrand") as string)?.trim();
   const deviceModel = (formData.get("deviceModel") as string)?.trim() || null;
   const symptoms = (formData.get("symptoms") as string)?.trim();
+  // 테스트 접수 플래그는 ADMIN/MANAGER만 설정 가능 (UI는 RECEPTION에 숨겨져 있지만 서버에서도 강제)
+  const canMarkAsTest =
+    employee.role === EmployeeRole.ADMIN || employee.role === EmployeeRole.MANAGER;
+  const isTest = canMarkAsTest && formData.get("isTest") === "true";
 
   if (!customerName || !customerPhone || !receiptType || !deviceType || !deviceBrand || !symptoms) {
     return { error: "필수 항목을 모두 입력해 주세요." };
@@ -80,6 +84,7 @@ export async function createTicketAction(formData: FormData) {
       device_brand: deviceBrand,
       device_model: deviceModel,
       symptoms,
+      is_test: isTest,
     })
     .select("id")
     .single();
@@ -90,6 +95,31 @@ export async function createTicketAction(formData: FormData) {
 
   revalidatePath("/tickets");
   return { ticketId: newTicket.id };
+}
+
+// ----- 테스트 접수 플래그 토글 (ADMIN 전용) -----
+export async function toggleTestFlagAction(ticketId: string, nextValue: boolean) {
+  const employee = await getCurrentEmployee();
+  if (!employee || employee.role !== EmployeeRole.ADMIN) {
+    return { error: "권한이 없습니다 (ADMIN 전용)." };
+  }
+
+  if (!ticketId) return { error: "접수건 ID가 없습니다." };
+
+  // 승인보호 트리거를 우회해야 하므로 admin 클라이언트 사용 (ADMIN 권한 확인됨)
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("repair_tickets")
+    .update({ is_test: nextValue })
+    .eq("id", ticketId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath("/tickets");
+  revalidatePath("/dashboard");
+  revalidatePath("/stats");
+  return { success: true };
 }
 
 // ----- 담당기사 배정/변경 (RECEPTION, MANAGER, ADMIN) -----
@@ -1515,7 +1545,7 @@ export async function getPendingReturnMaterials() {
         inventory_products ( name )
       ),
       repair_tickets (
-        device_brand, device_model, status,
+        receipt_no, device_brand, device_model, status,
         customers ( name ),
         employees:assignee_id ( name )
       )
@@ -1803,7 +1833,7 @@ export async function getDisposalPendingTickets() {
   const { data } = await (supabase as any)
     .from("repair_tickets")
     .select(`
-      id, device_brand, device_model, tag_info, cancel_device_disposal, created_at,
+      id, receipt_no, device_brand, device_model, tag_info, cancel_device_disposal, created_at,
       customers ( name, phone ),
       employees:assignee_id ( name )
     `)
@@ -1814,6 +1844,7 @@ export async function getDisposalPendingTickets() {
 
   return { data: (data ?? []) as {
     id: string;
+    receipt_no: string;
     device_brand: string | null;
     device_model: string | null;
     tag_info: string | null;

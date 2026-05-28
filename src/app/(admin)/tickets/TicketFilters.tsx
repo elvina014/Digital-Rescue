@@ -21,9 +21,12 @@ interface Technician {
 export default function TicketFilters({
   technicians,
   showAssigneeFilter = true,
+  showTestFilter = false,
 }: {
   technicians: Technician[];
   showAssigneeFilter?: boolean;
+  /** ADMIN/MANAGER만 노출되는 "테스트 접수 포함/만" 필터 */
+  showTestFilter?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -114,6 +117,22 @@ export default function TicketFilters({
                 {t.name}
               </option>
             ))}
+          </select>
+        </div>
+      )}
+
+      {/* 테스트 접수 필터 (ADMIN/MANAGER 전용) */}
+      {showTestFilter && (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-500">테스트 접수</label>
+          <select
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            value={searchParams.get("test") ?? ""}
+            onChange={(e) => updateParams("test", e.target.value)}
+          >
+            <option value="">숨김 (실접수만)</option>
+            <option value="include">테스트 포함</option>
+            <option value="only">테스트만</option>
           </select>
         </div>
       )}

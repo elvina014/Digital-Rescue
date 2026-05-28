@@ -29,6 +29,14 @@ export default async function TicketsPage({
   const assigneeFilter = typeof params.assignee === "string" ? params.assignee : undefined;
   const searchQuery = typeof params.search === "string" ? params.search.trim() : undefined;
   const adminMessageFilter = params.has_admin_message === "true";
+  // 테스트 접수 필터: undefined/"" = 실접수만, "include" = 전체, "only" = 테스트만
+  // ADMIN/MANAGER만 의미가 있음 — 그 외 직급은 항상 실접수만 보임
+  const canSeeTest = [EmployeeRole.ADMIN, EmployeeRole.MANAGER].includes(employee.role);
+  const testParam = typeof params.test === "string" ? params.test : "";
+  const testMode: "hide" | "include" | "only" =
+    canSeeTest && testParam === "include" ? "include"
+    : canSeeTest && testParam === "only" ? "only"
+    : "hide";
 
   const supabase = await createClient();
 
@@ -50,6 +58,8 @@ export default async function TicketsPage({
     .select(
       `
       id,
+      receipt_no,
+      is_test,
       status,
       receipt_type,
       device_brand,
@@ -67,6 +77,14 @@ export default async function TicketsPage({
     `
     )
     .order("created_at", { ascending: false });
+
+  // 테스트 접수 필터 적용
+  if (testMode === "hide") {
+    query = query.eq("is_test", false);
+  } else if (testMode === "only") {
+    query = query.eq("is_test", true);
+  }
+  // testMode === "include"는 별도 조건 없음 (전체 조회)
 
   if (searchQuery) {
     const safeTerm = searchQuery.replace(/,/g, "");
@@ -135,6 +153,7 @@ export default async function TicketsPage({
         <TicketFilters
           technicians={technicians ?? []}
           showAssigneeFilter={![EmployeeRole.TECHNICIAN, EmployeeRole.EXPERT_REPAIR].includes(employee.role)}
+          showTestFilter={canSeeTest}
         />
       </Suspense>
 
@@ -144,6 +163,7 @@ export default async function TicketsPage({
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b bg-gray-50 text-xs font-medium uppercase tracking-wider text-gray-500">
+                <th className="px-4 py-3">접수번호</th>
                 <th className="px-4 py-3">고객명</th>
                 <th className="px-4 py-3">연락처</th>
                 <th className="px-4 py-3">브랜드</th>
@@ -161,7 +181,7 @@ export default async function TicketsPage({
               {(!tickets || tickets.length === 0) && (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={12}
                     className="px-4 py-12 text-center text-gray-400"
                   >
                     접수건이 없습니다.
@@ -181,8 +201,21 @@ export default async function TicketsPage({
                 return (
                   <tr
                     key={ticket.id}
-                    className="transition-colors hover:bg-gray-50"
+                    className={`transition-colors hover:bg-gray-50 ${ticket.is_test ? "bg-yellow-50/50" : ""}`}
                   >
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-gray-700">
+                      <Link
+                        href={`/tickets/${ticket.id}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {ticket.receipt_no}
+                      </Link>
+                      {ticket.is_test && (
+                        <span className="ml-1.5 inline-flex items-center rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600">
+                          TEST
+                        </span>
+                      )}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-900">
                       <Link
                         href={`/tickets/${ticket.id}`}

@@ -25,7 +25,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     .from("repair_tickets")
     .select(
       `
-      id, status, receipt_type, device_brand, device_model, tag_info, release_year,
+      id, receipt_no, is_test, status, receipt_type, device_brand, device_model, tag_info, release_year,
       symptoms, initial_estimate, expected_estimate, evaluated_value, material_cost,
       material_cost_details, final_price, is_approved, has_admin_message, images,
       payment_status, payment_method, cancel_device_disposal, created_at, updated_at,
@@ -154,6 +154,8 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
   // Supabase 조인 결과 타입 정리
   const ticketData = {
     id: ticket.id,
+    receipt_no: (ticket as Record<string, unknown>).receipt_no as string,
+    is_test: (ticket as Record<string, unknown>).is_test as boolean,
     status: ticket.status as TicketStatus,
     receipt_type: ticket.receipt_type,
     device_brand: ticket.device_brand,

@@ -88,6 +88,7 @@ export default async function InventoryPage() {
     return {
       id: r.id as string,
       ticket_id: r.ticket_id as string,
+      receipt_no: (ticket?.receipt_no as string) ?? "",
       original_label: [catName, specName, prodName, capacity].filter(Boolean).join(" / "),
       return_category: catName,
       return_spec: (r.return_spec as string) ?? "",
@@ -121,6 +122,9 @@ export default async function InventoryPage() {
     const specs = invObj?.inventory_specs;
     const prods = invObj?.inventory_products;
 
+    const rt = t.repair_tickets as { receipt_no: string }[] | { receipt_no: string } | null;
+    const rtObj = Array.isArray(rt) ? rt[0] ?? null : rt;
+
     return {
       id: t.id as string,
       transaction_type: t.transaction_type as string,
@@ -129,6 +133,7 @@ export default async function InventoryPage() {
       ticket_id: (t.ticket_id as string | null) ?? null,
       created_at: t.created_at as string,
       employees: empObj ? { name: empObj.name } : null,
+      repair_tickets: rtObj ? { receipt_no: rtObj.receipt_no } : null,
       inventory_items: invObj
         ? {
             capacity: invObj.capacity,

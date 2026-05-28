@@ -7,6 +7,7 @@ import { approveReturnMaterialAction } from "@/app/(admin)/tickets/actions";
 interface ReturnMaterialItem {
   id: string;
   ticket_id: string;
+  receipt_no: string;
   original_label: string;
   return_category: string;
   return_spec: string;
@@ -60,9 +61,9 @@ export default function ReturnMaterialInboundWidget({ items: initialItems }: Ret
               <div className="min-w-0 flex-1">
                 <Link
                   href={`/tickets/${item.ticket_id}`}
-                  className="text-sm font-medium text-blue-700 hover:underline"
+                  className="font-mono text-sm font-medium text-blue-700 hover:underline"
                 >
-                  {item.ticket_id.slice(0, 8)}...
+                  {item.receipt_no}
                 </Link>
                 <span className="ml-2 text-xs text-gray-500">/ {item.technician_name}</span>
                 <p className="mt-0.5 text-gray-600">

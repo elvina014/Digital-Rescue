@@ -27,9 +27,14 @@ const LOGIN_PATH = "/login";
 const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30분
 const ACTIVITY_COOKIE = "dr_last_activity";
 
-function getCookieDomain(): string | undefined {
+function getCookieDomain(host: string | null | undefined): string | undefined {
   const domain = process.env.NEXT_PUBLIC_SITE_DOMAIN;
-  return domain ? `.${domain}` : undefined;
+  if (!domain || !host) return undefined;
+  const hostname = host.split(":")[0];
+  if (hostname === domain || hostname.endsWith(`.${domain}`)) {
+    return `.${domain}`;
+  }
+  return undefined;
 }
 
 /** hostname이 admin 서브도메인인지 판별 */
@@ -84,7 +89,7 @@ export async function proxy(request: NextRequest) {
         loginUrl.search = "";
 
         const response = NextResponse.redirect(loginUrl);
-        const cookieDomain = getCookieDomain();
+        const cookieDomain = getCookieDomain(request.headers.get("host"));
 
         // Supabase 인증 쿠키 (sb-* 접두사) 전부 무효화
         request.cookies.getAll().forEach(({ name }) => {
@@ -107,7 +112,7 @@ export async function proxy(request: NextRequest) {
     }
 
     // 활동 시간 갱신 (세션 쿠키 — maxAge/expires 없음)
-    const cookieDomain = getCookieDomain();
+    const cookieDomain = getCookieDomain(request.headers.get("host"));
     supabaseResponse.cookies.set(ACTIVITY_COOKIE, String(Date.now()), {
       path: "/",
       sameSite: "lax",

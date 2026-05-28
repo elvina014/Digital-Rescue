@@ -118,6 +118,7 @@ export async function getAnnualRevenue(year: number): Promise<MonthlyRevenueData
   const { data } = await supabase
     .from("repair_tickets")
     .select("final_price, completed_at")
+    .eq("is_test", false)
     .eq("status", "COMPLETED")
     .gte("completed_at", start) as unknown as { data: { final_price: number | null; completed_at: string | null }[] | null };
 
@@ -147,6 +148,7 @@ export async function getMonthlyDailyRevenue(year: number, month: number): Promi
   const { data } = await supabase
     .from("repair_tickets")
     .select("final_price, completed_at")
+    .eq("is_test", false)
     .eq("status", "COMPLETED")
     .gte("completed_at", start)
     .lt("completed_at", end) as unknown as { data: { final_price: number | null; completed_at: string | null }[] | null };
@@ -176,6 +178,7 @@ export async function getTechnicianMonthlyRevenue(year: number, month: number): 
   const { data } = await supabase
     .from("repair_tickets")
     .select("final_price, assignee_id, completed_at, employees:assignee_id ( name )")
+    .eq("is_test", false)
     .eq("status", "COMPLETED")
     .gte("completed_at", start)
     .lt("completed_at", end)
@@ -207,6 +210,7 @@ export async function getTechnicianPerformance(year: number, month: number): Pro
   const { data } = await (supabase as any)
     .from("repair_tickets")
     .select("final_price, minimum_estimate, assignee_id, employees:assignee_id ( name )")
+    .eq("is_test", false)
     .eq("status", "COMPLETED")
     .not("assignee_id", "is", null)
     .gte("completed_at", start)
@@ -248,6 +252,7 @@ export async function getBrandBreakdown(): Promise<BrandBreakdownData[]> {
   const { data } = await supabase
     .from("repair_tickets")
     .select("device_brand")
+    .eq("is_test", false)
     .not("device_brand", "is", null)
     .neq("device_brand", "");
 
@@ -273,6 +278,7 @@ export async function getStatusBreakdown(year: number, month: number): Promise<S
   const { data } = await supabase
     .from("repair_tickets")
     .select("status")
+    .eq("is_test", false)
     .gte("created_at", start)
     .lt("created_at", end);
 
@@ -299,6 +305,7 @@ export async function getReceiptTypeBreakdown(year: number, month: number): Prom
   const { data } = await supabase
     .from("repair_tickets")
     .select("receipt_type")
+    .eq("is_test", false)
     .gte("created_at", start)
     .lt("created_at", end);
 
@@ -329,7 +336,8 @@ export async function getCancelStats(year: number, month: number): Promise<Cance
     .from("repair_tickets")
     .select(
       "status, created_at, canceled_at, assignee_id, employees:assignee_id ( name )"
-    ) as unknown as { data: { status: string; created_at: string; canceled_at: string | null; assignee_id: string | null; employees: { name: string } | { name: string }[] | null }[] | null };
+    )
+    .eq("is_test", false) as unknown as { data: { status: string; created_at: string; canceled_at: string | null; assignee_id: string | null; employees: { name: string } | { name: string }[] | null }[] | null };
 
   const all = data ?? [];
 

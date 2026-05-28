@@ -6,6 +6,7 @@ import { confirmDisposalAction } from "@/app/(admin)/tickets/actions";
 
 interface DisposalTicket {
   id: string;
+  receipt_no: string;
   device_brand: string;
   device_model: string | null;
   tag_info: string | null;
@@ -73,7 +74,7 @@ export default function DisposalConfirmWidget({ tickets: initialTickets }: Dispo
                     <p className="text-xs text-gray-500">태그: {t.tag_info}</p>
                   )}
                   <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-gray-500">
-                    <span>접수번호: <span className="font-mono text-gray-700">{t.id.slice(0, 8)}…</span></span>
+                    <span>접수번호: <span className="font-mono text-gray-700">{t.receipt_no}</span></span>
                     <span>담당: {t.assignee_name}</span>
                     <span>취소일: {cancelDate}</span>
                   </div>

@@ -117,6 +117,7 @@ export default async function DashboardPage() {
     return {
       id: r.id as string,
       ticket_id: r.ticket_id as string,
+      receipt_no: (ticket?.receipt_no as string) ?? "",
       original_label: [catName, specName, prodName, capacity].filter(Boolean).join(" / "),
       return_category: catName,
       return_spec: (r.return_spec as string) ?? "",
@@ -133,6 +134,7 @@ export default async function DashboardPage() {
     const assignee = t.employees as Record<string, string> | null;
     return {
       id: t.id as string,
+      receipt_no: (t.receipt_no as string) ?? "",
       device_brand: (t.device_brand as string) ?? "",
       device_model: (t.device_model as string | null) ?? null,
       tag_info: (t.tag_info as string | null) ?? null,
@@ -412,7 +414,7 @@ export default async function DashboardPage() {
                     href={`/tickets/${log.ticket_id}`}
                     className="font-mono text-blue-600 hover:underline"
                   >
-                    {log.ticket_id.slice(0, 8)}...
+                    {log.receipt_no || log.ticket_id.slice(0, 8)}
                   </Link>
                   <time>{formatShortDateTime(log.created_at)}</time>
                 </div>

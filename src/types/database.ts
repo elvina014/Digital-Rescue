@@ -33,6 +33,10 @@ export interface Customer {
 /** 수리 접수건 테이블 (repair_tickets) - 핵심 테이블 */
 export interface RepairTicket {
   id: string; // UUID
+  /** 사람이 읽는 접수번호 (YYYYMMDD-NNN, 한국시간 기준, 일별 리셋) */
+  receipt_no: string;
+  /** 테스트 접수 여부 (TRUE면 통계/일반 화면에서 제외) */
+  is_test: boolean;
   customer_id: string; // FK → customers.id
   assignee_id: string | null; // FK → employees.id
   status: TicketStatus;

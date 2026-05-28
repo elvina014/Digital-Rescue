@@ -46,6 +46,7 @@ interface TransactionRow {
   ticket_id: string | null;
   created_at: string;
   employees: { name: string } | null;
+  repair_tickets: { receipt_no: string } | null;
   inventory_items: {
     capacity: string | null;
     inventory_categories: { name: string } | null;
@@ -586,8 +587,8 @@ export default function InventoryClient({ items: initialItems, transactions, cur
                       <td className="px-4 py-3 text-xs text-gray-500">{tx.notes ?? "-"}</td>
                       <td className="px-4 py-3 text-xs">
                         {tx.ticket_id ? (
-                          <a href={`/tickets/${tx.ticket_id}`} className="text-blue-600 hover:underline">
-                            #{tx.ticket_id.slice(0, 8)}
+                          <a href={`/tickets/${tx.ticket_id}`} className="font-mono text-blue-600 hover:underline">
+                            {tx.repair_tickets?.receipt_no ?? `#${tx.ticket_id.slice(0, 8)}`}
                           </a>
                         ) : (
                           <span className="text-gray-400">-</span>

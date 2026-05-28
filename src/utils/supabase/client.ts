@@ -26,7 +26,17 @@ export function createClient() {
             });
         },
         setAll(cookiesToSet) {
-          const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN;
+          const envDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN;
+          // 현재 호스트가 envDomain(또는 그 서브도메인)일 때만 Domain 속성을 부여.
+          // 로컬 dev(localhost) 처럼 매칭되지 않으면 브라우저가 Set-Cookie 를 거부하므로
+          // host-only 쿠키로 폴백한다.
+          const hostname =
+            typeof window !== "undefined" ? window.location.hostname : "";
+          const siteDomain =
+            envDomain &&
+            (hostname === envDomain || hostname.endsWith(`.${envDomain}`))
+              ? envDomain
+              : undefined;
           cookiesToSet.forEach(({ name, value, options }) => {
             const isDeletion = value === "" || options?.maxAge === 0;
             const { maxAge, expires, ...rest } = options ?? {};

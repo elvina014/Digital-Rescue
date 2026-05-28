@@ -34,6 +34,7 @@ export interface RecentLog {
   created_at: string;
   employee_name: string;
   ticket_id: string;
+  receipt_no: string;
 }
 
 /**
@@ -65,7 +66,8 @@ export async function getDashboardStats(
     .select(
       "status, receipt_type, final_price, material_cost, created_at, " +
       "completed_at, canceled_at, assignee_id, has_admin_message, id"
-    ) as unknown as { data: TicketRow[] | null };
+    )
+    .eq("is_test", false) as unknown as { data: TicketRow[] | null };
 
   const all = tickets ?? [];
 
@@ -200,7 +202,7 @@ export async function getRecentLogs(
   if (isAdmin || !employeeId) {
     const { data: logs } = await supabase
       .from("ticket_logs")
-      .select("id, message, created_at, ticket_id, employees:employee_id ( name )")
+      .select("id, message, created_at, ticket_id, employees:employee_id ( name ), repair_tickets ( receipt_no )")
       .order("created_at", { ascending: false })
       .limit(10);
 
@@ -210,14 +212,14 @@ export async function getRecentLogs(
   const [{ data: myLogs }, { data: assignedLogs }] = await Promise.all([
     supabase
       .from("ticket_logs")
-      .select("id, message, created_at, ticket_id, employees:employee_id ( name )")
+      .select("id, message, created_at, ticket_id, employees:employee_id ( name ), repair_tickets ( receipt_no )")
       .eq("employee_id", employeeId)
       .order("created_at", { ascending: false })
       .limit(10),
     supabase
       .from("ticket_logs")
       .select(
-        "id, message, created_at, ticket_id, employees:employee_id ( name ), repair_tickets!inner ( assignee_id )"
+        "id, message, created_at, ticket_id, employees:employee_id ( name ), repair_tickets!inner ( assignee_id, receipt_no )"
       )
       .eq("repair_tickets.assignee_id", employeeId)
       .neq("employee_id", employeeId)
@@ -231,14 +233,18 @@ export async function getRecentLogs(
 }
 
 function mapLogs(
-  logs: { id: string; message: string; created_at: string; ticket_id: string; employees: unknown }[] | null
+  logs: { id: string; message: string; created_at: string; ticket_id: string; employees: unknown; repair_tickets?: unknown }[] | null
 ): RecentLog[] {
-  return (logs ?? []).map((log) => ({
-    id: log.id,
-    message: log.message,
-    created_at: log.created_at,
-    ticket_id: log.ticket_id,
-    employee_name:
-      (log.employees as { name: string } | null)?.name ?? "알 수 없음",
-  }));
+  return (logs ?? []).map((log) => {
+    const rt = Array.isArray(log.repair_tickets) ? log.repair_tickets[0] : log.repair_tickets;
+    return {
+      id: log.id,
+      message: log.message,
+      created_at: log.created_at,
+      ticket_id: log.ticket_id,
+      receipt_no: (rt as { receipt_no?: string } | null)?.receipt_no ?? "",
+      employee_name:
+        (log.employees as { name: string } | null)?.name ?? "알 수 없음",
+    };
+  });
 }

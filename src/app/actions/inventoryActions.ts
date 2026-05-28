@@ -640,6 +640,7 @@ export async function getInventoryTransactions(limit = 100) {
       ticket_id,
       created_at,
       employees:user_id ( name ),
+      repair_tickets:ticket_id ( receipt_no ),
       inventory_items:item_id (
         capacity,
         inventory_categories ( name ),

@@ -18,7 +18,15 @@
       "Bash(rm \"C:/Users/BRAD/Documents/workspace/Digital-Rescue/.git/index.lock\")",
       "mcp__aae57ce1-6431-4a95-848c-44de48836553__get_runtime_logs",
       "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('next:', p.dependencies.next\\)\")",
-      "Bash(node -e \"const m = require\\('next/server'\\); console.log\\(Object.keys\\(m\\).filter\\(k => k.toLowerCase\\(\\).includes\\('after'\\)\\)\\)\")"
+      "Bash(node -e \"const m = require\\('next/server'\\); console.log\\(Object.keys\\(m\\).filter\\(k => k.toLowerCase\\(\\).includes\\('after'\\)\\)\\)\")",
+      "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__list_migrations",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(npm run *)",
+      "Read(//c/Users/BRAD/AppData/Local/Temp/claude/C--Users-BRAD-Documents-workspace-Digital-Rescue/e655e509-51e3-46bc-b82d-52bfcaba3cc3/tasks/**)",
+      "Bash(curl -sI -H \"Host: login.localhost:3000\" http://localhost:3000/login)",
+      "Bash(curl -s -H \"Host: login.localhost:3000\" http://localhost:3000/login -o /dev/null -w \"%{http_code}\\\\n\")",
+      "Bash(taskkill /PID 28960 /F)",
+      "PowerShell(Stop-Process -Id 28960 -Force)"
     ]
   }
 }

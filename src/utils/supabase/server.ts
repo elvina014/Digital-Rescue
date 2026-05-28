@@ -1,14 +1,26 @@
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 /**
  * login. / edit. 서브도메인 간 세션 공유를 위해 쿠키 domain 을 상위 도메인으로 설정.
  * middleware.ts 와 동일한 로직 — Server Action(loginAction 등)에서 세션 쿠키를 쓸 때도
  * 반드시 .digital-rescue.com 도메인이 붙어야 edit. 서브도메인에서 세션을 읽을 수 있다.
+ *
+ * 단, 요청 호스트가 실제로 해당 도메인(또는 그 서브도메인)일 때만 domain 을 부여한다.
+ * 로컬 dev(localhost) 처럼 호스트와 매칭되지 않으면 undefined 를 반환해
+ * 브라우저가 Set-Cookie 를 거부하지 않도록 한다.
  */
-function getCookieDomain(): string | undefined {
+function matchesSiteDomain(host: string | null | undefined, domain: string): boolean {
+  if (!host) return false;
+  const hostname = host.split(":")[0];
+  return hostname === domain || hostname.endsWith(`.${domain}`);
+}
+
+async function getCookieDomain(): Promise<string | undefined> {
   const domain = process.env.NEXT_PUBLIC_SITE_DOMAIN;
-  return domain ? `.${domain}` : undefined;
+  if (!domain) return undefined;
+  const h = await headers();
+  return matchesSiteDomain(h.get("host"), domain) ? `.${domain}` : undefined;
 }
 
 function toSessionCookieOptions(
@@ -30,7 +42,7 @@ function toSessionCookieOptions(
  */
 export async function createClient() {
   const cookieStore = await cookies();
-  const cookieDomain = getCookieDomain();
+  const cookieDomain = await getCookieDomain();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

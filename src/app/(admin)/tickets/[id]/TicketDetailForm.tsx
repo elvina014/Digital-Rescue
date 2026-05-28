@@ -21,6 +21,7 @@ import {
   cancelMaterialDispatchAction,
   registerReturnMaterialAction,
   updateReceiptTypeAction,
+  toggleTestFlagAction,
 } from "../actions";
 import EstimateCard from "./EstimateCard";
 
@@ -29,6 +30,8 @@ import { formatDateTime } from "@/lib/date";
 
 interface TicketData {
   id: string;
+  receipt_no: string;
+  is_test: boolean;
   status: TicketStatus;
   receipt_type: string;
   device_brand: string;
@@ -264,7 +267,39 @@ export default function TicketDetailForm({
         <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
           <div>
             <dt className="text-xs font-medium text-gray-500">접수 번호</dt>
-            <dd className="mt-0.5 text-sm font-mono text-gray-900">{ticket.id.slice(0, 8)}...</dd>
+            <dd className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm font-mono text-gray-900">
+              {ticket.receipt_no}
+              {ticket.is_test && (
+                <span className="inline-flex items-center rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600">
+                  TEST
+                </span>
+              )}
+              {isAdmin && (
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => {
+                    const next = !ticket.is_test;
+                    const confirmMsg = next
+                      ? "이 접수건을 테스트 접수로 표시하시겠습니까?\n(통계 및 일반 화면에서 제외됩니다)"
+                      : "테스트 표시를 해제하시겠습니까?\n(통계 및 일반 화면에 다시 포함됩니다)";
+                    if (!confirm(confirmMsg)) return;
+                    startTransition(async () => {
+                      setError(null);
+                      const res = await toggleTestFlagAction(ticket.id, next);
+                      if (res?.error) setError(res.error);
+                    });
+                  }}
+                  className={`ml-1 rounded-md border px-2 py-0.5 text-[11px] font-medium ${
+                    ticket.is_test
+                      ? "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+                      : "border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100"
+                  } disabled:opacity-50`}
+                >
+                  {ticket.is_test ? "테스트 해제" : "테스트로 표시"}
+                </button>
+              )}
+            </dd>
           </div>
           <div>
             <dt className="text-xs font-medium text-gray-500">접수 방식</dt>
