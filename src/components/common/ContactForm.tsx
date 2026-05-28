@@ -66,6 +66,9 @@ export function ContactForm({
       setVisitDate("");
       setVisitTimeSlot("");
       setParcelMethod("");
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       const t = setTimeout(() => setShowToast(false), 5000);
       return () => clearTimeout(t);
     }
