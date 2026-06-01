@@ -31,7 +31,7 @@ export default async function MainLayout({
       <Header data={header} theme={theme} />
       <main className="flex-1 pb-20 md:pb-0">{children}</main>
       <Footer data={footer} theme={theme} />
-      <MobileCTA />
+      <MobileCTA data={footer} />
     </>
   );
 }

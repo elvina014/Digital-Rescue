@@ -1,16 +1,44 @@
 import Link from "next/link";
+import defaults from "@/data/mainPageData.json";
+import type { FooterData } from "@/types/sections";
+
+const DEFAULT_FOOTER = defaults.footer as FooterData;
+
+interface MobileCTAProps {
+  data?: FooterData;
+}
+
+/**
+ * 푸터 고객센터 컬럼(CMS 편집 대상)에서 전화 / 카카오톡 링크를 추출한다.
+ * 이렇게 해야 CMS에서 footer 를 수정하면 PC 푸터와 모바일 CTA 가 같은 값을 공유한다.
+ * 추출 실패 시 기존 하드코딩 값으로 폴백.
+ */
+function extractContactLinks(data: FooterData) {
+  const items = (data.columns ?? []).flatMap((col) => col.items ?? []);
+  const phoneHref = items.find((it) => it.href?.startsWith("tel:"))?.href;
+  const kakaoHref = items.find((it) => it.href?.includes("kakao"))?.href;
+  return {
+    phoneHref: phoneHref ?? "tel:010-0000-0000",
+    kakaoHref: kakaoHref ?? "https://pf.kakao.com/",
+  };
+}
 
 /**
  * 모바일 하단 고정 CTA 버튼
  * 모바일 뷰에서만 표시 (md 이상 숨김)
  * 지침서: 모바일에서 '전화 걸기' / '카톡 상담' 버튼이 화면 하단에 고정(Sticky)
+ *
+ * 전화 / 카톡 링크는 PC 푸터와 동일하게 CMS(footer) 데이터에서 주입.
+ * 데이터 미주입 시 mainPageData.json 의 footer 값으로 폴백.
  */
-export function MobileCTA() {
+export function MobileCTA({ data = DEFAULT_FOOTER }: MobileCTAProps) {
+  const { phoneHref, kakaoHref } = extractContactLinks(data);
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white px-4 py-3 md:hidden">
       <div className="flex gap-3">
         <Link
-          href="tel:010-0000-0000"
+          href={phoneHref}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -19,7 +47,7 @@ export function MobileCTA() {
           전화 상담
         </Link>
         <Link
-          href="https://pf.kakao.com/"
+          href={kakaoHref}
           target="_blank"
           rel="noopener noreferrer"
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-yellow-400 py-3 text-sm font-semibold text-yellow-900 transition-colors hover:bg-yellow-500"
