@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: "디지털레스큐 | 노트북·PC 수리 및 데이터 복구",
   description:
     "직영 운영, 투명한 전자 견적. 노트북·PC 수리 및 데이터 복구 전문 서비스 디지털레스큐입니다.",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
