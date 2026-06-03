@@ -35,22 +35,22 @@ export function AdminLayoutShell({
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* 데스크탑 사이드바 (md 이상) */}
-      <div className="hidden md:flex">
+      {/* 데스크탑 사이드바 (lg 이상) */}
+      <div className="hidden lg:flex">
         <AdminSidebar employeeName={employeeName} employeeRole={employeeRole} />
       </div>
 
-      {/* 모바일 드로어 오버레이 */}
+      {/* 모바일/태블릿 드로어 오버레이 (lg 미만) */}
       {drawerOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={closeDrawer}
         />
       )}
 
-      {/* 모바일 슬라이드 드로어 */}
+      {/* 모바일/태블릿 슬라이드 드로어 (lg 미만) */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-60 transform transition-transform duration-300 ease-in-out md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-60 transform transition-transform duration-300 ease-in-out lg:hidden ${
           drawerOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -65,10 +65,10 @@ export function AdminLayoutShell({
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* 헤더 */}
         <header className="flex items-center justify-between border-b bg-white px-4 py-3 md:px-6">
-          {/* 모바일 햄버거 */}
+          {/* 모바일/태블릿 햄버거 (lg 미만) */}
           <button
             type="button"
-            className="rounded-lg p-1.5 text-gray-600 hover:bg-gray-100 md:hidden"
+            className="rounded-lg p-1.5 text-gray-600 hover:bg-gray-100 lg:hidden"
             onClick={() => setDrawerOpen(true)}
             aria-label="메뉴 열기"
           >
@@ -87,13 +87,13 @@ export function AdminLayoutShell({
             </svg>
           </button>
 
-          {/* 모바일 타이틀 */}
-          <span className="text-sm font-semibold text-gray-900 md:hidden">
+          {/* 모바일/태블릿 타이틀 (lg 미만) */}
+          <span className="text-sm font-semibold text-gray-900 lg:hidden">
             디지털레스큐
           </span>
 
-          {/* 데스크탑 빈 공간 */}
-          <div className="hidden md:block" />
+          {/* 데스크탑 빈 공간 (lg 이상) */}
+          <div className="hidden lg:block" />
 
           {/* 헤더 우측: 내 정보 + 로그아웃 */}
           <div className="flex items-center gap-2">
