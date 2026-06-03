@@ -8,6 +8,7 @@ import Lightbox from "@/components/common/Lightbox";
 import { compressAndUploadSingle, MAX_IMAGES_PER_TICKET, type TicketImage } from "@/lib/imageUpload";
 import {
   assignTechnicianAction,
+  markReceivedAction,
   addMaterialCostAction,
   submitEstimateAction,
   updateTicketStatusAction,
@@ -174,17 +175,29 @@ export default function TicketDetailForm({
   // ADMIN/MANAGER는 승인 완료 후에도 조회 가능 (금액 수정은 별도 제한)
   const isFullyLocked = ticket.is_approved && !isAdmin;
 
-  // 접수방식 변경 가능: 모든 직원 + 수리 시작 전(NEW/ASSIGNED) 상태
+  // 접수방식 변경 가능: 모든 직원 + 수리 시작 전(NEW/ASSIGNED/RECEIVED) 상태
   const canEditReceiptType =
     (isReception || isManager || isAdmin || isTechnician || isExpertRepair) &&
-    ["NEW", "ASSIGNED"].includes(ticket.status) &&
+    ["NEW", "ASSIGNED", "RECEIVED"].includes(ticket.status) &&
     !ticket.is_approved;
 
-  // 담당기사 배정/변경 가능: RECEPTION/MANAGER/ADMIN + NEW/ASSIGNED/IN_PROGRESS 상태
+  // 담당기사 배정/변경 가능: RECEPTION/MANAGER/ADMIN + NEW/ASSIGNED/RECEIVED/IN_PROGRESS 상태
   const canAssign =
     (isReception || isManager || isAdmin) &&
-    ["NEW", "ASSIGNED", "IN_PROGRESS"].includes(ticket.status) &&
+    ["NEW", "ASSIGNED", "RECEIVED", "IN_PROGRESS"].includes(ticket.status) &&
     !(ticket.is_approved && !isAdmin);
+
+  // 제품 입고 처리 가능: 접수처/팀장/관리자 또는 배정 담당기사 + ASSIGNED 상태
+  const canMarkReceived =
+    (isReception ||
+      isManager ||
+      isAdmin ||
+      ((isTechnician || isExpertRepair) && ticket.assignee?.id === currentEmployee.id)) &&
+    ticket.status === "ASSIGNED" &&
+    !ticket.is_approved;
+
+  // 입고 전 취소 여부: NEW/ASSIGNED는 아직 제품 미입고 → 기기 처리방법 질문 생략
+  const isPreReceiptCancel = ticket.status === "NEW" || ticket.status === "ASSIGNED";
 
   // 견적 입력 가능: TECHNICIAN/EXPERT_REPAIR(본인 건) 또는 ADMIN/MANAGER, 승인 전
   const canEditEstimate =
@@ -451,8 +464,28 @@ export default function TicketDetailForm({
         </section>
       )}
 
-      {/* 수리 시작 · 견적 산출 카드 (ASSIGNED 상태, 상태변경 가능자) */}
-      {canChangeStatus && ticket.status === "ASSIGNED" && (
+      {/* 제품 입고 완료 카드 (ASSIGNED 상태) */}
+      {canMarkReceived && ticket.status === "ASSIGNED" && (
+        <section className="rounded-xl border border-teal-200 bg-teal-50 p-5">
+          <h2 className="mb-1 text-base font-semibold text-gray-900">제품 입고 확인</h2>
+          <p className="mb-4 text-sm text-gray-600">
+            의뢰 제품이 실물로 입고되었는지 확인 후 처리해 주세요. 입고 완료 후 견적 산출 및 수리를 시작할 수 있습니다.
+          </p>
+          <form action={(fd) => handleAction(markReceivedAction, fd)}>
+            <input type="hidden" name="ticketId" value={ticket.id} />
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+            >
+              제품 입고 완료
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* 수리 시작 · 견적 산출 카드 (RECEIVED 상태, 상태변경 가능자) */}
+      {canChangeStatus && ticket.status === "RECEIVED" && (
         <EstimateCard
           ticketId={ticket.id}
           currentDeviceBrand={ticket.device_brand}
@@ -1016,44 +1049,50 @@ export default function TicketDetailForm({
             )}
             <p className="mb-5 text-sm text-gray-600">정말 이 접수건을 취소하시겠습니까?</p>
 
-            <fieldset className="mb-5">
-              <legend className="mb-2 text-sm font-semibold text-gray-800">
-                의뢰 기기 처리방법 <span className="text-red-500">*</span>
-              </legend>
-              <div className="space-y-2">
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 hover:bg-gray-50 has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50">
-                  <input
-                    type="radio"
-                    name="deviceDisposal"
-                    value="RETURN"
-                    checked={deviceDisposal === "RETURN"}
-                    onChange={() => setDeviceDisposal("RETURN")}
-                    className="h-4 w-4 text-blue-600"
-                  />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">반환요청</p>
-                    <p className="text-xs text-gray-500">고객에게 기기를 반환합니다.</p>
-                  </div>
-                </label>
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 hover:bg-gray-50 has-[:checked]:border-red-400 has-[:checked]:bg-red-50">
-                  <input
-                    type="radio"
-                    name="deviceDisposal"
-                    value="DISPOSE"
-                    checked={deviceDisposal === "DISPOSE"}
-                    onChange={() => setDeviceDisposal("DISPOSE")}
-                    className="h-4 w-4 text-red-600"
-                  />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">폐기요청</p>
-                    <p className="text-xs text-gray-500">기기를 폐기 처리합니다. 관리자 확인이 필요합니다.</p>
-                  </div>
-                </label>
-              </div>
-              {!deviceDisposal && (
-                <p className="mt-2 text-xs text-red-500">처리방법을 선택해야 취소를 진행할 수 있습니다.</p>
-              )}
-            </fieldset>
+            {isPreReceiptCancel ? (
+              <p className="mb-5 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                제품 입고 전 취소이므로 기기 처리방법(반환/폐기) 선택이 필요하지 않습니다.
+              </p>
+            ) : (
+              <fieldset className="mb-5">
+                <legend className="mb-2 text-sm font-semibold text-gray-800">
+                  의뢰 기기 처리방법 <span className="text-red-500">*</span>
+                </legend>
+                <div className="space-y-2">
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 hover:bg-gray-50 has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50">
+                    <input
+                      type="radio"
+                      name="deviceDisposal"
+                      value="RETURN"
+                      checked={deviceDisposal === "RETURN"}
+                      onChange={() => setDeviceDisposal("RETURN")}
+                      className="h-4 w-4 text-blue-600"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">반환요청</p>
+                      <p className="text-xs text-gray-500">고객에게 기기를 반환합니다.</p>
+                    </div>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 hover:bg-gray-50 has-[:checked]:border-red-400 has-[:checked]:bg-red-50">
+                    <input
+                      type="radio"
+                      name="deviceDisposal"
+                      value="DISPOSE"
+                      checked={deviceDisposal === "DISPOSE"}
+                      onChange={() => setDeviceDisposal("DISPOSE")}
+                      className="h-4 w-4 text-red-600"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">폐기요청</p>
+                      <p className="text-xs text-gray-500">기기를 폐기 처리합니다. 관리자 확인이 필요합니다.</p>
+                    </div>
+                  </label>
+                </div>
+                {!deviceDisposal && (
+                  <p className="mt-2 text-xs text-red-500">처리방법을 선택해야 취소를 진행할 수 있습니다.</p>
+                )}
+              </fieldset>
+            )}
 
             <div className="flex justify-end gap-2">
               <button
@@ -1065,13 +1104,13 @@ export default function TicketDetailForm({
               </button>
               <button
                 type="button"
-                disabled={!deviceDisposal || isPending}
+                disabled={(!isPreReceiptCancel && !deviceDisposal) || isPending}
                 onClick={() => {
-                  if (!deviceDisposal) return;
+                  if (!isPreReceiptCancel && !deviceDisposal) return;
                   setShowCancelModal(false);
                   const fd = new FormData();
                   fd.set("ticketId", ticket.id);
-                  fd.set("deviceDisposal", deviceDisposal);
+                  if (!isPreReceiptCancel) fd.set("deviceDisposal", deviceDisposal);
                   handleAction(cancelTicketAction, fd);
                 }}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"

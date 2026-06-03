@@ -7,6 +7,7 @@ import { TicketStatus } from "@/types";
 const STATUS_LABELS: Record<string, string> = {
   [TicketStatus.NEW]: "신규 접수",
   [TicketStatus.ASSIGNED]: "배정 완료",
+  [TicketStatus.RECEIVED]: "입고 완료",
   [TicketStatus.IN_PROGRESS]: "수리 진행 중",
   [TicketStatus.WAITING_APPROVAL]: "승인 대기",
   [TicketStatus.COMPLETED]: "완료",

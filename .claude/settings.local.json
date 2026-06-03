@@ -28,7 +28,9 @@
       "Bash(taskkill /PID 28960 /F)",
       "PowerShell(Stop-Process -Id 28960 -Force)",
       "Bash(Copy-Item \"C:\\\\Users\\\\BRAD\\\\Documents\\\\workspace\\\\Digital-Rescue\\\\favicon.png\" \"C:\\\\Users\\\\BRAD\\\\Documents\\\\workspace\\\\Digital-Rescue\\\\src\\\\app\\\\icon.png\" -Force)",
-      "PowerShell(Copy-Item \"C:\\\\Users\\\\BRAD\\\\Documents\\\\workspace\\\\Digital-Rescue\\\\favicon.png\" \"C:\\\\Users\\\\BRAD\\\\Documents\\\\workspace\\\\Digital-Rescue\\\\src\\\\app\\\\icon.png\" -Force)"
+      "PowerShell(Copy-Item \"C:\\\\Users\\\\BRAD\\\\Documents\\\\workspace\\\\Digital-Rescue\\\\favicon.png\" \"C:\\\\Users\\\\BRAD\\\\Documents\\\\workspace\\\\Digital-Rescue\\\\src\\\\app\\\\icon.png\" -Force)",
+      "PowerShell(\\(Get-Item \"C:\\\\Users\\\\BRAD\\\\Documents\\\\workspace\\\\Digital-Rescue\\\\src\\\\app\\\\icon.png\"\\).Length)",
+      "Bash(npx eslint *)"
     ]
   }
 }

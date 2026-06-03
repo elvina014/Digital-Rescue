@@ -385,21 +385,28 @@ export function StatisticsClient({
           <div className="rounded-xl border bg-white p-6 shadow-sm">
             <h2 className="mb-1 text-base font-semibold text-gray-900">취소율 분석</h2>
             <p className="mb-4 text-xs text-gray-400">
-              {selectedYear}년 {selectedMonth}월 접수 대비 취소율
+              {selectedYear}년 {selectedMonth}월 · 입고 전/후 취소 구분
             </p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="rounded-lg bg-gray-50 p-4 text-center">
-                <p className="text-xs text-gray-500">선택 월 취소율</p>
+                <p className="text-xs text-gray-500">전체 취소율</p>
                 <p className="mt-1 text-3xl font-bold text-red-500">{cancelStats.totalRate}%</p>
                 <p className="mt-1 text-xs text-gray-400">
-                  취소 {cancelStats.totalCanceled.toLocaleString()}건
+                  취소 {cancelStats.totalCanceled.toLocaleString()}건 / 접수 대비
                 </p>
               </div>
               <div className="rounded-lg bg-gray-50 p-4 text-center">
-                <p className="text-xs text-gray-500">당월 취소 건수</p>
-                <p className="mt-1 text-3xl font-bold text-orange-500">{cancelStats.monthlyCanceled.toLocaleString()}</p>
+                <p className="text-xs text-gray-500">입고 전 취소율</p>
+                <p className="mt-1 text-3xl font-bold text-amber-500">{cancelStats.preReceiptRate}%</p>
                 <p className="mt-1 text-xs text-gray-400">
-                  취소율 {cancelStats.monthlyRate}%
+                  {cancelStats.preReceiptCanceled.toLocaleString()}건 / 전체 접수 대비
+                </p>
+              </div>
+              <div className="rounded-lg bg-gray-50 p-4 text-center">
+                <p className="text-xs text-gray-500">입고 후 취소율</p>
+                <p className="mt-1 text-3xl font-bold text-orange-500">{cancelStats.postReceiptRate}%</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {cancelStats.postReceiptCanceled.toLocaleString()}건 / 입고 {cancelStats.receivedCount.toLocaleString()}건 대비
                 </p>
               </div>
             </div>

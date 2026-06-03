@@ -12,6 +12,10 @@ const STATUS_CONFIG: Record<
     label: "배정 완료",
     className: "bg-purple-100 text-purple-700",
   },
+  RECEIVED: {
+    label: "입고 완료",
+    className: "bg-teal-100 text-teal-700",
+  },
   IN_PROGRESS: {
     label: "수리 진행",
     className: "bg-yellow-100 text-yellow-800",

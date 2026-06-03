@@ -123,8 +123,8 @@ export async function toggleTestFlagAction(ticketId: string, nextValue: boolean)
 }
 
 // ----- 담당기사 배정/변경 (RECEPTION, MANAGER, ADMIN) -----
-// NEW, ASSIGNED, IN_PROGRESS 상태에서 가능
-const CAN_ASSIGN_STATUSES = ["NEW", "ASSIGNED", "IN_PROGRESS"];
+// NEW, ASSIGNED, RECEIVED, IN_PROGRESS 상태에서 가능
+const CAN_ASSIGN_STATUSES = ["NEW", "ASSIGNED", "RECEIVED", "IN_PROGRESS"];
 
 export async function assignTechnicianAction(formData: FormData) {
   const employee = await getCurrentEmployee();
@@ -322,6 +322,60 @@ export async function lookupPastEvaluatedValue(
   return { data: null };
 }
 
+// ----- 제품 입고 완료 처리 (ASSIGNED → RECEIVED) -----
+// 접수처/팀장/관리자 또는 해당 건 배정 담당기사
+export async function markReceivedAction(formData: FormData) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  const ticketId = formData.get("ticketId") as string;
+  if (!ticketId) return { error: "접수건 ID가 필요합니다." };
+
+  // 권한 확인 후 admin 클라이언트로 처리 (RECEPTION RLS 회피 — 미승인 건이라 보호 트리거 영향 없음)
+  const supabase = createAdminClient();
+
+  const { data: ticket } = await supabase
+    .from("repair_tickets")
+    .select("status, assignee_id")
+    .eq("id", ticketId)
+    .single();
+
+  if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
+
+  if (ticket.status !== "ASSIGNED") {
+    return { error: "배정 완료 상태의 접수건만 입고 처리할 수 있습니다." };
+  }
+
+  const isReceptionRole =
+    employee.role === EmployeeRole.ADMIN ||
+    employee.role === EmployeeRole.MANAGER ||
+    employee.role === EmployeeRole.RECEPTION;
+  const isAssignedTech =
+    (employee.role === EmployeeRole.TECHNICIAN || employee.role === EmployeeRole.EXPERT_REPAIR) &&
+    ticket.assignee_id === employee.id;
+  if (!isReceptionRole && !isAssignedTech) {
+    return { error: "입고 처리 권한이 없습니다." };
+  }
+
+  const { error } = await supabase
+    .from("repair_tickets")
+    .update({ status: "RECEIVED", received_at: new Date().toISOString() })
+    .eq("id", ticketId);
+
+  if (error) return { error: "입고 처리에 실패했습니다: " + error.message };
+
+  await supabase.from("ticket_logs").insert({
+    ticket_id: ticketId,
+    employee_id: employee.id,
+    message: "시스템: 제품 입고가 완료되었습니다.",
+  });
+
+  revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath("/tickets");
+  revalidatePath("/dashboard");
+  redirect(`/tickets/${ticketId}`);
+}
+
 // ----- 수리 진행 시작 + 견적 산출 (TECHNICIAN / EXPERT_REPAIR) -----
 export async function startRepairAction(formData: FormData) {
   const employee = await getCurrentEmployee();
@@ -354,7 +408,7 @@ export async function startRepairAction(formData: FormData) {
     .single();
 
   if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
-  if (ticket.status !== "ASSIGNED") return { error: "배정 완료 상태의 접수건만 수리 시작할 수 있습니다." };
+  if (ticket.status !== "RECEIVED") return { error: "제품 입고 완료 상태의 접수건만 수리 시작할 수 있습니다." };
 
   // 접수방식이 "미정"이면 수리 시작 차단
   if (ticket.receipt_type === "미정") {
@@ -811,16 +865,13 @@ export async function cancelTicketAction(formData: FormData) {
   const ticketId = formData.get("ticketId") as string;
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
 
-  const deviceDisposal = formData.get("deviceDisposal") as string | null;
-  if (!deviceDisposal || !["RETURN", "DISPOSE"].includes(deviceDisposal)) {
-    return { error: "의뢰 기기 처리방법을 선택해주세요." };
-  }
+  const deviceDisposalRaw = formData.get("deviceDisposal") as string | null;
 
   const supabase = await createClient();
 
   const { data: ticket } = await supabase
     .from("repair_tickets")
-    .select("status, is_approved")
+    .select("status, is_approved, received_at")
     .eq("id", ticketId)
     .single();
 
@@ -839,13 +890,23 @@ export async function cancelTicketAction(formData: FormData) {
     return { error: "승인 완료된 접수건은 관리자만 취소할 수 있습니다." };
   }
 
-  const disposalLabel = deviceDisposal === "DISPOSE" ? "기기 폐기" : "기기 반환";
+  // 입고 전(received_at IS NULL) 취소는 기기 처리방법(반환/폐기) 질문을 생략한다.
+  // 제품이 아직 입고되지 않아 우리 측에서 처리할 실물이 없기 때문.
+  const isPreReceipt = !ticket.received_at;
+
+  let deviceDisposal: "RETURN" | "DISPOSE" | null = null;
+  if (!isPreReceipt) {
+    if (!deviceDisposalRaw || !["RETURN", "DISPOSE"].includes(deviceDisposalRaw)) {
+      return { error: "의뢰 기기 처리방법을 선택해주세요." };
+    }
+    deviceDisposal = deviceDisposalRaw as "RETURN" | "DISPOSE";
+  }
 
   const { error } = await supabase
     .from("repair_tickets")
     .update({
       status: "CANCELED",
-      cancel_device_disposal: deviceDisposal,
+      cancel_device_disposal: deviceDisposal, // 입고 전이면 null
       canceled_at: new Date().toISOString(),
     })
     .eq("id", ticketId);
@@ -854,11 +915,15 @@ export async function cancelTicketAction(formData: FormData) {
     return { error: "취소 처리에 실패했습니다: " + error.message };
   }
 
-  // 시스템 로그 기록
+  // 시스템 로그 기록 (입고 전/후 구분)
+  const phaseLabel = isPreReceipt ? "입고 전 취소" : "입고 후 취소";
+  const cancelLogMsg = isPreReceipt
+    ? `시스템: 접수가 취소되었습니다. (${phaseLabel})`
+    : `시스템: 접수가 취소되었습니다. (${phaseLabel}, 처리방법: ${deviceDisposal === "DISPOSE" ? "기기 폐기" : "기기 반환"})`;
   await supabase.from("ticket_logs").insert({
     ticket_id: ticketId,
     employee_id: employee.id,
-    message: `시스템: 접수가 취소되었습니다. (처리방법: ${disposalLabel})`,
+    message: cancelLogMsg,
   });
 
   // 승인 완료된 자재가 있으면 cancel_requested로 일괄 전환 (관리자 반환 확인 대기)
@@ -1924,8 +1989,8 @@ export async function updateReceiptTypeAction(formData: FormData) {
 
   if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
 
-  if (!["NEW", "ASSIGNED"].includes(ticket.status)) {
-    return { error: "수리 시작 전 상태(신규·배정)에서만 접수방식을 변경할 수 있습니다." };
+  if (!["NEW", "ASSIGNED", "RECEIVED"].includes(ticket.status)) {
+    return { error: "수리 시작 전 상태(신규·배정·입고완료)에서만 접수방식을 변경할 수 있습니다." };
   }
 
   const { error } = await supabase

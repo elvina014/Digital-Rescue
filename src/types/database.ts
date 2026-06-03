@@ -70,6 +70,8 @@ export interface RepairTicket {
   tag_info: string | null;
   /** 기기 출시 연도 (참고용) */
   release_year: string | null;
+  /** 제품 입고 완료 처리 시각 (NULL=입고 전, NOT NULL=입고 후) */
+  received_at: string | null;
   created_at: string;
   updated_at: string;
 }

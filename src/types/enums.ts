@@ -23,6 +23,8 @@ export enum TicketStatus {
   NEW = "NEW",
   /** 담당자 배정 완료 (1차 상담 대기) */
   ASSIGNED = "ASSIGNED",
+  /** 제품 입고 완료 (실물 입고 후 수리 시작 대기) */
+  RECEIVED = "RECEIVED",
   /** 수리/점검 진행 중 */
   IN_PROGRESS = "IN_PROGRESS",
   /** 자재비 및 견적 회사 승인 대기 */
