@@ -14,12 +14,18 @@ export interface DashboardStats {
   thisMonthCompletedCount: number;
   /** TECHNICIAN/EXPERT_REPAIR 전용: 본인 배정 ASSIGNED 건수 */
   myNewCount: number;
+  /** TECHNICIAN/EXPERT_REPAIR 전용: 본인 배정 RECEIVED 건수 */
+  myReceivedCount: number;
   /** TECHNICIAN/EXPERT_REPAIR 전용: 본인 배정 IN_PROGRESS 건수 */
   myInProgressCount: number;
   /** TECHNICIAN/EXPERT_REPAIR 전용: 관리자 메시지가 있는 본인 배정 티켓 ID 목록 */
   adminMessageTicketIds: string[];
   /** 당월 취소 건수 (canceled_at 기준) */
   thisMonthCanceledCount: number;
+  /** 당월 입고 전 취소 건수 (received_at 없음) */
+  thisMonthPreReceiptCanceled: number;
+  /** 당월 입고 후 취소 건수 (received_at 있음) */
+  thisMonthPostReceiptCanceled: number;
   /** 전체 취소 건수 */
   canceledCount: number;
   /** 전체 대비 취소율 (소수점 1자리) */
@@ -50,6 +56,7 @@ type TicketRow = {
   created_at: string;
   completed_at: string | null;
   canceled_at: string | null;
+  received_at: string | null;
   assignee_id: string | null;
   has_admin_message: boolean | null;
   id: string;
@@ -65,7 +72,7 @@ export async function getDashboardStats(
     .from("repair_tickets")
     .select(
       "status, receipt_type, final_price, material_cost, created_at, " +
-      "completed_at, canceled_at, assignee_id, has_admin_message, id"
+      "completed_at, canceled_at, received_at, assignee_id, has_admin_message, id"
     )
     .eq("is_test", false) as unknown as { data: TicketRow[] | null };
 
@@ -133,6 +140,9 @@ export async function getDashboardStats(
   const myNewCount = isTech && employeeId
     ? all.filter((t) => t.status === "ASSIGNED" && t.assignee_id === employeeId).length
     : 0;
+  const myReceivedCount = isTech && employeeId
+    ? all.filter((t) => t.status === "RECEIVED" && t.assignee_id === employeeId).length
+    : 0;
   const myInProgressCount = isTech && employeeId
     ? all.filter((t) => t.status === "IN_PROGRESS" && t.assignee_id === employeeId).length
     : 0;
@@ -150,13 +160,17 @@ export async function getDashboardStats(
     totalTickets > 0 ? Math.round((canceledCount / totalTickets) * 1000) / 10 : 0;
 
   // 당월 취소건 (canceled_at 기준)
-  const thisMonthCanceledCount = all.filter(
+  const thisMonthCanceledTickets = all.filter(
     (t) =>
       t.status === "CANCELED" &&
       t.canceled_at &&
       t.canceled_at >= monthStart &&
       t.canceled_at < monthEnd
-  ).length;
+  );
+  const thisMonthCanceledCount = thisMonthCanceledTickets.length;
+  // 입고 전/후 취소 분리 (received_at 유무 기준)
+  const thisMonthPreReceiptCanceled = thisMonthCanceledTickets.filter((t) => !t.received_at).length;
+  const thisMonthPostReceiptCanceled = thisMonthCanceledTickets.filter((t) => t.received_at).length;
 
   // 11) ADMIN/MANAGER: 자재 출고 요청 대기
   let materialRequestCount = 0;
@@ -179,9 +193,12 @@ export async function getDashboardStats(
     monthlyProfit,
     thisMonthCompletedCount,
     myNewCount,
+    myReceivedCount,
     myInProgressCount,
     adminMessageTicketIds,
     thisMonthCanceledCount,
+    thisMonthPreReceiptCanceled,
+    thisMonthPostReceiptCanceled,
     canceledCount,
     cancelRate,
     materialRequestCount,

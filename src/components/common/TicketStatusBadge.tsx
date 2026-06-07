@@ -42,13 +42,32 @@ const DISPOSAL_LABEL: Record<string, string> = {
 interface TicketStatusBadgeProps {
   status: TicketStatus;
   cancelDisposal?: string | null;
+  /**
+   * 입고 완료 시각. 전달 시 CANCELED 상태를 '입고전취소'/'입고후취소'로 구분 표시한다.
+   * 미전달(undefined) 시 기존 '취소' 라벨을 유지한다.
+   */
+  receivedAt?: string | null;
 }
 
-export function TicketStatusBadge({ status, cancelDisposal }: TicketStatusBadgeProps) {
+export function TicketStatusBadge({ status, cancelDisposal, receivedAt }: TicketStatusBadgeProps) {
   const config = STATUS_CONFIG[status] ?? {
     label: status,
     className: "bg-gray-100 text-gray-600",
   };
+
+  // CANCELED + receivedAt 전달(옵트인) 시 입고 전/후 취소를 라벨·배경색으로 구분
+  if (status === "CANCELED" && receivedAt !== undefined && !cancelDisposal) {
+    const isPostReceipt = receivedAt !== null;
+    return (
+      <span
+        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+          isPostReceipt ? "bg-rose-100 text-rose-700" : "bg-gray-100 text-gray-600"
+        }`}
+      >
+        {isPostReceipt ? "입고후취소" : "입고전취소"}
+      </span>
+    );
+  }
 
   const label =
     status === "CANCELED" && cancelDisposal

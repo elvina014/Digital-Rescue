@@ -70,6 +70,7 @@ export default async function TicketsPage({
       final_price,
       is_approved,
       payment_status,
+      received_at,
       created_at,
       updated_at,
       ${customerJoin},
@@ -239,6 +240,7 @@ export default async function TicketsPage({
                     <td className="whitespace-nowrap px-4 py-3">
                       <TicketStatusBadge
                         status={ticket.status as TicketStatus}
+                        receivedAt={ticket.received_at as string | null}
                       />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-gray-600">

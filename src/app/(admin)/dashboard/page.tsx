@@ -12,6 +12,7 @@ import {
   ClipboardList,
   PlusCircle,
   Wrench,
+  PackageCheck,
   Timer,
   Clock,
   CheckCircle2,
@@ -176,7 +177,7 @@ export default async function DashboardPage() {
         : "/tickets?status=NEW",
     },
     ...(!isTech ? [{
-      label: "수리 대기 중",
+      label: "배정 완료",
       value: stats.statusCounts["ASSIGNED"] ?? 0,
       icon: Timer,
       bg: "bg-purple-50",
@@ -184,6 +185,17 @@ export default async function DashboardPage() {
       textColor: "text-purple-900",
       href: "/tickets?status=ASSIGNED",
     }] : []),
+    {
+      label: "입고 완료",
+      value: isTech ? stats.myReceivedCount : (stats.statusCounts["RECEIVED"] ?? 0),
+      icon: PackageCheck,
+      bg: "bg-teal-50",
+      iconColor: "text-teal-600",
+      textColor: "text-teal-900",
+      href: isTech
+        ? `/tickets?status=RECEIVED&assignee=${employee.id}`
+        : "/tickets?status=RECEIVED",
+    },
     {
       label: isTech ? "내 수리 진행" : "수리 진행 중",
       value: isTech ? stats.myInProgressCount : (stats.statusCounts["IN_PROGRESS"] ?? 0),
@@ -221,7 +233,7 @@ export default async function DashboardPage() {
       iconColor: "text-red-600",
       textColor: "text-red-900",
       href: `/tickets?status=CANCELED&startDate=${monthStart}&endDate=${monthEnd}`,
-      sub: `전체 취소율 ${stats.cancelRate}%`,
+      sub: `입고전 ${stats.thisMonthPreReceiptCanceled} / 입고후 ${stats.thisMonthPostReceiptCanceled}`,
     },
   ];
 
@@ -262,7 +274,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* 접수건 통계 카드 */}
-      <div className={`grid gap-4 sm:grid-cols-2 ${isTech ? "lg:grid-cols-6" : "lg:grid-cols-7"}`}>
+      <div className={`grid gap-4 sm:grid-cols-2 ${isTech ? "lg:grid-cols-7" : "lg:grid-cols-8"}`}>
         {summaryCards.map((card) => {
           const Icon = card.icon;
           const isDisabled = card.value === 0;
