@@ -17,7 +17,7 @@ export default async function EmployeesPage() {
   // 직원 프로필 목록 조회
   const { data: employees, error } = await adminSupa
     .from("employees")
-    .select("id, name, role, phone, created_at")
+    .select("id, name, role, phone, is_assignable, created_at")
     .order("created_at", { ascending: true });
 
   if (error) {

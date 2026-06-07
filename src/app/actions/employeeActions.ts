@@ -227,13 +227,24 @@ export async function updateEmployeeAction(
     }
 
     // 프로필 변경 (employees 테이블)
+    // is_assignable은 담당기사/정밀수리팀 직급에서만 의미가 있으므로 해당 직급일 때만 반영
+    const profileUpdate: {
+      name: string;
+      role: string;
+      phone: string | null;
+      is_assignable?: boolean;
+    } = {
+      name: data.name,
+      role: data.role,
+      phone: data.phone || null,
+    };
+    if (data.role === "TECHNICIAN" || data.role === "EXPERT_REPAIR") {
+      profileUpdate.is_assignable = formData.get("is_assignable") === "true";
+    }
+
     const { error } = await supabase
       .from("employees")
-      .update({
-        name: data.name,
-        role: data.role,
-        phone: data.phone || null,
-      })
+      .update(profileUpdate)
       .eq("id", employeeId);
 
     if (error) {

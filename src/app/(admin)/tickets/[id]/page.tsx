@@ -40,12 +40,21 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     notFound();
   }
 
-  // 담당기사 배정용: TECHNICIAN + EXPERT_REPAIR 직급 직원 목록 조회
-  const { data: technicians } = await supabase
+  // 담당기사 배정용: TECHNICIAN + EXPERT_REPAIR 직급 중 배정 가능(is_assignable) 직원 목록 조회
+  const { data: assignableTechnicians } = await supabase
     .from("employees")
     .select("id, name")
     .in("role", ["TECHNICIAN", "EXPERT_REPAIR"])
+    .eq("is_assignable", true)
     .order("name");
+
+  // 현재 담당기사가 배정 제외(is_assignable=false) 상태여도 드롭다운 기본값이
+  // 유지되도록 목록에 포함시킨다 (실수로 재배정되는 것 방지)
+  const currentAssignee = ticket.employees as unknown as { id: string; name: string } | null;
+  const technicians =
+    currentAssignee && !(assignableTechnicians ?? []).some((t) => t.id === currentAssignee.id)
+      ? [...(assignableTechnicians ?? []), { id: currentAssignee.id, name: currentAssignee.name }]
+      : (assignableTechnicians ?? []);
 
   // 처리 현황 로그 조회 (타임라인)
   const { data: logs } = await supabase

@@ -31,6 +31,7 @@ interface EditEmployeeModalProps {
     role: EmployeeRole;
     phone: string | null;
     email: string;
+    is_assignable: boolean;
   };
 }
 
@@ -45,13 +46,16 @@ export function EditEmployeeModal({
     initialState
   );
   const [formKey, setFormKey] = useState(0);
+  // 배정 체크박스는 담당기사/정밀수리팀 직급에서만 노출 → 직급 선택 상태 추적
+  const [selectedRole, setSelectedRole] = useState<EmployeeRole>(employee.role);
 
   // 모달이 열릴 때 formKey를 갱신하여 defaultValue 반영
   useEffect(() => {
     if (open) {
       setFormKey((k) => k + 1);
+      setSelectedRole(employee.role);
     }
-  }, [open, employee.id]);
+  }, [open, employee.id, employee.role]);
 
   useEffect(() => {
     if (state.success) {
@@ -159,6 +163,7 @@ export function EditEmployeeModal({
               name="role"
               required
               defaultValue={values.role}
+              onChange={(e) => setSelectedRole(e.target.value as EmployeeRole)}
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               {ROLES.map((r) => (
@@ -171,6 +176,26 @@ export function EditEmployeeModal({
               <p className="mt-1 text-xs text-red-500">{state.errors.role}</p>
             )}
           </div>
+
+          {/* 담당자 배정 목록 포함 여부 (담당기사/정밀수리팀 전용) */}
+          {(selectedRole === EmployeeRole.TECHNICIAN ||
+            selectedRole === EmployeeRole.EXPERT_REPAIR) && (
+            <label className="flex items-start gap-2.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+              <input
+                type="checkbox"
+                name="is_assignable"
+                value="true"
+                defaultChecked={employee.is_assignable}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-200"
+              />
+              <span className="text-sm text-gray-700">
+                담당자 배정 목록에 포함
+                <span className="mt-0.5 block text-xs text-gray-400">
+                  해제하면 신규 접수의 담당자 배정 드롭다운에서 제외됩니다. (기존 배정 이력은 유지)
+                </span>
+              </span>
+            </label>
+          )}
 
           {/* 버튼 */}
           <div className="flex justify-end gap-3 pt-2">

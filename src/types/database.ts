@@ -18,6 +18,8 @@ export interface Employee {
   name: string;
   role: EmployeeRole;
   phone: string | null;
+  /** 담당자 배정 목록 포함 여부 (TECHNICIAN/EXPERT_REPAIR 대상). false면 신규 접수 배정 드롭다운에서 제외 */
+  is_assignable: boolean;
   created_at: string; // ISO 8601
 }
 

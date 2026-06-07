@@ -14,6 +14,7 @@ interface EmployeeRow {
   role: EmployeeRole;
   phone: string | null;
   email: string;
+  is_assignable: boolean;
   created_at: string;
 }
 
@@ -186,7 +187,15 @@ export function EmployeeListClient({ employees }: EmployeeListClientProps) {
                 >
                   <td className="px-5 py-3 font-medium text-gray-900">{emp.name}</td>
                   <td className="px-5 py-3">
-                    <RoleBadge role={emp.role} />
+                    <div className="flex items-center gap-1.5">
+                      <RoleBadge role={emp.role} />
+                      {(emp.role === "TECHNICIAN" || emp.role === "EXPERT_REPAIR") &&
+                        !emp.is_assignable && (
+                          <span className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-500">
+                            배정제외
+                          </span>
+                        )}
+                    </div>
                   </td>
                   <td className="px-5 py-3 text-gray-600">
                     {emp.email || <span className="text-gray-300">—</span>}
