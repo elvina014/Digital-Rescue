@@ -839,9 +839,7 @@ export async function dismissAdminMessageAction(formData: FormData) {
   const ticketId = formData.get("ticketId") as string;
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
 
-  // 승인 완료된 건은 승인보호 트리거가 담당자(TECHNICIAN 등)의 UPDATE를 차단하므로
-  // admin 클라이언트로 우회 (인증은 이미 확인됨, has_admin_message는 알림 플래그)
-  const supabase = createAdminClient();
+  const supabase = await createClient();
 
   const { error } = await supabase
     .from("repair_tickets")
