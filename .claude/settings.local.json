@@ -32,7 +32,10 @@
       "PowerShell(\\(Get-Item \"C:\\\\Users\\\\BRAD\\\\Documents\\\\workspace\\\\Digital-Rescue\\\\src\\\\app\\\\icon.png\"\\).Length)",
       "Bash(npx eslint *)",
       "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__list_tables",
-      "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__get_advisors"
+      "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__get_advisors",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\({...p.dependencies,...p.devDependencies},null,2\\)\\)\")",
+      "Bash(findstr /i \"image heic browser sharp\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); const d={...p.dependencies,...p.devDependencies}; for\\(const k in d\\){ if\\(/image|heic|browser|sharp|compress/i.test\\(k\\)\\) console.log\\(k, d[k]\\); }\")"
     ]
   }
 }

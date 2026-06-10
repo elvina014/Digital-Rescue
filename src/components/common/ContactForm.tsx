@@ -19,6 +19,14 @@ const DEFAULT_THEME = defaults.theme as ThemeData;
 
 const initialState: TicketFormState = { success: false, message: "" };
 
+/** 휴대폰번호를 010-0000-0000 형태로 자동 포맷팅 (3-4-4) */
+function formatPhoneNumber(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
 const inputBaseClass =
   "w-full rounded-2xl border bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition-all focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 sm:text-[15px]";
 const labelClass =
@@ -223,6 +231,9 @@ export function ContactForm({
                   type="tel"
                   required
                   defaultValue={state.values?.phone}
+                  onChange={(e) => {
+                    e.currentTarget.value = formatPhoneNumber(e.currentTarget.value);
+                  }}
                   placeholder={cf.labels?.phonePlaceholder}
                   className={inputBaseClass}
                   style={{ borderColor: theme.borderSoft }}
