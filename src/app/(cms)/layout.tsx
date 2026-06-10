@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireCmsAccess } from "@/lib/auth";
 import { logoutAction } from "@/app/(admin)/login/actions";
 
@@ -24,7 +25,17 @@ export default async function CmsLayout({
   return (
     <div className="flex min-h-screen flex-col bg-gray-100">
       <nav className="flex shrink-0 items-center justify-between border-b bg-white px-6 py-3">
-        <span className="text-lg font-semibold">디지털레스큐 CMS</span>
+        <div className="flex items-center gap-5">
+          <Link href="/editor" className="text-lg font-semibold">
+            디지털레스큐 CMS
+          </Link>
+          <Link
+            href="/editor/news"
+            className="text-sm text-gray-600 transition-colors hover:text-gray-900"
+          >
+            뉴스 관리
+          </Link>
+        </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-600">
             {employee.name}

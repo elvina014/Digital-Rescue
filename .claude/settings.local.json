@@ -31,7 +31,8 @@
       "PowerShell(Copy-Item \"C:\\\\Users\\\\BRAD\\\\Documents\\\\workspace\\\\Digital-Rescue\\\\favicon.png\" \"C:\\\\Users\\\\BRAD\\\\Documents\\\\workspace\\\\Digital-Rescue\\\\src\\\\app\\\\icon.png\" -Force)",
       "PowerShell(\\(Get-Item \"C:\\\\Users\\\\BRAD\\\\Documents\\\\workspace\\\\Digital-Rescue\\\\src\\\\app\\\\icon.png\"\\).Length)",
       "Bash(npx eslint *)",
-      "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__list_tables"
+      "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__list_tables",
+      "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__get_advisors"
     ]
   }
 }

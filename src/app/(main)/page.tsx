@@ -7,6 +7,7 @@ import { ProcessSection } from "@/components/common/ProcessSection";
 import { ContactForm } from "@/components/common/ContactForm";
 import { RealtimeStatus } from "@/components/common/RealtimeStatus";
 import { getPageSections } from "@/lib/pageContents";
+import { getPublishedNews } from "@/lib/news";
 import type {
   AboutSectionData,
   ContactFormData,
@@ -30,6 +31,15 @@ import type {
 export default async function HomePage() {
   const main = await getPageSections("main");
   const theme = main.theme as ThemeData | undefined;
+
+  // IT 최신 뉴스는 news_items 테이블(자동 수집 + 검수 게시)에서 라이브로 주입한다.
+  // 발행된 뉴스가 0건이면 digitalResources 블롭의 기본 뉴스로 폴백.
+  const dr = main.digitalResources as DigitalResourcesData | undefined;
+  const liveNews = await getPublishedNews();
+  const digitalResources =
+    dr && liveNews.length > 0
+      ? { ...dr, news: { items: liveNews } }
+      : dr;
 
   return (
     <>
@@ -55,10 +65,7 @@ export default async function HomePage() {
         data={main.realtimeStatus as RealtimeStatusData | undefined}
         theme={theme}
       />
-      <DigitalResourcesSection
-        data={main.digitalResources as DigitalResourcesData | undefined}
-        theme={theme}
-      />
+      <DigitalResourcesSection data={digitalResources} theme={theme} />
     </>
   );
 }
