@@ -35,7 +35,12 @@
       "mcp__3bb1c3f0-f678-44f5-a40d-6c828015ea4d__get_advisors",
       "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\({...p.dependencies,...p.devDependencies},null,2\\)\\)\")",
       "Bash(findstr /i \"image heic browser sharp\")",
-      "Bash(node -e \"const p=require\\('./package.json'\\); const d={...p.dependencies,...p.devDependencies}; for\\(const k in d\\){ if\\(/image|heic|browser|sharp|compress/i.test\\(k\\)\\) console.log\\(k, d[k]\\); }\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\); const d={...p.dependencies,...p.devDependencies}; for\\(const k in d\\){ if\\(/image|heic|browser|sharp|compress/i.test\\(k\\)\\) console.log\\(k, d[k]\\); }\")",
+      "PowerShell(git log --branches --not --remotes --oneline)",
+      "PowerShell(\"----- UNPUSHED COMMITS -----\")",
+      "PowerShell(\"----- BRANCH vs UPSTREAM -----\")",
+      "Bash(node -p \"require\\('./node_modules/next/package.json'\\).version\")",
+      "Bash(node -p \"require\\('./node_modules/@next/third-parties/package.json'\\).version\")"
     ]
   }
 }

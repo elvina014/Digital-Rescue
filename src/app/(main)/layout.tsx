@@ -1,3 +1,4 @@
+import Script from "next/script";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { MobileCTA } from "@/components/layout/MobileCTA";
@@ -28,6 +29,19 @@ export default async function MainLayout({
 
   return (
     <>
+      {/* Google tag (gtag.js) — Google Ads (AW-18233103458) */}
+      <Script
+        src="https://www.googletagmanager.com/gtag/js?id=AW-18233103458"
+        strategy="afterInteractive"
+      />
+      <Script id="gtag-google-ads" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'AW-18233103458');
+        `}
+      </Script>
       <Header data={header} theme={theme} />
       <main className="flex-1 pb-20 md:pb-0">{children}</main>
       <Footer data={footer} theme={theme} />
