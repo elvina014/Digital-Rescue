@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { getCurrentEmployee } from "@/lib/auth";
 import { EmployeeRole } from "@/types";
+import sharp from "sharp";
 
 // ----- 신규 접수 생성 권한 -----
 const CAN_CREATE_TICKET: EmployeeRole[] = [
@@ -1002,6 +1003,116 @@ export async function addTicketImagesAction(
 
   revalidatePath(`/tickets/${ticketId}`);
   return { success: true };
+}
+
+/**
+ * 단일 이미지 서버 사이드 압축·업로드 Server Action
+ *
+ * 클라이언트(browser-image-compression)가 일부 모바일 브라우저에서 canvas 디코딩에
+ * 실패하는 문제를 피하기 위해, 공개 접수 폼(submitTicketAction)과 동일하게 서버에서
+ * sharp 로 WebP 압축 후 Storage 에 업로드한다. DB 반영은 호출 측에서 addTicketImagesAction 사용.
+ */
+export async function uploadTicketImageAction(
+  formData: FormData
+): Promise<{
+  uploaded: {
+    path: string;
+    url: string;
+    description: string;
+    uploaded_by: string;
+    uploader_name: string;
+    uploaded_at: string;
+    is_customer: boolean;
+  } | null;
+  error?: string;
+}> {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { uploaded: null, error: "인증이 필요합니다." };
+
+  const ticketId = formData.get("ticketId") as string;
+  const file = formData.get("file") as File | null;
+  const description = (formData.get("description") as string) ?? "";
+  const isCustomer = formData.get("isCustomer") === "true";
+
+  const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB (next.config serverActions bodySizeLimit 와 일치)
+  if (!ticketId || !(file instanceof File) || file.size === 0) {
+    return { uploaded: null, error: "업로드할 파일이 없습니다." };
+  }
+  if (!file.type.startsWith("image/")) {
+    return { uploaded: null, error: `지원하지 않는 파일 형식입니다: ${file.name}` };
+  }
+  if (file.size > MAX_IMAGE_SIZE) {
+    return { uploaded: null, error: `파일 크기가 너무 큽니다 (최대 10MB): ${file.name}` };
+  }
+
+  const supabase = await createClient();
+
+  const { data: ticket } = await supabase
+    .from("repair_tickets")
+    .select("images")
+    .eq("id", ticketId)
+    .single();
+
+  if (!ticket) return { uploaded: null, error: "접수건을 찾을 수 없습니다." };
+
+  const existing = (ticket.images ?? []) as unknown[];
+  if (existing.length >= 12) {
+    return { uploaded: null, error: "이미지는 최대 12장까지 등록 가능합니다." };
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const inputBuffer = Buffer.from(arrayBuffer);
+    const outputBuffer = await sharp(inputBuffer, { failOn: "none" })
+      .rotate()
+      .resize({
+        width: 1920,
+        height: 1920,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp()
+      .toBuffer();
+
+    const timestamp = Date.now();
+    const safeName = file.name
+      .replace(/\.[^.]+$/, "")
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .replace(/_+/g, "_")
+      .slice(0, 40);
+    const filePath = `${ticketId}/${timestamp}_${safeName}.webp`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("ticket-images")
+      .upload(filePath, outputBuffer, {
+        contentType: "image/webp",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("[uploadTicketImageAction] Upload failed:", uploadError);
+      return { uploaded: null, error: uploadError.message };
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("ticket-images")
+      .getPublicUrl(filePath);
+
+    return {
+      uploaded: {
+        path: filePath,
+        url: urlData.publicUrl,
+        description,
+        uploaded_by: employee.id,
+        uploader_name: employee.name,
+        uploaded_at: new Date().toISOString(),
+        is_customer: isCustomer,
+      },
+    };
+  } catch (err) {
+    console.error("[uploadTicketImageAction] processing failed:", err);
+    return { uploaded: null, error: "이미지 처리 중 오류가 발생했습니다." };
+  }
 }
 
 /**

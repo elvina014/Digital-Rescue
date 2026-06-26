@@ -40,7 +40,10 @@
       "PowerShell(\"----- UNPUSHED COMMITS -----\")",
       "PowerShell(\"----- BRANCH vs UPSTREAM -----\")",
       "Bash(node -p \"require\\('./node_modules/next/package.json'\\).version\")",
-      "Bash(node -p \"require\\('./node_modules/@next/third-parties/package.json'\\).version\")"
+      "Bash(node -p \"require\\('./node_modules/@next/third-parties/package.json'\\).version\")",
+      "Bash(ls next.config.*)",
+      "Bash(grep -rn \"bodySizeLimit\\\\|serverActions\" next.config.*)",
+      "Bash(node -e \"const s=require\\('./package.json'\\).scripts; console.log\\(JSON.stringify\\(s,null,2\\)\\)\")"
     ]
   }
 }
