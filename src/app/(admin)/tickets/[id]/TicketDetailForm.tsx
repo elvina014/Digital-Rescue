@@ -25,6 +25,7 @@ import {
   toggleTestFlagAction,
 } from "../actions";
 import EstimateCard from "./EstimateCard";
+import AddMaterialCard, { type InsertedMaterial } from "./AddMaterialCard";
 
 
 import { formatDateTime } from "@/lib/date";
@@ -509,7 +510,43 @@ export default function TicketDetailForm({
         currentEmployee={currentEmployee}
       />
 
-
+      {/* 주요 수리 부위 추가 (IN_PROGRESS 상태, 견적 수정 권한자) — 연관 이미지와 자재비 관리 사이 */}
+      {canEditEstimate && ticket.status === "IN_PROGRESS" && (
+        <AddMaterialCard
+          ticketId={ticket.id}
+          categories={inventoryCategories}
+          inventoryItems={inventoryItems}
+          onError={setError}
+          onAdded={(inserted: InsertedMaterial[]) => {
+            const newRows: TicketMaterialRow[] = inserted.map((ins) => {
+              const inv = inventoryItems.find((i) => i.id === ins.inventory_item_id);
+              return {
+                id: ins.id,
+                inventory_item_id: ins.inventory_item_id,
+                quantity: ins.quantity,
+                request_status: ins.request_status,
+                request_type: ins.request_type,
+                notes: null,
+                category_id: inv?.category_id ?? null,
+                category_name: inv?.category_name ?? "",
+                spec_name: inv?.spec_name ?? "",
+                product_name: inv?.product_name ?? "",
+                capacity: inv?.capacity ?? null,
+                condition: inv?.condition ?? "중고",
+                base_estimate: inv?.base_estimate ?? 0,
+                is_return_registered: false,
+                return_spec: null,
+                return_name: null,
+                return_condition: null,
+                return_status: null,
+                return_quantity: 1,
+                return_capacity: null,
+              };
+            });
+            setMaterials((prev) => [...prev, ...newRows]);
+          }}
+        />
+      )}
 
       {/* 자재비 추가 및 목록 (IN_PROGRESS 상태, 견적 수정 권한자) */}
       {canEditEstimate && ticket.status === "IN_PROGRESS" && (
@@ -526,7 +563,9 @@ export default function TicketDetailForm({
                   const subtotal = m.base_estimate * m.quantity;
                   const isPurchase = m.request_type === "purchase";
                   const isSoftware = m.category_name === "소프트웨어";
-                  const canShowReturn = !isSoftware &&
+                  // 사양이 '외주'인 자재는 적출품 등록 대상이 아님
+                  const isOutsourced = m.spec_name === "외주";
+                  const canShowReturn = !isSoftware && !isOutsourced &&
                     (m.request_status === "approved" || m.request_status === "cancel_requested" || m.request_status === "cancelled");
                   return (
                     <li key={m.id} className="py-2">
@@ -738,6 +777,7 @@ export default function TicketDetailForm({
         const unregisteredPhysicalMaterials = materials.filter(
           (m) =>
             m.category_name !== "소프트웨어" &&
+            m.spec_name !== "외주" &&
             !m.is_return_registered &&
             (m.request_status === "approved" || m.request_status === "cancel_requested" || m.request_status === "cancelled")
         );
@@ -932,6 +972,7 @@ export default function TicketDetailForm({
         const physicalMaterials = materials.filter(
           (m) =>
             m.category_name !== "소프트웨어" &&
+            m.spec_name !== "외주" &&
             (m.request_status === "approved" || m.request_status === "cancel_requested" || m.request_status === "cancelled")
         );
         const hasMaterials = physicalMaterials.length > 0;

@@ -580,6 +580,70 @@ export async function addMaterialCostAction(formData: FormData) {
   revalidatePath(`/tickets/${ticketId}`);
 }
 
+// ----- 수리 진행 중 재고 자재 추가 (TECHNICIAN / EXPERT_REPAIR / ADMIN / MANAGER) -----
+// 수리 계획 변경 등으로 IN_PROGRESS 상태에서 추가 재고를 요청할 때 사용.
+// startRepairAction과 동일하게 pending 상태로 삽입하며, 출고/구매 요청은 사용자가 직접 눌러야 한다.
+export async function addTicketMaterialsAction(
+  ticketId: string,
+  materials: { inventory_item_id: string; quantity: number; request_type?: string }[]
+) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  if (!ticketId) return { error: "접수건 ID가 필요합니다." };
+  if (!Array.isArray(materials) || materials.length === 0) {
+    return { error: "추가할 자재를 선택해 주세요." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: ticket } = await supabase
+    .from("repair_tickets")
+    .select("assignee_id, is_approved, status")
+    .eq("id", ticketId)
+    .single();
+
+  if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
+  if (ticket.status !== "IN_PROGRESS") return { error: "수리 진행 중인 접수건만 자재를 추가할 수 있습니다." };
+
+  const isTechOrExpert = employee.role === EmployeeRole.TECHNICIAN || employee.role === EmployeeRole.EXPERT_REPAIR;
+  if (isTechOrExpert && ticket.assignee_id !== employee.id) {
+    return { error: "본인에게 배정된 접수건만 수정할 수 있습니다." };
+  }
+  if (ticket.is_approved && employee.role !== EmployeeRole.ADMIN) {
+    return { error: "승인 완료된 접수건은 수정할 수 없습니다." };
+  }
+
+  const rows = materials
+    .filter((m) => m.inventory_item_id && m.quantity > 0)
+    .map((m) => ({
+      ticket_id: ticketId,
+      inventory_item_id: m.inventory_item_id,
+      quantity: m.quantity,
+      request_status: "pending",
+      request_type: m.request_type === "purchase" ? "purchase" : "dispatch",
+      created_by: employee.id,
+    }));
+
+  if (rows.length === 0) return { error: "추가할 자재를 선택해 주세요." };
+
+  const { data: inserted, error } = await supabase
+    .from("ticket_materials")
+    .insert(rows)
+    .select("id, inventory_item_id, quantity, request_status, request_type");
+  if (error) return { error: "자재 추가에 실패했습니다: " + error.message };
+
+  const adminSupa = createAdminClient();
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: ticketId,
+    employee_id: employee.id,
+    message: `시스템: 수리 진행 중 추가 자재 ${rows.length}건이 선택되었습니다. (출고/구매 요청 대기)`,
+  });
+
+  revalidatePath(`/tickets/${ticketId}`);
+  return { success: true, inserted: inserted ?? [] };
+}
+
 // ----- 견적 입력 및 승인 요청 (TECHNICIAN / EXPERT_REPAIR) -----
 export async function submitEstimateAction(formData: FormData) {
   const employee = await getCurrentEmployee();
