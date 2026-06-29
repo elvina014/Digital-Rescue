@@ -190,7 +190,7 @@ export default function Lightbox({
         onClick={(e) => e.stopPropagation()}
       >
         <div ref={emblaRef} className="h-full overflow-hidden">
-          <div className="flex h-full touch-pan-y">
+          <div className="flex h-full [touch-action:pan-y_pinch-zoom]">
             {images.map((img, idx) => (
               <div
                 key={idx}
