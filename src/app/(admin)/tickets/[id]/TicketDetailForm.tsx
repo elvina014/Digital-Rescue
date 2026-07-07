@@ -10,6 +10,7 @@ import {
   assignTechnicianAction,
   markReceivedAction,
   addMaterialCostAction,
+  updateMaterialCostAction,
   submitEstimateAction,
   updateTicketStatusAction,
   approveTicketAction,
@@ -151,6 +152,7 @@ export default function TicketDetailForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [materials, setMaterials] = useState(initialMaterials);
+  const [manualCosts, setManualCosts] = useState(ticket.material_cost_details);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [deviceDisposal, setDeviceDisposal] = useState<"RETURN" | "DISPOSE" | "">("");
   const [currentReceiptType, setCurrentReceiptType] = useState(ticket.receipt_type);
@@ -159,6 +161,10 @@ export default function TicketDetailForm({
   useEffect(() => {
     setMaterials(initialMaterials);
   }, [initialMaterials]);
+
+  useEffect(() => {
+    setManualCosts(ticket.material_cost_details);
+  }, [ticket.material_cost_details]);
 
   useEffect(() => {
     setCurrentReceiptType(ticket.receipt_type);
@@ -175,6 +181,18 @@ export default function TicketDetailForm({
   const isLocked = ticket.is_approved && !isAdmin && !isManager;
   // ADMIN/MANAGER는 승인 완료 후에도 조회 가능 (금액 수정은 별도 제한)
   const isFullyLocked = ticket.is_approved && !isAdmin;
+
+  // 수동 추가 비용 수정 권한
+  // - 내용(설명): ADMIN/MANAGER만, 상태 무관(완료 후 포함)
+  // - 금액: ADMIN/MANAGER는 상태 무관, 담당기사/정밀수리팀은 본인 배정 + IN_PROGRESS + 미승인일 때만
+  const canEditManualDesc = isAdmin || isManager;
+  const canEditManualAmount =
+    isAdmin ||
+    isManager ||
+    ((isTechnician || isExpertRepair) &&
+      ticket.assignee?.id === currentEmployee.id &&
+      ticket.status === "IN_PROGRESS" &&
+      !ticket.is_approved);
 
   // 접수방식 변경 가능: 모든 직원 + 수리 시작 전(NEW/ASSIGNED/RECEIVED) 상태
   const canEditReceiptType =
@@ -751,21 +769,29 @@ export default function TicketDetailForm({
           </form>
 
           {/* 수동 자재비 목록 */}
-          {ticket.material_cost_details.length > 0 && (
+          {manualCosts.length > 0 && (
             <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
               <h3 className="mb-2 text-sm font-semibold text-gray-600">수동 추가 비용</h3>
               <ul className="divide-y divide-gray-200 text-sm">
-                {ticket.material_cost_details.map((item, idx) => (
-                  <li key={idx} className="flex items-center justify-between py-1.5">
-                    <span className="text-gray-700">{item.description}</span>
-                    <span className="tabular-nums font-medium text-gray-900">{item.amount.toLocaleString()}원</span>
-                  </li>
+                {manualCosts.map((item, idx) => (
+                  <ManualCostRow
+                    key={idx}
+                    ticketId={ticket.id}
+                    index={idx}
+                    item={item}
+                    canEditDescription={canEditManualDesc}
+                    canEditAmount={canEditManualAmount}
+                    onSaved={(i, updated) =>
+                      setManualCosts((prev) => prev.map((c, ci) => (ci === i ? updated : c)))
+                    }
+                    onError={setError}
+                  />
                 ))}
               </ul>
             </div>
           )}
 
-          {materials.length === 0 && ticket.material_cost_details.length === 0 && (
+          {materials.length === 0 && manualCosts.length === 0 && (
             <p className="text-sm text-gray-400">아직 추가된 자재비가 없습니다.</p>
           )}
         </section>
@@ -934,8 +960,8 @@ export default function TicketDetailForm({
             </div>
           </dl>
 
-          {/* 자재비 상세 목록 (읽기 전용) */}
-          {(materials.length > 0 || ticket.material_cost_details.length > 0) && (
+          {/* 자재비 상세 목록 (자재는 읽기 전용, 수동 비용은 권한자 편집 가능) */}
+          {(materials.length > 0 || manualCosts.length > 0) && (
             <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
               <h3 className="mb-2 text-xs font-semibold text-gray-500">자재비 상세</h3>
               <ul className="divide-y divide-gray-200 text-sm">
@@ -955,11 +981,19 @@ export default function TicketDetailForm({
                     </li>
                   );
                 })}
-                {ticket.material_cost_details.map((item, idx) => (
-                  <li key={`manual-${idx}`} className="flex items-center justify-between py-1.5">
-                    <span className="text-gray-700">{item.description}</span>
-                    <span className="tabular-nums font-medium text-gray-900">{item.amount.toLocaleString()}원</span>
-                  </li>
+                {manualCosts.map((item, idx) => (
+                  <ManualCostRow
+                    key={`manual-${idx}`}
+                    ticketId={ticket.id}
+                    index={idx}
+                    item={item}
+                    canEditDescription={canEditManualDesc}
+                    canEditAmount={canEditManualAmount}
+                    onSaved={(i, updated) =>
+                      setManualCosts((prev) => prev.map((c, ci) => (ci === i ? updated : c)))
+                    }
+                    onError={setError}
+                  />
                 ))}
               </ul>
             </div>
@@ -1342,6 +1376,135 @@ function ReturnMaterialForm({
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── 수동 추가 비용 편집 행 ───
+
+function ManualCostRow({
+  ticketId,
+  index,
+  item,
+  canEditDescription,
+  canEditAmount,
+  onSaved,
+  onError,
+}: {
+  ticketId: string;
+  index: number;
+  item: { description: string; amount: number };
+  canEditDescription: boolean;
+  canEditAmount: boolean;
+  onSaved: (index: number, updated: { description: string; amount: number }) => void;
+  onError: (msg: string | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [desc, setDesc] = useState(item.description);
+  const [amount, setAmount] = useState<number | "">(item.amount);
+  const [isPending, startTransition] = useTransition();
+
+  const canEdit = canEditDescription || canEditAmount;
+
+  function startEdit() {
+    setDesc(item.description);
+    setAmount(item.amount);
+    setEditing(true);
+  }
+
+  function handleSave() {
+    const amt = typeof amount === "number" ? amount : 0;
+    if (amt <= 0) {
+      onError("유효한 금액을 입력해 주세요.");
+      return;
+    }
+    startTransition(async () => {
+      onError(null);
+      const res = await updateMaterialCostAction(
+        ticketId,
+        index,
+        canEditDescription ? desc : item.description,
+        amt
+      );
+      if (res?.error) {
+        onError(res.error);
+        return;
+      }
+      onSaved(index, {
+        description: canEditDescription ? (desc.trim() || item.description) : item.description,
+        amount: Math.round(amt),
+      });
+      setEditing(false);
+    });
+  }
+
+  if (!editing) {
+    return (
+      <li className="flex items-center justify-between gap-2 py-1.5">
+        <span className="min-w-0 flex-1 truncate text-gray-700">{item.description}</span>
+        <div className="flex items-center gap-2">
+          <span className="whitespace-nowrap tabular-nums font-medium text-gray-900">
+            {item.amount.toLocaleString()}원
+          </span>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={startEdit}
+              className="whitespace-nowrap rounded-md border border-gray-300 bg-white px-2 py-0.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+            >
+              수정
+            </button>
+          )}
+        </div>
+      </li>
+    );
+  }
+
+  return (
+    <li className="py-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          value={desc}
+          disabled={!canEditDescription || isPending}
+          onChange={(e) => setDesc(e.target.value)}
+          placeholder="추가 비용 내용"
+          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-100 disabled:text-gray-500"
+        />
+        <input
+          type="number"
+          min={1}
+          value={amount}
+          disabled={!canEditAmount || isPending}
+          onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
+          placeholder="금액"
+          className="w-28 rounded-lg border border-gray-300 px-2.5 py-1.5 text-right text-sm tabular-nums focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-100 disabled:text-gray-500"
+        />
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isPending}
+          className="whitespace-nowrap rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          저장
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setEditing(false);
+            onError(null);
+          }}
+          disabled={isPending}
+          className="whitespace-nowrap rounded-md bg-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-300 disabled:opacity-50"
+        >
+          취소
+        </button>
+      </div>
+      {!canEditDescription && (
+        <p className="mt-1 text-[11px] text-gray-400">
+          내용은 관리자/팀장만 수정할 수 있습니다. (금액만 변경 가능)
+        </p>
+      )}
+    </li>
   );
 }
 

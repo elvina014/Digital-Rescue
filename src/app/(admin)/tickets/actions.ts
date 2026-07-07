@@ -580,6 +580,106 @@ export async function addMaterialCostAction(formData: FormData) {
   revalidatePath(`/tickets/${ticketId}`);
 }
 
+// ----- 수동 추가 비용 수정 -----
+// ADMIN/MANAGER: 상태 무관(완료 후 포함) 내용+금액 수정.
+// TECHNICIAN/EXPERT_REPAIR: 본인 배정 + IN_PROGRESS + 미승인일 때만 금액 수정(내용은 변경 불가).
+export async function updateMaterialCostAction(
+  ticketId: string,
+  index: number,
+  description: string,
+  amount: number
+) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  if (!ticketId || !Number.isInteger(index) || index < 0) {
+    return { error: "잘못된 요청입니다." };
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { error: "유효한 금액을 입력해 주세요." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: ticket } = await supabase
+    .from("repair_tickets")
+    .select("assignee_id, is_approved, status, material_cost_details")
+    .eq("id", ticketId)
+    .single();
+
+  if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
+
+  const isAdmin = employee.role === EmployeeRole.ADMIN;
+  const isManager = employee.role === EmployeeRole.MANAGER;
+  const isTechOrExpert = employee.role === EmployeeRole.TECHNICIAN || employee.role === EmployeeRole.EXPERT_REPAIR;
+
+  // 권한 판정
+  const canEditDescription = isAdmin || isManager;
+  const canEditAmount =
+    isAdmin ||
+    isManager ||
+    (isTechOrExpert && ticket.assignee_id === employee.id && ticket.status === "IN_PROGRESS" && !ticket.is_approved);
+
+  if (!canEditAmount) {
+    return { error: "수동 추가 비용을 수정할 권한이 없습니다." };
+  }
+
+  const details = Array.isArray(ticket.material_cost_details)
+    ? ([...ticket.material_cost_details] as { description: string; amount: number }[])
+    : [];
+  if (index >= details.length) return { error: "해당 비용 항목을 찾을 수 없습니다." };
+
+  const current = details[index];
+  details[index] = {
+    // 내용은 수정 권한이 있을 때만 반영, 없으면 기존값 유지
+    description: canEditDescription ? (description?.trim() || current.description) : current.description,
+    amount: Math.round(amount),
+  };
+
+  const manualTotal = details.reduce((sum, item) => sum + item.amount, 0);
+
+  // 승인 완료된 자재 비용 합산 (addMaterialCostAction과 동일 로직)
+  const { data: approvedMats } = await supabase
+    .from("ticket_materials")
+    .select("quantity, inventory_item_id")
+    .eq("ticket_id", ticketId)
+    .eq("request_status", "approved");
+
+  let approvedTotal = 0;
+  if (approvedMats && approvedMats.length > 0) {
+    const itemIds = approvedMats.map((m) => m.inventory_item_id);
+    const { data: items } = await supabase
+      .from("inventory_items")
+      .select("id, base_estimate")
+      .in("id", itemIds);
+    const estMap = new Map<string, number>();
+    for (const item of items ?? []) estMap.set(item.id, item.base_estimate ?? 0);
+    approvedTotal = approvedMats.reduce((s, m) => s + (estMap.get(m.inventory_item_id) ?? 0) * m.quantity, 0);
+  }
+
+  const newTotal = approvedTotal + manualTotal;
+
+  // 사용자 세션 클라이언트로 업데이트해야 protect_approved_ticket 트리거가 auth.uid()로
+  // 역할(ADMIN/MANAGER)을 판정해 통과시킨다. service_role(admin) 클라이언트는 auth.uid()=NULL이라 차단됨.
+  // RLS tickets_update: ADMIN/MANAGER는 전체 건, 기사는 본인 배정건만 UPDATE 허용.
+  const { error } = await supabase
+    .from("repair_tickets")
+    .update({ material_cost_details: details, material_cost: newTotal })
+    .eq("id", ticketId);
+
+  if (error) return { error: "수동 추가 비용 수정에 실패했습니다: " + error.message };
+
+  const adminSupa = createAdminClient();
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: ticketId,
+    employee_id: employee.id,
+    message: `시스템: 수동 추가 비용이 수정되었습니다. ${details[index].description} ${details[index].amount.toLocaleString()}원 (합계: ${newTotal.toLocaleString()}원)`,
+  });
+
+  revalidatePath(`/tickets/${ticketId}`);
+  return { success: true, details };
+}
+
 // ----- 수리 진행 중 재고 자재 추가 (TECHNICIAN / EXPERT_REPAIR / ADMIN / MANAGER) -----
 // 수리 계획 변경 등으로 IN_PROGRESS 상태에서 추가 재고를 요청할 때 사용.
 // startRepairAction과 동일하게 pending 상태로 삽입하며, 출고/구매 요청은 사용자가 직접 눌러야 한다.
