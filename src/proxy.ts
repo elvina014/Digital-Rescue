@@ -24,7 +24,7 @@ const ADMIN_PATHS = ["/dashboard", "/editor", "/tickets", "/inventory", "/employ
 const LOGIN_PATH = "/login";
 
 // 비활동 세션 만료 설정
-const INACTIVITY_LIMIT_MS = 30 * 60 * 1000; // 30분
+const INACTIVITY_LIMIT_MS = 60 * 60 * 1000; // 1시간
 const ACTIVITY_COOKIE = "dr_last_activity";
 
 function getCookieDomain(host: string | null | undefined): string | undefined {
