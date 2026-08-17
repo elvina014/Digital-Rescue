@@ -79,7 +79,7 @@ export async function proxy(request: NextRequest) {
     if (lastActivity) {
       const lastTime = parseInt(lastActivity, 10);
       if (!isNaN(lastTime) && now - lastTime > INACTIVITY_LIMIT_MS) {
-        // 30분 비활동 초과 → 세션 쿠키 강제 삭제 후 로그인 페이지로 이동
+        // 1시간 비활동 초과 → 세션 쿠키 강제 삭제 후 로그인 페이지로 이동
         const loginUrl = request.nextUrl.clone();
         if (onEdit) {
           const host = request.headers.get("host") ?? "";

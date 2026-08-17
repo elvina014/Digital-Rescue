@@ -333,7 +333,7 @@ $cms$::jsonb),
       "tone": "info",
       "message": "내방 예정 일시를 기록해주세요.",
       "extras": [{ "type": "datetime", "name": "visitDateTime", "label": "방문 예정 일시" }],
-      "address": { "label": "센터 주소", "value": "서울시 영등포구 양평로 157, 투웨니퍼스트밸리 1610호" }
+      "address": { "label": "센터 주소", "value": "서울시 영등포구 양평로 157, 투웨니퍼스트밸리 506호" }
     },
     "VISIT": { "tone": "info", "message": "담당기사가 전화 드려 출장비, 출장 일정 안내 드립니다." },
     "PARCEL": {
