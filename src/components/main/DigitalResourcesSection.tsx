@@ -460,6 +460,31 @@ function NewsCarouselModal({
                       {para}
                     </p>
                   ))}
+                  {news.sourceUrl && (
+                    <a
+                      href={news.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-7 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-80 sm:text-sm"
+                      style={{
+                        background: theme.accentSoft,
+                        color: theme.accentColor,
+                      }}
+                    >
+                      {news.source} 원문 보기
+                      <svg
+                        className="h-3.5 w-3.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M7 17L17 7M9 7h8v8" />
+                      </svg>
+                    </a>
+                  )}
                 </div>
               </article>
             ))}

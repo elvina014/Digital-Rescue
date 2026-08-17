@@ -36,7 +36,7 @@ export async function getPublishedNews(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("news_items")
-    .select("id, title, news_date, source, summary, body")
+    .select("id, title, news_date, source, source_url, summary, body")
     .eq("status", "published")
     .order("news_date", { ascending: false })
     .limit(limit);
@@ -53,5 +53,9 @@ export async function getPublishedNews(
     source: row.source as string,
     summary: row.summary as string,
     body: row.body as string,
+    // seed:* 는 자체 작성 글의 중복 방지용 키라 원문 링크로 쓸 수 없다.
+    sourceUrl: (row.source_url as string | null)?.startsWith("http")
+      ? (row.source_url as string)
+      : undefined,
   }));
 }

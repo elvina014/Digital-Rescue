@@ -236,6 +236,8 @@ export interface DigitalResourcesNewsItem {
   source: string;
   summary: string;
   body: string;
+  /** 외부 기사 원문 URL. 자체 작성 글(seed:*)에는 없다. */
+  sourceUrl?: string;
 }
 
 export interface DigitalResourcesEmergencyItem {
