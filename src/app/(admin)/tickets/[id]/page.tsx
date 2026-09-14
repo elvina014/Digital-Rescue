@@ -30,7 +30,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       symptoms, initial_estimate, expected_estimate, evaluated_value, material_cost,
       material_cost_details, final_price, is_approved, has_admin_message, images,
       payment_status, payment_method, cash_receipt_issued, refunded_amount, completed_at,
-      cancel_device_disposal, created_at, updated_at,
+      cancel_device_disposal, dispose_confirmed_at, received_at, created_at, updated_at,
       customers ( name, phone, address ),
       employees:assignee_id ( id, name )
     `
@@ -240,6 +240,8 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     refunded_amount: (ticket as Record<string, unknown>).refunded_amount as number ?? 0,
     completed_at: (ticket as Record<string, unknown>).completed_at as string | null ?? null,
     cancel_device_disposal: (ticket as Record<string, unknown>).cancel_device_disposal as string | null ?? null,
+    dispose_confirmed_at: (ticket as Record<string, unknown>).dispose_confirmed_at as string | null ?? null,
+    received_at: (ticket as Record<string, unknown>).received_at as string | null ?? null,
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
     customer: ticket.customers as unknown as {

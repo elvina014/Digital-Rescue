@@ -2532,3 +2532,135 @@ export async function getPendingRefunds() {
     employees: { name: string } | { name: string }[] | null;
   }[] };
 }
+
+// ----- 취소 복원 (ADMIN / MANAGER) -----
+// 취소된 접수건을 취소 전 상태로 되돌린다.
+//
+// 취소 전 상태는 시스템에 기록되지 않는다(상태 변경 이력이 없음). received_at은
+// 마이그레이션 028에서 추가되어 그 이전 건은 NULL이라, 자동 추론하면 실제와 어긋난다.
+// 그래서 되돌릴 상태를 호출자가 명시하도록 한다.
+//
+// 되돌릴 수 없는 것: 취소 시 스토리지에서 영구 삭제된 이미지, 이미 재고로 복구된 자재.
+const RESTORABLE_STATUSES = ["NEW", "ASSIGNED", "RECEIVED", "IN_PROGRESS"] as const;
+
+const RESTORE_STATUS_LABELS: Record<string, string> = {
+  NEW: "신규 접수",
+  ASSIGNED: "배정 완료",
+  RECEIVED: "입고 완료",
+  IN_PROGRESS: "수리 진행",
+};
+
+export async function restoreCanceledTicketAction(
+  ticketId: string,
+  targetStatus: string,
+  note: string
+) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return { error: "취소 복원 권한이 없습니다. 관리자 또는 팀장만 가능합니다." };
+  }
+
+  if (!ticketId) return { error: "접수건 ID가 필요합니다." };
+  if (!(RESTORABLE_STATUSES as readonly string[]).includes(targetStatus)) {
+    return { error: "되돌릴 상태를 선택해 주세요." };
+  }
+
+  const reason = note?.trim();
+  if (!reason) return { error: "복원 사유를 입력해 주세요." };
+
+  const supabase = await createClient();
+
+  const { data: ticket } = await supabase
+    .from("repair_tickets")
+    .select("status, received_at, assignee_id, cancel_device_disposal, dispose_confirmed_at")
+    .eq("id", ticketId)
+    .single();
+
+  if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
+
+  if (ticket.status !== "CANCELED") {
+    return { error: `취소된 접수건만 복원할 수 있습니다. (현재 상태: ${ticket.status})` };
+  }
+
+  // 폐기 확인이 끝난 건은 실물이 남아 있지 않다
+  const disposeConfirmedAt = (ticket as Record<string, unknown>).dispose_confirmed_at as string | null;
+  if (disposeConfirmedAt) {
+    return {
+      error:
+        "기기 폐기 확인이 완료된 접수건은 복원할 수 없습니다. 실물이 남아 있지 않으므로 신규 접수로 진행해 주세요.",
+    };
+  }
+
+  // 담당기사가 없으면 배정 이후 상태로 되돌릴 수 없다
+  if (!ticket.assignee_id && targetStatus !== "NEW") {
+    return { error: "담당기사가 배정되지 않은 접수건은 '신규 접수' 상태로만 복원할 수 있습니다." };
+  }
+
+  const isPreReceiptTarget = targetStatus === "NEW" || targetStatus === "ASSIGNED";
+  const now = new Date().toISOString();
+
+  const updatePayload: Record<string, unknown> = {
+    status: targetStatus,
+    canceled_at: null,
+    cancel_device_disposal: null,
+    dispose_confirmed_at: null,
+  };
+
+  if (isPreReceiptTarget) {
+    // 입고 전 상태로 되돌리므로 입고 기록도 함께 해제한다
+    updatePayload.received_at = null;
+  } else if (!ticket.received_at) {
+    // 입고 후 상태인데 입고 시각이 비어 있으면(028 이전 데이터) 지금으로 채워 정합성을 맞춘다
+    updatePayload.received_at = now;
+  }
+
+  const { error } = await supabase
+    .from("repair_tickets")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .update(updatePayload as any)
+    .eq("id", ticketId);
+
+  if (error) {
+    return { error: "복원 처리에 실패했습니다: " + error.message };
+  }
+
+  const adminSupa = createAdminClient();
+
+  // 반환 대기 중이던 자재는 원래대로 승인 상태로 되돌린다 (재고·자재비 변동이 없던 단계)
+  const { data: revertedMaterials } = await adminSupa
+    .from("ticket_materials")
+    .update({ request_status: "approved" })
+    .eq("ticket_id", ticketId)
+    .eq("request_status", "cancel_requested")
+    .select("id");
+
+  // 이미 반환 확인이 끝난 자재는 재고가 복구된 상태이므로 건드리지 않는다
+  const { count: settledCount } = await adminSupa
+    .from("ticket_materials")
+    .select("id", { count: "exact", head: true })
+    .eq("ticket_id", ticketId)
+    .eq("request_status", "cancelled");
+
+  const logParts: string[] = [`상태: ${RESTORE_STATUS_LABELS[targetStatus]}`, `사유: ${reason}`];
+  if (revertedMaterials && revertedMaterials.length > 0) {
+    logParts.push(`반환 대기 자재 ${revertedMaterials.length}건 승인 상태로 원복`);
+  }
+  if (settledCount && settledCount > 0) {
+    logParts.push(`반환 확인 완료 자재 ${settledCount}건은 재고 복구가 끝나 원복되지 않음 — 필요 시 재요청 필요`);
+  }
+  if (isPreReceiptTarget && ticket.received_at) {
+    logParts.push("입고 기록 해제됨");
+  }
+
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: ticketId,
+    employee_id: employee.id,
+    message: `시스템: 취소가 복원되었습니다. (${logParts.join(", ")})`,
+  });
+
+  revalidatePath(`/tickets/${ticketId}`);
+  revalidatePath("/tickets");
+  revalidatePath("/dashboard");
+  return { success: true };
+}

@@ -111,3 +111,20 @@ RPC 두 개는 `authenticated`만 실행 가능하며 `anon`·`PUBLIC` 권한은
 | --- | --- |
 | `ADMIN`, `MANAGER`, `CS`, `RECEPTION` | 전체 |
 | `TECHNICIAN`, `EXPERT_REPAIR` | 본인 배정 접수건의 환불만 |
+
+# 취소 복원 보호 (마이그레이션 041)
+
+| 이름 | 종류 | 설명 |
+| --- | --- | --- |
+| `protect_canceled_ticket()` | BEFORE UPDATE | `CANCELED`에서 벗어나는 `status` 변경을 ADMIN · MANAGER로 제한 |
+
+`tickets_update` RLS는 TECHNICIAN/EXPERT_REPAIR에게 "본인 배정 건" UPDATE를 허용하므로,
+담당기사가 본인에게 배정된 취소건의 status를 직접 되돌리는 경로가 열려 있었다. 이를 트리거로 막는다.
+
+검사 범위는 취소 해제뿐이다. 아래는 그대로 통과한다:
+
+- 취소 처리(`→ CANCELED`) — `OLD.status <> 'CANCELED'`
+- 취소건의 다른 컬럼 변경 — `NEW.status = 'CANCELED'` (폐기 확인 `dispose_confirmed_at`, 취소 시 `images` 비우기 등)
+
+`service_role`(admin 클라이언트)은 `auth.uid()`가 NULL이라 함께 차단된다.
+취소 해제를 admin 클라이언트로 수행하는 코드 경로는 없다.

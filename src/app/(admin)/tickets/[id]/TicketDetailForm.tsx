@@ -31,6 +31,7 @@ import AddMaterialCard, { type InsertedMaterial } from "./AddMaterialCard";
 
 import { formatDateTime } from "@/lib/date";
 import RefundCard, { type RefundRow } from "./RefundCard";
+import RestoreCancelCard from "./RestoreCancelCard";
 
 interface TicketData {
   id: string;
@@ -61,6 +62,10 @@ interface TicketData {
   /** 완료(최종 승인) 시각 */
   completed_at: string | null;
   cancel_device_disposal: string | null;
+  /** 제품 입고 완료 시각 (NULL=입고 전) */
+  received_at: string | null;
+  /** 폐기 확인 완료 시각 (있으면 복원 불가) */
+  dispose_confirmed_at: string | null;
   created_at: string;
   updated_at: string;
   customer: { name: string; phone: string; address: string | null } | null;
@@ -1176,6 +1181,20 @@ export default function TicketDetailForm({
           </div>
         </form>
       </section>
+
+      {/* 취소 복원 (ADMIN / MANAGER) */}
+      <RestoreCancelCard
+        ticketId={ticket.id}
+        ticketStatus={ticket.status}
+        currentEmployee={currentEmployee}
+        hasAssignee={!!ticket.assignee?.id}
+        receivedAt={ticket.received_at ?? null}
+        cancelDisposal={ticket.cancel_device_disposal}
+        disposeConfirmedAt={ticket.dispose_confirmed_at}
+        settledMaterialCount={
+          materials.filter((m) => m.request_status === "cancelled").length
+        }
+      />
 
       {/* 접수 취소 */}
       {ticket.status !== "COMPLETED" && ticket.status !== "CANCELED" && (
