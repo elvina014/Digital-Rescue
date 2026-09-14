@@ -761,6 +761,16 @@ export async function submitEstimateAction(formData: FormData) {
     return { error: "결제 방식을 선택해 주세요." };
   }
 
+  // 계좌이체는 환불 시 현금영수증 취소 여부를 판단해야 하므로 발급 여부를 필수로 받는다.
+  const cashReceiptRaw = (formData.get("cashReceiptIssued") as string)?.trim();
+  let cashReceiptIssued: boolean | null = null;
+  if (paymentMethod === "BANK_TRANSFER") {
+    if (cashReceiptRaw !== "Y" && cashReceiptRaw !== "N") {
+      return { error: "현금영수증 발급 여부를 선택해 주세요." };
+    }
+    cashReceiptIssued = cashReceiptRaw === "Y";
+  }
+
   const supabase = await createClient();
 
   const { data: ticket } = await supabase
@@ -798,8 +808,10 @@ export async function submitEstimateAction(formData: FormData) {
     .update({
       final_price: finalPrice,
       payment_method: paymentMethod,
+      cash_receipt_issued: cashReceiptIssued,
       status: "WAITING_APPROVAL",
-    })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
     .eq("id", ticketId);
 
   if (error) {
@@ -814,6 +826,9 @@ export async function submitEstimateAction(formData: FormData) {
     logParts.push(`최종 견적: ${finalPrice.toLocaleString()}원`);
   }
   logParts.push(`결제 방식: ${PAYMENT_LABELS[paymentMethod] ?? paymentMethod}`);
+  if (cashReceiptIssued !== null) {
+    logParts.push(`현금영수증: ${cashReceiptIssued ? "발급" : "미발급"}`);
+  }
 
   await adminSupa.from("ticket_logs").insert({
     ticket_id: ticketId,
@@ -920,10 +935,17 @@ export async function approveTicketAction(formData: FormData) {
     return { error: "최종 견적이 입력되지 않은 접수건은 승인할 수 없습니다." };
   }
 
+  const now = new Date().toISOString();
   const { error } = await supabase
     .from("repair_tickets")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .update({ is_approved: true, status: "COMPLETED", completed_at: new Date().toISOString() } as any)
+    .update({
+      is_approved: true,
+      status: "COMPLETED",
+      completed_at: now,
+      payment_status: "PAID",
+      paid_at: now,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any)
     .eq("id", ticketId);
 
   if (error) {
@@ -2284,4 +2306,229 @@ export async function updateReceiptTypeAction(formData: FormData) {
   revalidatePath(`/tickets/${ticketId}`);
   revalidatePath("/tickets");
   return { success: true };
+}
+
+// =============================================================
+// 환불 (Refund) — 완료 건의 결제 금액을 되돌리는 처리
+// =============================================================
+// 권한·단계·금액 검증은 모두 DB RPC(request_refund / transition_refund)가 수행한다.
+// 여기서 다시 검사하면 규칙이 두 곳으로 갈라져 어긋날 수 있으므로 인증만 확인하고
+// 나머지는 RPC에 위임한다. RPC는 auth.uid()로 요청자를 식별하므로
+// 반드시 createClient()(로그인 세션)를 써야 한다 — createAdminClient()는 auth.uid()가 NULL이다.
+
+const REFUND_REASON_LABELS: Record<string, string> = {
+  QUALITY: "수리 품질 하자",
+  REPAIR_FAILED: "수리 실패",
+  OVERCHARGE: "과다·오청구",
+  DUPLICATE: "중복 결제",
+  COMPLAINT: "고객 불만",
+  CHANGE_MIND: "고객 단순 변심",
+  OTHER: "기타",
+};
+
+const REFUND_METHOD_LABELS: Record<string, string> = {
+  CARD_CANCEL: "카드 승인취소",
+  CARD_PARTIAL_CANCEL: "카드 부분취소",
+  BANK_REFUND: "계좌 송금",
+  CASH: "현금 반환",
+};
+
+/** RPC가 돌려주는 환불 원장 행 중 로그 작성에 필요한 필드 */
+type RefundRow = {
+  id: string;
+  ticket_id: string;
+  refund_no: string;
+  amount: number;
+  cash_receipt_cancel_required: boolean;
+};
+
+/** PostgREST는 composite 반환값을 객체로도, 1건짜리 배열로도 줄 수 있다 */
+function toRefundRow(data: unknown): RefundRow {
+  return (Array.isArray(data) ? data[0] : data) as RefundRow;
+}
+
+// ----- 환불 요청 (ADMIN / MANAGER / CS) -----
+export async function requestRefundAction(input: {
+  ticketId: string;
+  amount: number;
+  reasonCode: string;
+  refundMethod: string;
+  partsRecovery?: string;
+  deductionAmount?: number;
+  deductionNote?: string;
+  reasonNote?: string;
+  refundBank?: string;
+  refundAccount?: string;
+  refundHolder?: string;
+}) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("request_refund", {
+    p_ticket_id: input.ticketId,
+    p_amount: input.amount,
+    p_reason_code: input.reasonCode,
+    p_refund_method: input.refundMethod,
+    p_parts_recovery: input.partsRecovery ?? "NONE",
+    p_deduction_amount: input.deductionAmount ?? 0,
+    p_deduction_note: input.deductionNote ?? null,
+    p_reason_note: input.reasonNote ?? null,
+    p_refund_bank: input.refundBank ?? null,
+    p_refund_account: input.refundAccount ?? null,
+    p_refund_holder: input.refundHolder ?? null,
+  });
+
+  // RPC의 RAISE EXCEPTION 메시지는 그대로 화면에 보여줄 수 있는 안내문이다
+  if (error) return { error: error.message };
+
+  const refund = toRefundRow(data);
+
+  const logParts = [
+    `환불번호 ${refund.refund_no}`,
+    `금액 ${refund.amount.toLocaleString()}원`,
+    `사유: ${REFUND_REASON_LABELS[input.reasonCode] ?? input.reasonCode}`,
+    `방법: ${REFUND_METHOD_LABELS[input.refundMethod] ?? input.refundMethod}`,
+  ];
+  if (input.deductionAmount && input.deductionAmount > 0) {
+    logParts.push(`공제 ${input.deductionAmount.toLocaleString()}원`);
+  }
+
+  const adminSupa = createAdminClient();
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: input.ticketId,
+    employee_id: employee.id,
+    message: `시스템: 환불이 요청되었습니다. (${logParts.join(", ")})`,
+  });
+
+  revalidatePath(`/tickets/${input.ticketId}`);
+  revalidatePath("/tickets");
+  revalidatePath("/dashboard");
+  return { success: true, refundNo: refund.refund_no };
+}
+
+/**
+ * 환불 단계 전환 공통 처리 (APPROVE / REJECT / COMPLETE / VOID)
+ * RPC 호출 → 자동 로그 기록 → 캐시 무효화
+ */
+async function transitionRefund(
+  refundId: string,
+  action: "APPROVE" | "REJECT" | "COMPLETE" | "VOID",
+  buildLog: (refund: RefundRow) => string,
+  note?: string,
+  cashReceiptCanceled?: boolean
+) {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { error: "인증이 필요합니다." };
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("transition_refund", {
+    p_refund_id: refundId,
+    p_action: action,
+    p_note: note ?? null,
+    p_cash_receipt_canceled: cashReceiptCanceled ?? false,
+  });
+
+  if (error) return { error: error.message };
+
+  const refund = toRefundRow(data);
+
+  const adminSupa = createAdminClient();
+  await adminSupa.from("ticket_logs").insert({
+    ticket_id: refund.ticket_id,
+    employee_id: employee.id,
+    message: buildLog(refund),
+  });
+
+  revalidatePath(`/tickets/${refund.ticket_id}`);
+  revalidatePath("/tickets");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+// ----- 환불 승인 (ADMIN / MANAGER) -----
+export async function approveRefundAction(refundId: string) {
+  return transitionRefund(
+    refundId,
+    "APPROVE",
+    (r) => `시스템: 환불이 승인되었습니다. (환불번호 ${r.refund_no}, 금액 ${r.amount.toLocaleString()}원)`
+  );
+}
+
+// ----- 환불 반려 (ADMIN / MANAGER) -----
+export async function rejectRefundAction(refundId: string, note: string) {
+  if (!note?.trim()) return { error: "반려 사유를 입력해 주세요." };
+  return transitionRefund(
+    refundId,
+    "REJECT",
+    (r) => `시스템: 환불이 반려되었습니다. (환불번호 ${r.refund_no}, 사유: ${note.trim()})`,
+    note
+  );
+}
+
+// ----- 환불 완료 처리 (ADMIN / MANAGER / CS) — 이 시점에 매출에서 차감된다 -----
+export async function completeRefundAction(refundId: string, cashReceiptCanceled?: boolean) {
+  return transitionRefund(
+    refundId,
+    "COMPLETE",
+    (r) => {
+      const parts = [`환불번호 ${r.refund_no}`, `금액 ${r.amount.toLocaleString()}원`];
+      if (r.cash_receipt_cancel_required) parts.push("현금영수증 발급취소 확인 완료");
+      return `시스템: 환불이 완료되었습니다. (${parts.join(", ")})`;
+    },
+    undefined,
+    cashReceiptCanceled
+  );
+}
+
+// ----- 환불 무효처리 (ADMIN 전용) — 오등록 정정 -----
+export async function voidRefundAction(refundId: string, note: string) {
+  if (!note?.trim()) return { error: "무효처리 사유를 입력해 주세요." };
+  return transitionRefund(
+    refundId,
+    "VOID",
+    (r) => `시스템: 환불이 무효처리되었습니다. (환불번호 ${r.refund_no}, 사유: ${note.trim()})`,
+    note
+  );
+}
+
+// ----- 환불 승인 대기 목록 조회 (관리자/팀장 대시보드) -----
+export async function getPendingRefunds() {
+  const employee = await getCurrentEmployee();
+  if (!employee) return { data: [] };
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return { data: [] };
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("ticket_refunds")
+    .select(`
+      id, ticket_id, refund_no, amount, reason_code, refund_method, requested_at, requested_by,
+      repair_tickets ( receipt_no, device_brand, device_model, final_price, customers ( name ) ),
+      employees:requested_by ( name )
+    `)
+    .eq("status", "REQUESTED")
+    .order("requested_at", { ascending: true });
+
+  return { data: (data ?? []) as unknown as {
+    id: string;
+    ticket_id: string;
+    refund_no: string;
+    amount: number;
+    reason_code: string;
+    refund_method: string;
+    requested_at: string;
+    requested_by: string;
+    repair_tickets: {
+      receipt_no: string;
+      device_brand: string | null;
+      device_model: string | null;
+      final_price: number;
+      customers: { name: string } | { name: string }[] | null;
+    } | null;
+    employees: { name: string } | { name: string }[] | null;
+  }[] };
 }

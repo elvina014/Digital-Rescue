@@ -25,6 +25,7 @@ import type {
   StatusBreakdownData,
   ReceiptTypeBreakdownData,
   CancelStatsData,
+  RefundStatsData,
 } from "@/app/actions/statisticsActions";
 import {
   getAnnualRevenue,
@@ -34,6 +35,7 @@ import {
   getStatusBreakdown,
   getReceiptTypeBreakdown,
   getCancelStats,
+  getRefundStats,
 } from "@/app/actions/statisticsActions";
 
 interface Props {
@@ -45,6 +47,7 @@ interface Props {
   statusBreakdown: StatusBreakdownData[];
   receiptTypeBreakdown: ReceiptTypeBreakdownData[];
   cancelStats: CancelStatsData;
+  refundStats: RefundStatsData;
   currentYear: number;
   currentMonth: number;
 }
@@ -73,6 +76,7 @@ export function StatisticsClient({
   statusBreakdown: initialStatusBreakdown,
   receiptTypeBreakdown: initialReceiptTypeBreakdown,
   cancelStats: initialCancelStats,
+  refundStats: initialRefundStats,
   currentYear,
   currentMonth,
 }: Props) {
@@ -87,6 +91,7 @@ export function StatisticsClient({
   const [statusBreakdown, setStatusBreakdown] = useState(initialStatusBreakdown);
   const [receiptTypeBreakdown, setReceiptTypeBreakdown] = useState(initialReceiptTypeBreakdown);
   const [cancelStats, setCancelStats] = useState(initialCancelStats);
+  const [refundStats, setRefundStats] = useState(initialRefundStats);
 
   const [isPending, startTransition] = useTransition();
 
@@ -100,6 +105,7 @@ export function StatisticsClient({
         newStatus,
         newReceiptType,
         newCancel,
+        newRefund,
       ] = await Promise.all([
         getAnnualRevenue(year),
         getMonthlyDailyRevenue(year, month),
@@ -108,6 +114,7 @@ export function StatisticsClient({
         getStatusBreakdown(year, month),
         getReceiptTypeBreakdown(year, month),
         getCancelStats(year, month),
+        getRefundStats(year, month),
       ]);
       setAnnualRevenue(newAnnual);
       setDailyRevenue(newDaily);
@@ -116,6 +123,7 @@ export function StatisticsClient({
       setStatusBreakdown(newStatus);
       setReceiptTypeBreakdown(newReceiptType);
       setCancelStats(newCancel);
+      setRefundStats(newRefund);
     });
   }
 
@@ -410,6 +418,84 @@ export function StatisticsClient({
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* 섹션 4-1: 환불율 분석 */}
+        <div className="rounded-xl border bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-base font-semibold text-gray-900">환불율 분석</h2>
+          <p className="mb-4 text-xs text-gray-400">
+            {selectedYear}년 {selectedMonth}월 완료건 기준 · 환불액 ÷ 총매출
+          </p>
+
+          <div className="grid gap-4 sm:grid-cols-4">
+            <div className="rounded-lg bg-gray-50 p-4 text-center">
+              <p className="text-xs text-gray-500">환불율</p>
+              <p className="mt-1 text-3xl font-bold text-rose-500">{refundStats.refundRate}%</p>
+              <p className="mt-1 text-xs text-gray-400">
+                {refundStats.refundedTicketCount.toLocaleString()}건 / 완료 {refundStats.completedCount.toLocaleString()}건
+              </p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-4 text-center">
+              <p className="text-xs text-gray-500">총매출</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-gray-700">
+                {refundStats.grossRevenue.toLocaleString()}원
+              </p>
+              <p className="mt-1 text-xs text-gray-400">환불 반영 전</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-4 text-center">
+              <p className="text-xs text-gray-500">환불액</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-rose-600">
+                {refundStats.refundedAmount > 0 ? `-${refundStats.refundedAmount.toLocaleString()}` : "0"}원
+              </p>
+              <p className="mt-1 text-xs text-gray-400">완료 처리된 환불</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-4 text-center">
+              <p className="text-xs text-gray-500">실매출</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-gray-900">
+                {refundStats.netRevenue.toLocaleString()}원
+              </p>
+              <p className="mt-1 text-xs text-gray-400">통계에 반영되는 금액</p>
+            </div>
+          </div>
+
+          {/* 사유별 분포 — 품질 문제를 조기에 잡는 용도 */}
+          <div className="mt-5">
+            <h3 className="mb-2 text-sm font-semibold text-gray-700">환불 사유별 분포</h3>
+            {refundStats.byReason.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-400">해당 월 환불 내역이 없습니다.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs font-medium text-gray-500">
+                      <th className="py-2 pr-4">사유</th>
+                      <th className="py-2 pr-4 text-right">건수</th>
+                      <th className="py-2 pr-4 text-right">환불액</th>
+                      <th className="py-2 text-right">비중</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {refundStats.byReason.map((r) => (
+                      <tr key={r.code} className="border-b last:border-0">
+                        <td className="py-2 pr-4 text-gray-800">{r.label}</td>
+                        <td className="py-2 pr-4 text-right tabular-nums text-gray-600">
+                          {r.count.toLocaleString()}건
+                        </td>
+                        <td className="py-2 pr-4 text-right tabular-nums font-medium text-rose-600">
+                          {r.amount.toLocaleString()}원
+                        </td>
+                        <td className="py-2 text-right tabular-nums text-gray-500">
+                          {refundStats.refundedAmount > 0
+                            ? `${Math.round((r.amount / refundStats.refundedAmount) * 1000) / 10}%`
+                            : "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 

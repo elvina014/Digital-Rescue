@@ -9,6 +9,7 @@ import {
   getStatusBreakdown,
   getReceiptTypeBreakdown,
   getCancelStats,
+  getRefundStats,
 } from "@/app/actions/statisticsActions";
 import { StatisticsClient } from "./StatisticsClient";
 
@@ -23,7 +24,7 @@ export default async function StatisticsPage() {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
-  const [annualRevenue, dailyRevenue, techRevenue, techPerformance, brandBreakdown, statusBreakdown, receiptTypeBreakdown, cancelStats] =
+  const [annualRevenue, dailyRevenue, techRevenue, techPerformance, brandBreakdown, statusBreakdown, receiptTypeBreakdown, cancelStats, refundStats] =
     await Promise.all([
       getAnnualRevenue(currentYear),
       getMonthlyDailyRevenue(currentYear, currentMonth),
@@ -33,6 +34,7 @@ export default async function StatisticsPage() {
       getStatusBreakdown(currentYear, currentMonth),
       getReceiptTypeBreakdown(currentYear, currentMonth),
       getCancelStats(currentYear, currentMonth),
+      getRefundStats(currentYear, currentMonth),
     ]);
 
   return (
@@ -53,6 +55,7 @@ export default async function StatisticsPage() {
         statusBreakdown={statusBreakdown}
         receiptTypeBreakdown={receiptTypeBreakdown}
         cancelStats={cancelStats}
+        refundStats={refundStats}
         currentYear={currentYear}
         currentMonth={currentMonth}
       />

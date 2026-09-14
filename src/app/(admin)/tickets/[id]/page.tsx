@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentEmployee } from "@/lib/auth";
 import type { TicketStatus } from "@/types";
+import { daysSince } from "@/lib/date";
 import TicketDetailForm from "./TicketDetailForm";
 
 interface TicketDetailPageProps {
@@ -28,7 +29,8 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       id, receipt_no, is_test, status, receipt_type, device_brand, device_model, tag_info, release_year,
       symptoms, initial_estimate, expected_estimate, evaluated_value, material_cost,
       material_cost_details, final_price, is_approved, has_admin_message, images,
-      payment_status, payment_method, cancel_device_disposal, created_at, updated_at,
+      payment_status, payment_method, cash_receipt_issued, refunded_amount, completed_at,
+      cancel_device_disposal, created_at, updated_at,
       customers ( name, phone, address ),
       employees:assignee_id ( id, name )
     `
@@ -80,6 +82,57 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       inventory_products ( name )
     `)
     .order("created_at", { ascending: false });
+
+  // 환불 이력 조회 (요청자/승인자/완료자 이름 포함)
+  const { data: refundsRaw } = await supabase
+    .from("ticket_refunds")
+    .select(`
+      id, refund_no, amount, deduction_amount, deduction_note,
+      reason_code, reason_note, refund_method,
+      refund_bank, refund_account, refund_holder,
+      cash_receipt_cancel_required, cash_receipt_canceled_at,
+      parts_recovery, status, reject_note, void_note,
+      requested_at, requested_by, completed_at,
+      requester:requested_by ( name ),
+      approver:approved_by ( name ),
+      completer:completed_by ( name )
+    `)
+    .eq("ticket_id", id)
+    .order("requested_at", { ascending: false });
+
+  const refundRows = (refundsRaw ?? []).map((r) => {
+    const rec = r as Record<string, unknown>;
+    const nameOf = (v: unknown) => (v as { name: string } | null)?.name ?? null;
+    return {
+      id: rec.id as string,
+      refund_no: rec.refund_no as string,
+      amount: rec.amount as number,
+      deduction_amount: rec.deduction_amount as number,
+      deduction_note: (rec.deduction_note as string | null) ?? null,
+      reason_code: rec.reason_code as string,
+      reason_note: (rec.reason_note as string | null) ?? null,
+      refund_method: rec.refund_method as string,
+      refund_bank: (rec.refund_bank as string | null) ?? null,
+      refund_account: (rec.refund_account as string | null) ?? null,
+      refund_holder: (rec.refund_holder as string | null) ?? null,
+      cash_receipt_cancel_required: rec.cash_receipt_cancel_required as boolean,
+      cash_receipt_canceled_at: (rec.cash_receipt_canceled_at as string | null) ?? null,
+      parts_recovery: rec.parts_recovery as string,
+      status: rec.status as string,
+      reject_note: (rec.reject_note as string | null) ?? null,
+      void_note: (rec.void_note as string | null) ?? null,
+      requested_at: rec.requested_at as string,
+      requested_by: rec.requested_by as string,
+      requester_name: nameOf(rec.requester) ?? "알 수 없음",
+      approver_name: nameOf(rec.approver),
+      completed_at: (rec.completed_at as string | null) ?? null,
+      completer_name: nameOf(rec.completer),
+    };
+  });
+
+  // 완료 후 경과 일수 (환불 30일 규칙 판정용) — 서버에서 계산해 내려준다
+  const completedAtValue = (ticket as Record<string, unknown>).completed_at as string | null;
+  const daysSinceCompleted = daysSince(completedAtValue);
 
   // 글로벌 설정 조회
   const { data: globalSettings } = await supabase
@@ -183,6 +236,9 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     images: ((ticket.images ?? []) as { path: string; url: string; description?: string; uploaded_by?: string; uploader_name?: string; uploaded_at?: string; is_customer?: boolean }[]),
     payment_status: ticket.payment_status,
     payment_method: ticket.payment_method ?? null,
+    cash_receipt_issued: (ticket as Record<string, unknown>).cash_receipt_issued as boolean | null ?? null,
+    refunded_amount: (ticket as Record<string, unknown>).refunded_amount as number ?? 0,
+    completed_at: (ticket as Record<string, unknown>).completed_at as string | null ?? null,
     cancel_device_disposal: (ticket as Record<string, unknown>).cancel_device_disposal as string | null ?? null,
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
@@ -227,6 +283,8 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
         inventoryCategories={categories ?? []}
         globalSettings={globalSettingsData}
         ticketMaterials={ticketMaterialRows}
+        refunds={refundRows}
+        daysSinceCompleted={daysSinceCompleted}
       />
     </div>
   );

@@ -32,3 +32,12 @@ export function formatDateTime(iso: string): string {
 export function formatShortDateTime(iso: string): string {
   return shortDateTimeFmt.format(new Date(iso));
 }
+
+/**
+ * 기준 시각으로부터 지금까지 지난 일수.
+ * 컴포넌트 렌더 안에서 Date.now()를 직접 부르면 순수성 규칙에 걸리므로 이 함수를 쓴다.
+ */
+export function daysSince(iso: string | null): number {
+  if (!iso) return 0;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+}

@@ -71,6 +71,10 @@ export enum ItemCondition {
 export enum PaymentStatus {
   PENDING = "PENDING",
   PAID = "PAID",
+  /** 일부 금액 환불됨 */
+  PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED",
+  /** 전액 환불됨 (거래 종결) */
+  REFUNDED = "REFUNDED",
 }
 
 /** 기기 유형 */
@@ -91,4 +95,58 @@ export enum MaterialRequestStatus {
   REJECTED = "rejected",
   CANCEL_REQUESTED = "cancel_requested",
   CANCELLED = "cancelled",
+}
+
+/** 환불 사유 코드 */
+export enum RefundReason {
+  /** 수리 품질 하자 · 증상 재발 (회사 귀책) */
+  QUALITY = "QUALITY",
+  /** 수리 실패 · 원상복구 (회사 귀책) */
+  REPAIR_FAILED = "REPAIR_FAILED",
+  /** 과다 · 오청구 (회사 귀책) */
+  OVERCHARGE = "OVERCHARGE",
+  /** 중복 결제 (회사 귀책) */
+  DUPLICATE = "DUPLICATE",
+  /** 고객 불만 · 응대 문제 (협의) */
+  COMPLAINT = "COMPLAINT",
+  /** 고객 단순 변심 (고객 귀책) */
+  CHANGE_MIND = "CHANGE_MIND",
+  /** 기타 (상세 사유 필수) */
+  OTHER = "OTHER",
+}
+
+/** 환불 실행 방법 */
+export enum RefundMethod {
+  /** 카드 승인취소 (전액) */
+  CARD_CANCEL = "CARD_CANCEL",
+  /** 카드 부분취소 */
+  CARD_PARTIAL_CANCEL = "CARD_PARTIAL_CANCEL",
+  /** 계좌 송금 */
+  BANK_REFUND = "BANK_REFUND",
+  /** 현금 반환 */
+  CASH = "CASH",
+}
+
+/** 환불 처리 단계 */
+export enum RefundStatus {
+  /** 요청됨 (CS · 팀장 · 관리자) */
+  REQUESTED = "REQUESTED",
+  /** 승인됨 (팀장 · 관리자) */
+  APPROVED = "APPROVED",
+  /** 완료됨 — 이 시점에만 매출에서 차감된다 */
+  COMPLETED = "COMPLETED",
+  /** 반려됨 */
+  REJECTED = "REJECTED",
+  /** 무효처리 (오등록 정정, 관리자 전용) */
+  VOID = "VOID",
+}
+
+/** 환불 시 부품 회수 여부 */
+export enum PartsRecovery {
+  /** 회수함 — 적출품 등록 프로세스로 재고 복구 */
+  RECOVERED = "RECOVERED",
+  /** 회수 안 함 — 자재비 공제 또는 손실 처리 */
+  NOT_RECOVERED = "NOT_RECOVERED",
+  /** 해당 없음 — 회수 대상 부품이 없는 건 */
+  NONE = "NONE",
 }

@@ -70,6 +70,7 @@ export default async function TicketsPage({
       final_price,
       is_approved,
       payment_status,
+      refunded_amount,
       received_at,
       created_at,
       updated_at,
@@ -198,6 +199,10 @@ export default async function TicketsPage({
                 const assignee = ticket.employees as unknown as {
                   name: string;
                 } | null;
+                const refundedAmount =
+                  ((ticket as Record<string, unknown>).refunded_amount as number) ?? 0;
+                const isFullyRefunded =
+                  refundedAmount > 0 && refundedAmount >= ticket.final_price;
 
                 return (
                   <tr
@@ -255,6 +260,22 @@ export default async function TicketsPage({
                       {ticket.final_price > 0
                         ? `${ticket.final_price.toLocaleString()}원`
                         : "-"}
+                      {refundedAmount > 0 && (
+                        <>
+                          <span
+                            className={`ml-1.5 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                              isFullyRefunded
+                                ? "bg-rose-100 text-rose-700"
+                                : "bg-amber-100 text-amber-800"
+                            }`}
+                          >
+                            {isFullyRefunded ? "환불" : "부분환불"}
+                          </span>
+                          <span className="block text-xs text-rose-700">
+                            -{refundedAmount.toLocaleString()}원
+                          </span>
+                        </>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-gray-500">
                       {formatDateTime(ticket.created_at)}

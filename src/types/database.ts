@@ -10,6 +10,10 @@ import {
   TicketStatus,
   DeviceType,
   MaterialRequestStatus,
+  RefundReason,
+  RefundMethod,
+  RefundStatus,
+  PartsRecovery,
 } from "./enums";
 
 /** 직원 테이블 (employees) - Supabase Auth와 1:1 매핑 */
@@ -62,6 +66,12 @@ export interface RepairTicket {
   payment_status: PaymentStatus;
   /** 결제 방식 (CARD, BANK_TRANSFER, E_PAYMENT) */
   payment_method: string | null;
+  /** 결제 완료 시각 (최종 승인 시 기록) */
+  paid_at: string | null;
+  /** 현금영수증 발급 여부 (계좌이체 건만 입력. NULL=해당없음 또는 미확인) */
+  cash_receipt_issued: boolean | null;
+  /** 누적 환불액 (COMPLETED 환불의 합계). 트리거가 갱신하므로 직접 쓰지 않는다 */
+  refunded_amount: number;
   /** 가치평가금액 */
   evaluated_value: number;
   /** 최소견적금액 */
@@ -137,6 +147,58 @@ export interface InventoryItem {
   quantity: number;
   /** 기초견적 금액 (원) */
   base_estimate: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** 환불 원장 (ticket_refunds) — append-only. 수정·삭제하지 않는다 */
+export interface TicketRefund {
+  id: string; // UUID
+  ticket_id: string; // FK → repair_tickets.id
+  /** 사람이 읽는 환불번호 (R-YYYYMMDD-NNN, 한국시간 기준, 일별 리셋) */
+  refund_no: string;
+  /** 실제 고객에게 돌려주는 금액 */
+  amount: number;
+  /** 공제액 (회수 불가 자재비 · 외주비 등) */
+  deduction_amount: number;
+  /** 공제 사유 (공제액 > 0이면 필수) */
+  deduction_note: string | null;
+  reason_code: RefundReason;
+  /** 상세 사유 (OTHER면 필수) */
+  reason_note: string | null;
+  /** 원 결제수단 스냅샷 (CARD, BANK_TRANSFER, E_PAYMENT) */
+  origin_payment_method: string;
+  refund_method: RefundMethod;
+  /** 계좌 송금(BANK_REFUND)일 때만 값이 있다 */
+  refund_bank: string | null;
+  refund_account: string | null;
+  refund_holder: string | null;
+  /** 원 거래가 현금영수증 발급 건이면 true — 취소 확인 전에는 완료 불가 */
+  cash_receipt_cancel_required: boolean;
+  cash_receipt_canceled_at: string | null;
+  parts_recovery: PartsRecovery;
+  status: RefundStatus;
+  /** 증빙 이미지 목록 (repair_tickets.images와 동일 구조) */
+  evidence: {
+    url: string;
+    path: string;
+    description?: string;
+    uploaded_by?: string;
+    uploader_name?: string;
+    uploaded_at?: string;
+  }[];
+  requested_by: string; // FK → employees.id
+  requested_at: string;
+  approved_by: string | null;
+  approved_at: string | null;
+  completed_by: string | null;
+  completed_at: string | null;
+  rejected_by: string | null;
+  rejected_at: string | null;
+  reject_note: string | null;
+  voided_by: string | null;
+  voided_at: string | null;
+  void_note: string | null;
   created_at: string;
   updated_at: string;
 }

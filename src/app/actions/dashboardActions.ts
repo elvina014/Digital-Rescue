@@ -52,6 +52,7 @@ type TicketRow = {
   status: string;
   receipt_type: string;
   final_price: number | null;
+  refunded_amount: number | null;
   material_cost: number | null;
   created_at: string;
   completed_at: string | null;
@@ -71,7 +72,7 @@ export async function getDashboardStats(
   const { data: tickets } = await supabase
     .from("repair_tickets")
     .select(
-      "status, receipt_type, final_price, material_cost, created_at, " +
+      "status, receipt_type, final_price, refunded_amount, material_cost, created_at, " +
       "completed_at, canceled_at, received_at, assignee_id, has_admin_message, id"
     )
     .eq("is_test", false) as unknown as { data: TicketRow[] | null };
@@ -122,16 +123,20 @@ export async function getDashboardStats(
   );
   const thisMonthCompletedCount = completedThisMonth.length;
 
-  // 6) 이번 달 예상 매출: 당월 완료건의 final_price 합계
+  // 6) 이번 달 예상 매출: 당월 완료건의 실매출(final_price - 환불액) 합계
   const monthlyRevenue = completedThisMonth.reduce(
-    (sum, t) => sum + ((t.final_price as number | null) ?? 0),
+    (sum, t) =>
+      sum + (((t.final_price as number | null) ?? 0) - ((t.refunded_amount as number | null) ?? 0)),
     0
   );
 
-  // 7) 이번 달 예상 수익: (final_price - material_cost) 합계
+  // 7) 이번 달 예상 수익: (실매출 - material_cost) 합계
   const monthlyProfit = completedThisMonth.reduce(
     (sum, t) =>
-      sum + (((t.final_price as number | null) ?? 0) - ((t.material_cost as number | null) ?? 0)),
+      sum +
+      (((t.final_price as number | null) ?? 0) -
+        ((t.refunded_amount as number | null) ?? 0) -
+        ((t.material_cost as number | null) ?? 0)),
     0
   );
 

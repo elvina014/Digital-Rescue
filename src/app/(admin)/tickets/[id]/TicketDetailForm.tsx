@@ -30,6 +30,7 @@ import AddMaterialCard, { type InsertedMaterial } from "./AddMaterialCard";
 
 
 import { formatDateTime } from "@/lib/date";
+import RefundCard, { type RefundRow } from "./RefundCard";
 
 interface TicketData {
   id: string;
@@ -53,6 +54,12 @@ interface TicketData {
   images: TicketImage[];
   payment_status: string;
   payment_method: string | null;
+  /** 현금영수증 발급 여부 (계좌이체 건만. null = 해당없음 또는 미확인) */
+  cash_receipt_issued: boolean | null;
+  /** 누적 환불액 (COMPLETED 환불 합계) */
+  refunded_amount: number;
+  /** 완료(최종 승인) 시각 */
+  completed_at: string | null;
   cancel_device_disposal: string | null;
   created_at: string;
   updated_at: string;
@@ -129,6 +136,8 @@ interface TicketDetailFormProps {
   inventoryCategories: CategoryOption[];
   globalSettings: GlobalSettingsData;
   ticketMaterials: TicketMaterialRow[];
+  refunds: RefundRow[];
+  daysSinceCompleted: number;
 }
 
 const RECEIPT_LABEL: Record<string, string> = {
@@ -148,6 +157,8 @@ export default function TicketDetailForm({
   inventoryCategories,
   globalSettings,
   ticketMaterials: initialMaterials,
+  refunds,
+  daysSinceCompleted,
 }: TicketDetailFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -156,6 +167,7 @@ export default function TicketDetailForm({
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [deviceDisposal, setDeviceDisposal] = useState<"RETURN" | "DISPOSE" | "">("");
   const [currentReceiptType, setCurrentReceiptType] = useState(ticket.receipt_type);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
 
   // 서버 데이터 재검증 시 props 변경을 동기화
   useEffect(() => {
@@ -869,12 +881,40 @@ export default function TicketDetailForm({
                   { value: "E_PAYMENT", label: "간편결제" },
                 ] as const).map((opt) => (
                   <label key={opt.value} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
-                    <input type="radio" name="paymentMethod" value={opt.value} required className="accent-orange-500" />
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value={opt.value}
+                      required
+                      onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                      className="accent-orange-500"
+                    />
                     {opt.label}
                   </label>
                 ))}
               </div>
             </fieldset>
+
+            {/* 현금영수증 발급 여부 (계좌이체 전용 — 환불 시 취소 처리 판단 근거) */}
+            {selectedPaymentMethod === "BANK_TRANSFER" && (
+              <fieldset>
+                <legend className="mb-2 text-sm font-medium text-gray-700">현금영수증 발급 여부</legend>
+                <div className="flex flex-wrap gap-4">
+                  {([
+                    { value: "Y", label: "발급" },
+                    { value: "N", label: "미발급" },
+                  ] as const).map((opt) => (
+                    <label key={opt.value} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                      <input type="radio" name="cashReceiptIssued" value={opt.value} required className="accent-orange-500" />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  환불이 발생하면 발급 건은 현금영수증 취소 처리가 필요합니다.
+                </p>
+              </fieldset>
+            )}
 
             {/* 최종 견적 */}
             <div>
@@ -942,12 +982,42 @@ export default function TicketDetailForm({
                 {ticket.final_price > 0 ? `${ticket.final_price.toLocaleString()}원` : "-"}
               </dd>
             </div>
+            {ticket.refunded_amount > 0 && (
+              <>
+                <div>
+                  <dt className="text-xs font-medium text-gray-500">환불액</dt>
+                  <dd className="mt-0.5 text-sm font-semibold tabular-nums text-rose-700">
+                    -{ticket.refunded_amount.toLocaleString()}원
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium text-gray-500">실매출</dt>
+                  <dd className="mt-0.5 text-sm font-semibold tabular-nums text-gray-900">
+                    {(ticket.final_price - ticket.refunded_amount).toLocaleString()}원
+                  </dd>
+                </div>
+              </>
+            )}
             <div>
               <dt className="text-xs font-medium text-gray-500">결제 방식</dt>
               <dd className="mt-0.5 text-sm text-gray-900">
                 {ticket.payment_method === "CARD" ? "카드결제" : ticket.payment_method === "BANK_TRANSFER" ? "계좌이체" : ticket.payment_method === "E_PAYMENT" ? "간편결제" : "-"}
               </dd>
             </div>
+            {ticket.payment_method === "BANK_TRANSFER" && (
+              <div>
+                <dt className="text-xs font-medium text-gray-500">현금영수증</dt>
+                <dd className="mt-0.5 text-sm text-gray-900">
+                  {ticket.cash_receipt_issued === true ? (
+                    "발급"
+                  ) : ticket.cash_receipt_issued === false ? (
+                    "미발급"
+                  ) : (
+                    <span className="text-amber-600">확인 필요</span>
+                  )}
+                </dd>
+              </div>
+            )}
             <div>
               <dt className="text-xs font-medium text-gray-500">승인 상태</dt>
               <dd className="mt-0.5 text-sm">
@@ -1000,6 +1070,18 @@ export default function TicketDetailForm({
           )}
         </section>
       )}
+
+      {/* 환불 (완료 건 전용) */}
+      <RefundCard
+        ticketId={ticket.id}
+        ticketStatus={ticket.status}
+        finalPrice={ticket.final_price}
+        paymentMethod={ticket.payment_method}
+        cashReceiptIssued={ticket.cash_receipt_issued}
+        daysSinceCompleted={daysSinceCompleted}
+        currentEmployee={currentEmployee}
+        refunds={refunds}
+      />
 
       {/* 최종 승인 버튼 (MANAGER / ADMIN) */}
       {canApprove && (() => {

@@ -1,0 +1,181 @@
+# 환불 정책 (Refund Policy)
+
+완료된 접수건의 결제 금액을 되돌리는 처리에 대한 규정이다.
+카드·계좌이체 두 결제수단의 전액/부분 환불을 모두 다룬다.
+
+구현 위치: 마이그레이션 `035`~`040`, `src/app/(admin)/tickets/actions.ts`,
+`src/app/(admin)/tickets/[id]/RefundCard.tsx`, `src/components/common/RefundApprovalWidget.tsx`
+
+---
+
+## 1. 기본 원칙
+
+1. **완료 상태는 건드리지 않는다.** 환불은 `CANCELED`로의 상태 변경이 아니라 별도 환불 원장(`ticket_refunds`)에 기록한다.
+   수리 완료·출고는 실제로 일어난 사실이므로 그대로 남기고, 매출은 `final_price − refunded_amount`로 계산한다.
+   (`CANCELED`는 수리 전 반출 전용이며 완료 건에는 쓰지 않는다.)
+
+2. **1 환불 = 1 레코드.** 부분 환불은 여러 번 발생할 수 있으며, 누적 환불액은 `final_price`를 초과할 수 없다.
+   DB `CHECK` 제약과 RPC 검증으로 이중 차단한다.
+
+3. **원장은 append-only.** 수정·삭제하지 않는다. 잘못 등록한 건은 `VOID` 레코드로 무효화한 뒤 새로 등록해 감사 추적을 보존한다.
+
+4. **모든 환불은 요청 → 승인 → 완료 3단계를 거친다.** 자기 요청을 자기가 승인할 수 없다(ADMIN 예외).
+
+5. **환불 완료는 거래의 최종 종결이다.** 환불된 건에 대한 재수리·재접수 요청은 받지 않는다.
+   시스템에도 재개 경로를 두지 않으며, 전액 환불된 건에 추가 환불을 요청하면 RPC가 거부한다.
+
+---
+
+## 2. 환불 사유 코드
+
+| 코드 | 사유 | 귀책 | 공제 적용 |
+| --- | --- | --- | --- |
+| `QUALITY` | 수리 품질 하자 · 증상 재발 | 회사 | 공제 없음 |
+| `REPAIR_FAILED` | 수리 실패 · 원상복구 | 회사 | 공제 없음 |
+| `OVERCHARGE` | 과다 · 오청구 | 회사 | 공제 없음 |
+| `DUPLICATE` | 중복 결제 | 회사 | 공제 없음 |
+| `COMPLAINT` | 고객 불만 · 응대 문제 | 협의 | 팀장 재량 · 사유 필수 |
+| `CHANGE_MIND` | 고객 단순 변심 | 고객 | 공제 가능 |
+| `OTHER` | 기타 | — | 상세 사유 필수 입력 |
+
+---
+
+## 3. 결제수단 × 환불범위 매트릭스
+
+| # | 원 결제 | 범위 | 환불 방법 | 필수 후속처리 |
+| --- | --- | --- | --- | --- |
+| 1 | 카드 | 전액 | `CARD_CANCEL` (승인취소) | 취소전표 증빙. 매입 이후 건은 매출취소로 처리. 세무 후속처리 불필요 |
+| 2 | 계좌이체 + 현금영수증 **발급** | 전액 | `BANK_REFUND` (계좌 송금) | **현금영수증 발급취소 필수.** 취소 확인 없이는 완료 처리 차단 |
+| 3 | 계좌이체 + 현금영수증 **미발급** | 전액 | `BANK_REFUND` | 환불 계좌(은행·계좌번호·예금주) 필수. 세무 후속처리 없음 |
+| 4 | 카드 | 부분 | `CARD_PARTIAL_CANCEL` (부분취소) | 부분취소 지원 확인됨. 부분 취소전표 증빙. 잔여 승인건은 유지 |
+| 5 | 계좌이체 | 부분 | `BANK_REFUND` | 현금영수증 발급 건이면 부분 취소. 미발급이면 후속처리 없음 |
+
+`CARD_CANCEL`(전액 승인취소)은 결제 전액을 환불할 때만 선택할 수 있다. 부분 환불은 `CARD_PARTIAL_CANCEL`을 쓴다.
+
+### 현금영수증 기록 시점
+
+현금영수증 발급 여부는 **결제 시점(견적 확정)** 에만 기록한다.
+견적 확정 폼에서 계좌이체를 선택하면 발급 여부 입력이 필수가 되며, `repair_tickets.cash_receipt_issued`에 저장된다.
+
+이 기능 도입(마이그레이션 `035`) 이전에 완료된 계좌이체 건은 값이 `NULL`이다.
+해당 건의 환불 화면에는 "확인 필요" 경고만 표시하고 시스템이 취소 처리를 강제하지 않는다 — 담당자가 홈택스에서 직접 확인한다.
+
+---
+
+## 4. 환불 가능액 산정
+
+```
+환불가능액 = final_price − 기환불·처리중 합계 − 공제액
+```
+
+- 처리 중(`REQUESTED`·`APPROVED`)인 환불도 한도에 포함해 중복 요청으로 초과 환불되는 것을 막는다.
+- **회사 귀책**(`QUALITY`·`REPAIR_FAILED`·`OVERCHARGE`·`DUPLICATE`) → 공제 없이 전액 환불이 원칙.
+- **고객 귀책**(`CHANGE_MIND`) → 회수 불가 자재비·외주비·출장/퀵/택배비·진단비를 공제할 수 있다.
+- **협의**(`COMPLAINT`) → 공제 여부는 팀장 재량이되, 공제 시 사유를 반드시 기재한다.
+- 환불 후 실수령액이 `initial_estimate`(시스템 최소 견적) 아래로 내려가는 것은 **허용한다.**
+  하한선 규칙은 견적 산정용이지 환불 제한용이 아니며, 승인 절차가 통제 역할을 대신한다.
+
+---
+
+## 5. 부품 · 자재 처리
+
+환불 등록 시 부품 회수 여부를 케이스별로 선택한다 (`parts_recovery`).
+
+| 값 | 의미 | 후속 처리 | 재고 영향 |
+| --- | --- | --- | --- |
+| `RECOVERED` | 회수함 (기기에서 원복) | 기존 적출품 등록 프로세스(`ticket_materials.return_*`)로 관리자 입고 승인 | 재고 복구 |
+| `NOT_RECOVERED` | 회수 안 함 (고객 계속 사용) | 자재비를 공제액으로 입력하거나 회사 손실로 명시 처리 | 변동 없음 |
+| `NONE` | 해당 없음 | 소프트웨어 작업·진단만 수행해 회수 대상 부품이 없는 건 | 변동 없음 |
+
+외주비(`spec_name = '외주'`)는 이미 지급이 끝나 회수가 불가능하므로 원칙적으로 공제 대상이며, 회수 선택지에서 제외한다.
+
+---
+
+## 6. 권한 및 절차
+
+### 상태 흐름
+
+```
+REQUESTED ──▶ APPROVED ──▶ COMPLETED
+    │             │
+    ▼             ▼
+ REJECTED       VOID  ◀── COMPLETED
+```
+
+`COMPLETED`로 전환되는 시점에 비로소 매출에서 차감된다. 요청·승인 단계의 금액은 "환불 예정"으로만 표시한다.
+
+### 직급별 권한
+
+| 직급 | 요청 | 승인 · 반려 | 완료 표시 | 무효처리 | 조회 |
+| --- | --- | --- | --- | --- | --- |
+| `ADMIN` (관리자) | ✅ | ✅ | ✅ | ✅ | 전체 |
+| `MANAGER` (팀장) | ✅ | ✅ | ✅ | ❌ | 전체 |
+| `CS` (고객서비스) | ✅ | ❌ | ✅ | ❌ | 전체 |
+| `TECHNICIAN` · `EXPERT_REPAIR` | ❌ | ❌ | ❌ | ❌ | 본인 배정 건 |
+| `RECEPTION` (접수처) | ❌ | ❌ | ❌ | ❌ | 전체 |
+
+- 자기 요청 자기 승인 금지 (ADMIN 예외)
+- 반려·무효처리는 사유 입력 필수
+- 무효처리는 `APPROVED` 또는 `COMPLETED` 상태에서만 가능
+
+### 기한
+
+완료일(`completed_at`) 기준 **30일 이내**는 일반 처리.
+30일을 넘긴 건은 화면에 경고를 띄우고 **ADMIN만 요청할 수 있다.**
+
+---
+
+## 7. 개인정보 및 증빙
+
+- **환불 계좌정보**(`refund_bank`·`refund_account`·`refund_holder`)는 `BANK_REFUND`에만 입력한다.
+  그 외 환불 방법에서는 반드시 비어 있어야 한다 (`chk_refund_bank_fields` 제약).
+  목록·통계 화면에는 노출하지 않는다.
+- **증빙**(`evidence` JSONB) — 카드 취소전표, 이체확인증, 현금영수증 취소 내역을 첨부한다.
+  구조는 `repair_tickets.images`와 동일하다.
+
+---
+
+## 8. 매출 반영 기준
+
+환불은 **원 매출이 잡힌 월에서 소급 차감**된다.
+즉 접수건의 `completed_at`이 속한 월의 매출이 `final_price − refunded_amount`로 다시 계산된다.
+환불이 몇 달 뒤에 발생해도 원 매출 월의 숫자가 바뀐다.
+
+반영 지점:
+
+- `getAnnualRevenue` / `getMonthlyDailyRevenue` / `getTechnicianMonthlyRevenue` — 순매출로 집계
+- `getTechnicianPerformance` — 매출과 초과달성(upsell) 모두 순매출 기준.
+  전액 환불된 건은 매출도 초과달성도 0이 된다.
+- `getDashboardStats` — 이번 달 예상매출·예상수익에서 차감
+- `getRefundStats` — 환불율(환불액 ÷ 총매출) 및 사유별 분포
+
+---
+
+## 9. 구현 메모
+
+### 쓰기는 RPC로만
+
+`ticket_refunds`에는 **SELECT 정책만** 존재한다. INSERT/UPDATE/DELETE 정책을 만들지 않음으로써
+직접 조작을 원천 차단하고, 모든 쓰기는 `SECURITY DEFINER` RPC를 거치게 한다.
+
+- `request_refund(...)` — 환불 요청 (권한·상태·금액·수단 정합성 검증)
+- `transition_refund(refund_id, action, note, cash_receipt_canceled)` — `APPROVE`/`REJECT`/`COMPLETE`/`VOID`
+
+두 함수 모두 `auth.uid()`로 요청자를 식별한다.
+따라서 Server Action에서 **`createAdminClient()`를 쓰면 안 된다** — service_role은 `auth.uid()`가 `NULL`이라 전부 인증 실패로 막힌다.
+반드시 `createClient()`(로그인 세션)로 호출한다.
+
+### 보호 트리거 우회
+
+`sync_ticket_refunded_amount()` 트리거가 승인 완료된 티켓의 `refunded_amount`·`payment_status`를 갱신해야 하는데,
+`SECURITY DEFINER`라 `auth.uid()`가 `NULL`이 되어 `protect_approved_ticket`에 막힌다.
+
+트랜잭션 로컬 GUC `app.refund_sync`를 세워 이 경로만 통과시킨다.
+컬럼 비교 방식(034의 `has_admin_message` 패턴)을 쓰지 않은 이유는, 그렇게 하면
+CS가 `payment_status`를 임의로 조작할 여지가 생기기 때문이다. 트랜잭션 로컬이라 밖에서 켜둔 채 유지할 수 없다.
+
+### 권한 검증 위치
+
+직급·단계·금액 검증은 **전부 RPC 안에 있다.** Server Action에서 다시 검사하지 않는다.
+두 곳으로 갈라지면 규칙이 어긋날 수 있어서다. 액션은 인증만 확인하고(로그 작성에 `employee.id`가 필요) 나머지는 RPC에 위임한다.
+RPC의 `RAISE EXCEPTION` 메시지는 그대로 화면에 보여줄 수 있는 한국어 안내문이다.

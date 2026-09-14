@@ -16,6 +16,24 @@ function monthRange(year: number, month: number) {
   };
 }
 
+const REFUND_REASON_LABELS: Record<string, string> = {
+  QUALITY: "수리 품질 하자",
+  REPAIR_FAILED: "수리 실패",
+  OVERCHARGE: "과다·오청구",
+  DUPLICATE: "중복 결제",
+  COMPLAINT: "고객 불만",
+  CHANGE_MIND: "고객 단순 변심",
+  OTHER: "기타",
+};
+
+/**
+ * 접수건의 실매출 = 최종 견적 − 누적 환불액.
+ * 환불은 원 매출이 잡힌 월(completed_at)에서 차감된다.
+ */
+function netRevenue(t: { final_price: number | null; refunded_amount?: number | null }): number {
+  return (t.final_price ?? 0) - (t.refunded_amount ?? 0);
+}
+
 // ─── 타입 정의 ────────────────────────────────────────────────
 
 export interface MonthlyRevenueData {
@@ -44,6 +62,29 @@ export interface TechnicianPerformanceData {
   totalRevenue: number;
   upsellAmount: number;
   upsellCount: number;
+}
+
+export interface RefundReasonBreakdown {
+  code: string;
+  label: string;
+  count: number;
+  amount: number;
+}
+
+export interface RefundStatsData {
+  /** 환불 전 총매출 (완료건 final_price 합계) */
+  grossRevenue: number;
+  /** 환불액 합계 */
+  refundedAmount: number;
+  /** 실매출 */
+  netRevenue: number;
+  /** 환불율 (%) — 환불액 ÷ 총매출 */
+  refundRate: number;
+  /** 환불이 발생한 접수건 수 */
+  refundedTicketCount: number;
+  /** 해당 월 완료건 수 */
+  completedCount: number;
+  byReason: RefundReasonBreakdown[];
 }
 
 export interface BrandBreakdownData {
@@ -128,10 +169,10 @@ export async function getAnnualRevenue(year: number): Promise<MonthlyRevenueData
 
   const { data } = await supabase
     .from("repair_tickets")
-    .select("final_price, completed_at")
+    .select("final_price, refunded_amount, completed_at")
     .eq("is_test", false)
     .eq("status", "COMPLETED")
-    .gte("completed_at", start) as unknown as { data: { final_price: number | null; completed_at: string | null }[] | null };
+    .gte("completed_at", start) as unknown as { data: { final_price: number | null; refunded_amount: number | null; completed_at: string | null }[] | null };
 
   const monthMap: Record<number, number> = {};
   for (const t of data ?? []) {
@@ -139,7 +180,7 @@ export async function getAnnualRevenue(year: number): Promise<MonthlyRevenueData
     const m = new Date(t.completed_at).getMonth() + 1;
     // 해당 연도 데이터만 포함
     if (new Date(t.completed_at).getFullYear() !== year) continue;
-    monthMap[m] = (monthMap[m] ?? 0) + ((t.final_price as number) ?? 0);
+    monthMap[m] = (monthMap[m] ?? 0) + netRevenue(t);
   }
 
   return Array.from({ length: 12 }, (_, i) => ({
@@ -158,18 +199,18 @@ export async function getMonthlyDailyRevenue(year: number, month: number): Promi
 
   const { data } = await supabase
     .from("repair_tickets")
-    .select("final_price, completed_at")
+    .select("final_price, refunded_amount, completed_at")
     .eq("is_test", false)
     .eq("status", "COMPLETED")
     .gte("completed_at", start)
-    .lt("completed_at", end) as unknown as { data: { final_price: number | null; completed_at: string | null }[] | null };
+    .lt("completed_at", end) as unknown as { data: { final_price: number | null; refunded_amount: number | null; completed_at: string | null }[] | null };
 
   const daysInMonth = new Date(year, month, 0).getDate();
   const dayMap: Record<number, number> = {};
   for (const t of data ?? []) {
     if (!t.completed_at) continue;
     const day = new Date(t.completed_at).getDate();
-    dayMap[day] = (dayMap[day] ?? 0) + ((t.final_price as number) ?? 0);
+    dayMap[day] = (dayMap[day] ?? 0) + netRevenue(t);
   }
 
   return Array.from({ length: daysInMonth }, (_, i) => ({
@@ -188,12 +229,12 @@ export async function getTechnicianMonthlyRevenue(year: number, month: number): 
 
   const { data } = await supabase
     .from("repair_tickets")
-    .select("final_price, assignee_id, completed_at, employees:assignee_id ( name )")
+    .select("final_price, refunded_amount, assignee_id, completed_at, employees:assignee_id ( name )")
     .eq("is_test", false)
     .eq("status", "COMPLETED")
     .gte("completed_at", start)
     .lt("completed_at", end)
-    .not("assignee_id", "is", null) as unknown as { data: { final_price: number | null; assignee_id: string | null; completed_at: string | null; employees: { name: string } | { name: string }[] | null }[] | null };
+    .not("assignee_id", "is", null) as unknown as { data: { final_price: number | null; refunded_amount: number | null; assignee_id: string | null; completed_at: string | null; employees: { name: string } | { name: string }[] | null }[] | null };
 
   const map: Record<string, { name: string; revenue: number; count: number }> = {};
   for (const t of data ?? []) {
@@ -201,7 +242,7 @@ export async function getTechnicianMonthlyRevenue(year: number, month: number): 
     const emp = Array.isArray(t.employees) ? t.employees[0] : t.employees;
     const name = (emp as { name: string } | null)?.name ?? "미지정";
     if (!map[id]) map[id] = { name, revenue: 0, count: 0 };
-    map[id].revenue += (t.final_price as number) ?? 0;
+    map[id].revenue += netRevenue(t);
     map[id].count += 1;
   }
 
@@ -220,7 +261,7 @@ export async function getTechnicianPerformance(year: number, month: number): Pro
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any)
     .from("repair_tickets")
-    .select("final_price, minimum_estimate, assignee_id, employees:assignee_id ( name )")
+    .select("final_price, refunded_amount, minimum_estimate, assignee_id, employees:assignee_id ( name )")
     .eq("is_test", false)
     .eq("status", "COMPLETED")
     .not("assignee_id", "is", null)
@@ -232,14 +273,15 @@ export async function getTechnicianPerformance(year: number, month: number): Pro
     { name: string; completedCount: number; totalRevenue: number; upsellAmount: number; upsellCount: number }
   > = {};
 
-  for (const t of (data ?? []) as { final_price: number | null; minimum_estimate: number | null; assignee_id: string; employees: { name: string } | { name: string }[] | null }[]) {
+  for (const t of (data ?? []) as { final_price: number | null; refunded_amount: number | null; minimum_estimate: number | null; assignee_id: string; employees: { name: string } | { name: string }[] | null }[]) {
     const id = t.assignee_id;
     const emp2 = Array.isArray(t.employees) ? t.employees[0] : t.employees;
     const name = (emp2 as { name: string } | null)?.name ?? "미지정";
     if (!map[id]) {
       map[id] = { name, completedCount: 0, totalRevenue: 0, upsellAmount: 0, upsellCount: 0 };
     }
-    const fp = t.final_price ?? 0;
+    // 환불된 금액은 성과로 잡지 않는다 (전액 환불 건은 매출·초과달성 모두 0)
+    const fp = netRevenue(t);
     const me = t.minimum_estimate ?? 0;
     map[id].completedCount += 1;
     map[id].totalRevenue += fp;
@@ -451,4 +493,64 @@ export async function getCancelStats(year: number, month: number): Promise<Cance
     receivedCount,
     byTechnician,
   };
+}
+
+/**
+ * 선택 연/월 기준 환불율 분석 — 접수건의 completed_at 기준
+ *
+ * 매출 집계와 같은 기준을 쓴다: 환불은 원 매출이 잡힌 월에서 차감되므로,
+ * 그 달에 완료된 접수건의 누적 환불액을 그 달의 환불로 본다.
+ */
+export async function getRefundStats(year: number, month: number): Promise<RefundStatsData> {
+  const supabase = await createClient();
+  const { start, end } = monthRange(year, month);
+
+  const { data: tickets } = await supabase
+    .from("repair_tickets")
+    .select("id, final_price, refunded_amount")
+    .eq("is_test", false)
+    .eq("status", "COMPLETED")
+    .gte("completed_at", start)
+    .lt("completed_at", end) as unknown as {
+      data: { id: string; final_price: number | null; refunded_amount: number | null }[] | null;
+    };
+
+  const rows = tickets ?? [];
+  const grossRevenue = rows.reduce((sum, t) => sum + (t.final_price ?? 0), 0);
+  const refundedAmount = rows.reduce((sum, t) => sum + (t.refunded_amount ?? 0), 0);
+  const refundedTicketIds = rows.filter((t) => (t.refunded_amount ?? 0) > 0).map((t) => t.id);
+
+  const empty: RefundStatsData = {
+    grossRevenue,
+    refundedAmount,
+    netRevenue: grossRevenue - refundedAmount,
+    refundRate: grossRevenue > 0 ? Math.round((refundedAmount / grossRevenue) * 1000) / 10 : 0,
+    refundedTicketCount: refundedTicketIds.length,
+    completedCount: rows.length,
+    byReason: [],
+  };
+
+  if (refundedTicketIds.length === 0) return empty;
+
+  // 사유별 분포는 환불이 실제로 있는 건만 조회한다
+  const { data: refunds } = await supabase
+    .from("ticket_refunds")
+    .select("reason_code, amount")
+    .eq("status", "COMPLETED")
+    .in("ticket_id", refundedTicketIds) as unknown as {
+      data: { reason_code: string; amount: number }[] | null;
+    };
+
+  const reasonMap: Record<string, { count: number; amount: number }> = {};
+  for (const r of refunds ?? []) {
+    if (!reasonMap[r.reason_code]) reasonMap[r.reason_code] = { count: 0, amount: 0 };
+    reasonMap[r.reason_code].count += 1;
+    reasonMap[r.reason_code].amount += r.amount ?? 0;
+  }
+
+  const byReason = Object.entries(reasonMap)
+    .map(([code, v]) => ({ code, label: REFUND_REASON_LABELS[code] ?? code, ...v }))
+    .sort((a, b) => b.amount - a.amount);
+
+  return { ...empty, byReason };
 }

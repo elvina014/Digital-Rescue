@@ -2,12 +2,13 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentEmployee } from "@/lib/auth";
 import { getDashboardStats, getRecentLogs } from "@/app/actions/dashboardActions";
-import { getPendingMaterialRequests, getCancelRequestedMaterials, getPendingReturnMaterials, getDisposalPendingTickets } from "@/app/(admin)/tickets/actions";
+import { getPendingMaterialRequests, getCancelRequestedMaterials, getPendingReturnMaterials, getDisposalPendingTickets, getPendingRefunds } from "@/app/(admin)/tickets/actions";
 import type { EmployeeRole } from "@/types";
 import MaterialDispatchWidget from "@/components/common/MaterialDispatchWidget";
 import MaterialReturnWidget from "@/components/common/MaterialReturnWidget";
 import ReturnMaterialInboundWidget from "@/components/common/ReturnMaterialInboundWidget";
 import DisposalConfirmWidget from "@/components/common/DisposalConfirmWidget";
+import RefundApprovalWidget from "@/components/common/RefundApprovalWidget";
 import {
   ClipboardList,
   PlusCircle,
@@ -62,9 +63,29 @@ export default async function DashboardPage() {
   const isAdminManager = employee.role === "ADMIN" || employee.role === "MANAGER";
 
   // ADMIN/MANAGER: 자재 출고 요청 목록 + 반환 대기 목록 + 폐기 확인 대기 조회
-  const [materialRequests, returnRequests, inboundReturnRequests, disposalPendingResult] = isAdminManager
-    ? await Promise.all([getPendingMaterialRequests(), getCancelRequestedMaterials(), getPendingReturnMaterials(), getDisposalPendingTickets()])
-    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
+  const [materialRequests, returnRequests, inboundReturnRequests, disposalPendingResult, pendingRefundsResult] = isAdminManager
+    ? await Promise.all([getPendingMaterialRequests(), getCancelRequestedMaterials(), getPendingReturnMaterials(), getDisposalPendingTickets(), getPendingRefunds()])
+    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }];
+
+  const refundWidgetData = (pendingRefundsResult.data ?? []).map((r: Record<string, unknown>) => {
+    const ticket = r.repair_tickets as Record<string, unknown> | null;
+    const customer = ticket?.customers as Record<string, unknown> | null;
+    const requester = r.employees as Record<string, unknown> | null;
+    return {
+      id: r.id as string,
+      ticket_id: r.ticket_id as string,
+      refund_no: r.refund_no as string,
+      amount: r.amount as number,
+      reason_code: r.reason_code as string,
+      refund_method: r.refund_method as string,
+      requested_at: r.requested_at as string,
+      receipt_no: (ticket?.receipt_no as string) ?? "",
+      final_price: (ticket?.final_price as number) ?? 0,
+      customer_name: (customer?.name as string) ?? "고객",
+      device_info: [ticket?.device_brand, ticket?.device_model].filter(Boolean).join(" "),
+      requester_name: (requester?.name as string) ?? "알 수 없음",
+    };
+  });
 
   const materialWidgetData = (materialRequests.data ?? []).map((r: Record<string, unknown>) => {
     const inv = r.inventory_items as Record<string, unknown> | null;
@@ -332,6 +353,9 @@ export default async function DashboardPage() {
           </p>
         </Link>
       )}
+
+      {/* 환불 승인 대기 위젯 (ADMIN/MANAGER 전용) */}
+      {isAdminManager && <RefundApprovalWidget refunds={refundWidgetData} />}
 
       {/* 자재 출고 승인 대기 위젯 (ADMIN/MANAGER 전용) */}
       {isAdminManager && <MaterialDispatchWidget requests={materialWidgetData} />}
