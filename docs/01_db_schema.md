@@ -128,3 +128,42 @@ RPC 두 개는 `authenticated`만 실행 가능하며 `anon`·`PUBLIC` 권한은
 
 `service_role`(admin 클라이언트)은 `auth.uid()`가 NULL이라 함께 차단된다.
 취소 해제를 admin 클라이언트로 수행하는 코드 경로는 없다.
+
+# 환불 자재비 내역 수정 (마이그레이션 042)
+
+## ticket_materials 추가 컬럼
+
+| 필드명 | 타입 | 제약 조건 | 설명 |
+| --- | --- | --- | --- |
+| `override_unit_price` | INTEGER | NULL, `>= 0` | 이 접수건에만 적용하는 단가. NULL이면 `inventory_items.base_estimate` |
+
+## ticket_refunds 추가 컬럼
+
+| 필드명 | 타입 | 제약 조건 | 설명 |
+| --- | --- | --- | --- |
+| `material_adjustments` | JSONB | NOT NULL DEFAULT `'[]'` | 자재비 수정안. 환불 완료 시 반영, 완료 후 무효처리 시 되돌림 |
+
+요소 구조 (요청 시점 스냅샷 포함):
+
+```json
+{ "kind": "manual", "index": 2, "description": "외주수리비", "before": 150000, "after": 0 }
+{ "kind": "inventory_price", "material_id": "…", "label": "액정 / 외주 / …", "quantity": 1,
+  "before_unit": 88000, "before_override": null, "after_unit": 0 }
+{ "kind": "inventory_recover", "material_id": "…", "label": "RAM / 노트북용 DDR4 / …", "quantity": 1,
+  "unit_price": 40000, "request_type": "dispatch" }
+```
+
+`parts_recovery` · `deduction_amount` · `deduction_note`는 `042` 이전 기록 보존용으로 유지한다. 신규 요청은 기본값으로 저장된다.
+
+## 함수
+
+| 이름 | 종류 | 설명 |
+| --- | --- | --- |
+| `recalc_ticket_material_cost(ticket_id)` | RPC (`authenticated`, `service_role`) | 자재비 합계 재계산. 결과는 파생값뿐이라 호출자가 금액을 조작할 수 없다 |
+| `apply_refund_material_adjustments(refund_id, revert)` | 내부 전용 (실행 권한 전면 회수) | 수정안 반영 / 되돌림 + 로그 기록 |
+| `request_refund(...)` | RPC (시그니처 변경) | `p_parts_recovery` · `p_deduction_*` 제거, `p_material_adjustments` 추가 |
+| `transition_refund(...)` | RPC | `COMPLETE` 시 수정안 반영, `COMPLETED → VOID` 시 되돌림 |
+
+자재비 합계를 계산하던 서버 액션 4곳(`addMaterialCostAction`, `updateMaterialCostAction`,
+`approveMaterialDispatchAction`, `confirmMaterialReturnAction`)은 모두 `recalc_ticket_material_cost`를 호출한다.
+

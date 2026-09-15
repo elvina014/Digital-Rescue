@@ -111,6 +111,8 @@ interface TicketMaterialRow {
   capacity: string | null;
   condition: string;
   base_estimate: number;
+  /** 이 접수건에만 적용하는 단가 (환불 시 외주 금액 조정). NULL이면 재고 단가 */
+  override_unit_price: number | null;
   is_return_registered: boolean;
   return_spec: string | null;
   return_name: string | null;
@@ -569,6 +571,7 @@ export default function TicketDetailForm({
                 capacity: inv?.capacity ?? null,
                 condition: inv?.condition ?? "중고",
                 base_estimate: inv?.base_estimate ?? 0,
+                override_unit_price: null,
                 is_return_registered: false,
                 return_spec: null,
                 return_name: null,
@@ -1042,7 +1045,7 @@ export default function TicketDetailForm({
               <ul className="divide-y divide-gray-200 text-sm">
                 {materials.map((m) => {
                   const label = [m.category_name, m.spec_name, m.product_name, m.capacity].filter(Boolean).join(" / ");
-                  const subtotal = m.base_estimate * m.quantity;
+                  const subtotal = (m.override_unit_price ?? m.base_estimate) * m.quantity;
                   return (
                     <li key={m.id} className="flex items-center justify-between py-1.5">
                       <span className="text-gray-700">
@@ -1086,6 +1089,8 @@ export default function TicketDetailForm({
         daysSinceCompleted={daysSinceCompleted}
         currentEmployee={currentEmployee}
         refunds={refunds}
+        manualCosts={manualCosts}
+        materials={materials}
       />
 
       {/* 최종 승인 버튼 (MANAGER / ADMIN) */}

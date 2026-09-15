@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { getCurrentEmployee } from "@/lib/auth";
 import type { TicketStatus } from "@/types";
 import { daysSince } from "@/lib/date";
+import type { RefundMaterialAdjustment } from "@/types/database";
 import TicketDetailForm from "./TicketDetailForm";
 
 interface TicketDetailPageProps {
@@ -91,7 +92,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       reason_code, reason_note, refund_method,
       refund_bank, refund_account, refund_holder,
       cash_receipt_cancel_required, cash_receipt_canceled_at,
-      parts_recovery, status, reject_note, void_note,
+      parts_recovery, material_adjustments, status, reject_note, void_note,
       requested_at, requested_by, completed_at,
       requester:requested_by ( name ),
       approver:approved_by ( name ),
@@ -118,6 +119,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       cash_receipt_cancel_required: rec.cash_receipt_cancel_required as boolean,
       cash_receipt_canceled_at: (rec.cash_receipt_canceled_at as string | null) ?? null,
       parts_recovery: rec.parts_recovery as string,
+      material_adjustments: (rec.material_adjustments as RefundMaterialAdjustment[] | null) ?? [],
       status: rec.status as string,
       reject_note: (rec.reject_note as string | null) ?? null,
       void_note: (rec.void_note as string | null) ?? null,
@@ -145,7 +147,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
   const { data: ticketMaterialsRaw } = await supabase
     .from("ticket_materials")
     .select(`
-      id, inventory_item_id, quantity, request_status, request_type, notes,
+      id, inventory_item_id, quantity, request_status, request_type, notes, override_unit_price,
       is_return_registered, return_spec, return_name, return_condition, return_status, return_quantity, return_capacity,
       inventory_items (
         category_id, base_estimate, capacity, condition,
@@ -203,6 +205,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       capacity: inv?.capacity ?? null,
       condition: inv?.condition ?? "중고",
       base_estimate: inv?.base_estimate ?? 0,
+      override_unit_price: (tm as Record<string, unknown>).override_unit_price as number | null ?? null,
       is_return_registered: (tm as Record<string, unknown>).is_return_registered as boolean ?? false,
       return_spec: (tm as Record<string, unknown>).return_spec as string | null ?? null,
       return_name: (tm as Record<string, unknown>).return_name as string | null ?? null,

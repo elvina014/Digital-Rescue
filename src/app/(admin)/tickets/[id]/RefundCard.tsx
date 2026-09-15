@@ -9,6 +9,7 @@ import {
   voidRefundAction,
 } from "../actions";
 import { formatDateTime } from "@/lib/date";
+import type { RefundMaterialAdjustment } from "@/types/database";
 
 // ─── 타입 ───
 
@@ -27,6 +28,7 @@ export interface RefundRow {
   cash_receipt_cancel_required: boolean;
   cash_receipt_canceled_at: string | null;
   parts_recovery: string;
+  material_adjustments: RefundMaterialAdjustment[];
   status: string;
   reject_note: string | null;
   void_note: string | null;
@@ -36,6 +38,19 @@ export interface RefundRow {
   approver_name: string | null;
   completed_at: string | null;
   completer_name: string | null;
+}
+
+/** 환불 폼에서 쓰는 재고 자재 필드 (TicketMaterialRow의 부분집합) */
+interface RefundMaterial {
+  id: string;
+  quantity: number;
+  request_status: string;
+  category_name: string;
+  spec_name: string;
+  product_name: string;
+  capacity: string | null;
+  base_estimate: number;
+  override_unit_price: number | null;
 }
 
 interface RefundCardProps {
@@ -48,7 +63,13 @@ interface RefundCardProps {
   daysSinceCompleted: number;
   currentEmployee: { id: string; role: string };
   refunds: RefundRow[];
+  /** 수동 입력 자재비 (material_cost_details) — 배열 순서가 RPC의 index와 일치해야 한다 */
+  manualCosts: { description: string; amount: number }[];
+  materials: RefundMaterial[];
 }
+
+/** 자재비 수정 입력 상태. key: "manual:{index}" | "material:{id}" */
+type AdjustmentDraft = Record<string, { after?: number | "" }>;
 
 // ─── 라벨 ───
 
@@ -69,10 +90,10 @@ const METHOD_LABELS: Record<string, string> = {
   CASH: "현금 반환",
 };
 
+// 042 이전 환불 기록 표시용
 const PARTS_LABELS: Record<string, string> = {
   RECOVERED: "부품 회수함",
   NOT_RECOVERED: "부품 회수 안 함",
-  NONE: "해당 없음",
 };
 
 const STATUS_STYLES: Record<string, { label: string; className: string }> = {
@@ -83,8 +104,33 @@ const STATUS_STYLES: Record<string, { label: string; className: string }> = {
   VOID: { label: "무효처리", className: "bg-gray-200 text-gray-500" },
 };
 
-// 회사 귀책 사유는 공제 없이 전액 환불이 원칙
-const COMPANY_FAULT = ["QUALITY", "REPAIR_FAILED", "OVERCHARGE", "DUPLICATE"];
+// 실물이 없는 재고 자재 — 회수 대신 금액을 수정한다 (RPC와 동일 기준)
+function isNonPhysical(m: RefundMaterial) {
+  return m.spec_name === "외주" || m.category_name === "소프트웨어";
+}
+
+function materialLabel(m: RefundMaterial) {
+  return [m.category_name, m.spec_name, m.product_name, m.capacity].filter(Boolean).join(" / ");
+}
+
+function unitPriceOf(m: RefundMaterial) {
+  return m.override_unit_price ?? m.base_estimate;
+}
+
+function won(n: number) {
+  return `${n.toLocaleString()}원`;
+}
+
+function describeAdjustment(a: RefundMaterialAdjustment) {
+  switch (a.kind) {
+    case "manual":
+      return `${a.description} ${won(a.before)} → ${won(a.after)}`;
+    case "inventory_price":
+      return `${a.label}${a.quantity > 1 ? ` ×${a.quantity}` : ""} 단가 ${won(a.before_unit)} → ${won(a.after_unit)}`;
+    case "inventory_recover":
+      return `${a.label}${a.quantity > 1 ? ` ×${a.quantity}` : ""} 회수 (${won(a.unit_price * a.quantity)} 제외)`;
+  }
+}
 
 export default function RefundCard({
   ticketId,
@@ -95,6 +141,8 @@ export default function RefundCard({
   daysSinceCompleted,
   currentEmployee,
   refunds,
+  manualCosts,
+  materials,
 }: RefundCardProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -109,12 +157,10 @@ export default function RefundCard({
   const [reasonCode, setReasonCode] = useState("");
   const [reasonNote, setReasonNote] = useState("");
   const [refundMethod, setRefundMethod] = useState("");
-  const [partsRecovery, setPartsRecovery] = useState("NONE");
-  const [deductionAmount, setDeductionAmount] = useState<number | "">("");
-  const [deductionNote, setDeductionNote] = useState("");
   const [refundBank, setRefundBank] = useState("");
   const [refundAccount, setRefundAccount] = useState("");
   const [refundHolder, setRefundHolder] = useState("");
+  const [adjustments, setAdjustments] = useState<AdjustmentDraft>({});
 
   // 완료 건에만 노출
   if (ticketStatus !== "COMPLETED") return null;
@@ -145,7 +191,41 @@ export default function RefundCard({
     : ["BANK_REFUND", "CASH"];
 
   const needsBankFields = refundMethod === "BANK_REFUND";
-  const isCompanyFault = COMPANY_FAULT.includes(reasonCode);
+
+  // ── 자재비 내역 ──
+  // 자재비 합계에 들어가는 재고 자재 (recalc_ticket_material_cost와 동일 기준)
+  const costedMaterials = materials.filter(
+    (m) => m.request_status === "approved" || m.request_status === "cancel_requested"
+  );
+  // 수정 가능한 재고 자재는 사용 확정(approved) 건만
+  const editableMaterials = materials.filter((m) => m.request_status === "approved");
+  const currentMaterialTotal =
+    manualCosts.reduce((s, c) => s + c.amount, 0) +
+    costedMaterials.reduce((s, m) => s + unitPriceOf(m) * m.quantity, 0);
+
+  // 자재비 수정이 걸린 다른 환불이 처리 중이면 새 수정안을 받지 않는다 (RPC와 동일)
+  const hasPendingAdjustment = refunds.some(
+    (r) => ["REQUESTED", "APPROVED"].includes(r.status) && r.material_adjustments.length > 0
+  );
+
+  // 수정 후 자재비 합계 (입력 중인 값 기준 미리보기)
+  let adjustedMaterialTotal = currentMaterialTotal;
+  manualCosts.forEach((c, i) => {
+    const d = adjustments[`manual:${i}`];
+    if (d && d.after !== "" && d.after !== undefined) adjustedMaterialTotal -= c.amount - d.after;
+  });
+  editableMaterials.forEach((m) => {
+    const d = adjustments[`material:${m.id}`];
+    if (!d) return;
+    if (isNonPhysical(m)) {
+      if (d.after !== "" && d.after !== undefined) adjustedMaterialTotal -= (unitPriceOf(m) - d.after) * m.quantity;
+    } else {
+      adjustedMaterialTotal -= unitPriceOf(m) * m.quantity;
+    }
+  });
+
+  const refundAmountNum = amount === "" ? 0 : Number(amount);
+  const netAfterRefund = finalPrice - committed - refundAmountNum;
 
   function run(fn: () => Promise<{ error?: string } | undefined>, onDone?: () => void) {
     startTransition(async () => {
@@ -162,17 +242,63 @@ export default function RefundCard({
     setReasonCode("");
     setReasonNote("");
     setRefundMethod("");
-    setPartsRecovery("NONE");
-    setDeductionAmount("");
-    setDeductionNote("");
     setRefundBank("");
     setRefundAccount("");
     setRefundHolder("");
+    setAdjustments({});
+  }
+
+  function toggleAdjustment(key: string, withAmount: boolean) {
+    setAdjustments((prev) => {
+      const next = { ...prev };
+      if (next[key]) delete next[key];
+      else next[key] = withAmount ? { after: 0 } : {};
+      return next;
+    });
+  }
+
+  function setAdjustmentAmount(key: string, value: string) {
+    setAdjustments((prev) => ({ ...prev, [key]: { after: value === "" ? "" : Number(value) } }));
+  }
+
+  /** 입력 상태 → 서버 액션 입력. 검증 실패 시 에러 메시지 문자열 */
+  function buildAdjustments() {
+    const out: NonNullable<Parameters<typeof requestRefundAction>[0]["materialAdjustments"]> = [];
+    for (let i = 0; i < manualCosts.length; i++) {
+      const d = adjustments[`manual:${i}`];
+      if (!d) continue;
+      if (d.after === "" || d.after === undefined || d.after < 0 || d.after >= manualCosts[i].amount) {
+        return `"${manualCosts[i].description}"은(는) 0원 이상, 현재 금액(${won(manualCosts[i].amount)})보다 낮게 입력해 주세요.`;
+      }
+      out.push({ kind: "manual", index: i, after: d.after });
+    }
+    for (const m of editableMaterials) {
+      const d = adjustments[`material:${m.id}`];
+      if (!d) continue;
+      if (isNonPhysical(m)) {
+        if (d.after === "" || d.after === undefined || d.after < 0 || d.after >= unitPriceOf(m)) {
+          return `"${materialLabel(m)}"은(는) 0원 이상, 현재 단가(${won(unitPriceOf(m))})보다 낮게 입력해 주세요.`;
+        }
+        out.push({ kind: "inventory_price", material_id: m.id, after: d.after });
+      } else {
+        out.push({ kind: "inventory_recover", material_id: m.id });
+      }
+    }
+    return out;
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!window.confirm("환불을 요청하시겠습니까? 승인 후 실제 환불 처리가 진행됩니다.")) return;
+    const built = buildAdjustments();
+    if (typeof built === "string") {
+      setError(built);
+      return;
+    }
+    const adjustNote =
+      built.length > 0
+        ? `\n\n자재비 ${won(currentMaterialTotal)} → ${won(adjustedMaterialTotal)} (환불 완료 시 반영)`
+        : "";
+    if (!window.confirm(`환불을 요청하시겠습니까? 승인 후 실제 환불 처리가 진행됩니다.${adjustNote}`)) return;
     run(
       () =>
         requestRefundAction({
@@ -180,22 +306,22 @@ export default function RefundCard({
           amount: Number(amount),
           reasonCode,
           refundMethod,
-          partsRecovery,
-          deductionAmount: deductionAmount === "" ? 0 : Number(deductionAmount),
-          deductionNote: deductionNote.trim() || undefined,
           reasonNote: reasonNote.trim() || undefined,
           refundBank: needsBankFields ? refundBank.trim() : undefined,
           refundAccount: needsBankFields ? refundAccount.trim() : undefined,
           refundHolder: needsBankFields ? refundHolder.trim() : undefined,
+          materialAdjustments: built,
         }),
       resetForm
     );
   }
 
   function handleComplete(refund: RefundRow) {
+    const adjustNote =
+      refund.material_adjustments.length > 0 ? "\n자재비 수정 내역도 이 시점에 반영됩니다." : "";
     if (refund.cash_receipt_cancel_required) {
-      if (!window.confirm("현금영수증 발급취소를 완료하셨습니까?\n확인을 누르면 취소 완료로 기록됩니다.")) return;
-    } else if (!window.confirm("실제 환불 처리(송금·승인취소)가 완료되었습니까?\n이 시점에 매출에서 차감됩니다.")) {
+      if (!window.confirm(`현금영수증 발급취소를 완료하셨습니까?\n확인을 누르면 취소 완료로 기록됩니다.${adjustNote}`)) return;
+    } else if (!window.confirm(`실제 환불 처리(송금·승인취소)가 완료되었습니까?\n이 시점에 매출에서 차감됩니다.${adjustNote}`)) {
       return;
     }
     run(() => completeRefundAction(refund.id, refund.cash_receipt_cancel_required));
@@ -220,6 +346,9 @@ export default function RefundCard({
       }
     );
   }
+
+  const inputClass =
+    "w-28 rounded border border-gray-300 px-2 py-1 text-right text-xs tabular-nums focus:border-rose-500 focus:outline-none";
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-5">
@@ -287,12 +416,25 @@ export default function RefundCard({
                 <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-gray-500">
                   <span>{REASON_LABELS[r.reason_code] ?? r.reason_code}</span>
                   <span>{METHOD_LABELS[r.refund_method] ?? r.refund_method}</span>
-                  <span>{PARTS_LABELS[r.parts_recovery] ?? r.parts_recovery}</span>
+                  {PARTS_LABELS[r.parts_recovery] && <span>{PARTS_LABELS[r.parts_recovery]}</span>}
                   {r.deduction_amount > 0 && <span>공제 {r.deduction_amount.toLocaleString()}원</span>}
                 </div>
 
                 {r.reason_note && <p className="mt-1 text-xs text-gray-600">사유: {r.reason_note}</p>}
                 {r.deduction_note && <p className="mt-0.5 text-xs text-gray-600">공제 사유: {r.deduction_note}</p>}
+                {r.material_adjustments.length > 0 && (
+                  <div className="mt-1 text-xs text-gray-600">
+                    <span>
+                      자재비 수정
+                      {r.status === "COMPLETED" ? " (반영됨)" : ["REQUESTED", "APPROVED"].includes(r.status) ? " (환불 완료 시 반영)" : " (미반영)"}:
+                    </span>
+                    <ul className="ml-3 list-disc pl-3">
+                      {r.material_adjustments.map((a, i) => (
+                        <li key={i}>{describeAdjustment(a)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {r.refund_bank && (
                   <p className="mt-0.5 text-xs text-gray-600">
                     환불 계좌: {r.refund_bank} {r.refund_account} ({r.refund_holder})
@@ -537,65 +679,126 @@ export default function RefundCard({
             </div>
           )}
 
-          {/* 부품 회수 여부 */}
+          {/* 자재비 내역 수정 */}
           <fieldset>
-            <legend className="mb-2 text-sm font-medium text-gray-700">부품 회수 여부</legend>
-            <div className="flex flex-wrap gap-4">
-              {Object.entries(PARTS_LABELS).map(([value, label]) => (
-                <label key={value} className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="partsRecovery"
-                    value={value}
-                    checked={partsRecovery === value}
-                    onChange={(e) => setPartsRecovery(e.target.value)}
-                    className="accent-rose-500"
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-            {partsRecovery === "RECOVERED" && (
-              <p className="mt-1 text-xs text-gray-500">
-                회수한 부품은 적출품 등록 절차로 재고에 반영해 주세요.
-              </p>
-            )}
-          </fieldset>
+            <legend className="mb-1 text-sm font-medium text-gray-700">자재비 내역 수정</legend>
+            <p className="mb-2 text-xs text-gray-500">
+              수정할 항목만 체크하세요. 수정 내용은 환불이 <span className="font-semibold">완료 처리될 때</span> 자재비에 반영됩니다.
+            </p>
 
-          {/* 공제 */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label htmlFor="deductionAmount" className="mb-1 block text-sm font-medium text-gray-700">
-                공제액 (원)
-              </label>
-              <input
-                id="deductionAmount"
-                type="number"
-                min={0}
-                value={deductionAmount}
-                onChange={(e) => setDeductionAmount(e.target.value === "" ? "" : Number(e.target.value))}
-                placeholder="0"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums focus:border-rose-500 focus:outline-none"
-              />
-              {isCompanyFault && (
-                <p className="mt-1 text-xs text-gray-500">회사 귀책 사유는 공제 없이 전액 환불이 원칙입니다.</p>
-              )}
-            </div>
-            <div>
-              <label htmlFor="deductionNote" className="mb-1 block text-sm font-medium text-gray-700">
-                공제 사유 {deductionAmount !== "" && Number(deductionAmount) > 0 && <span className="text-rose-600">(필수)</span>}
-              </label>
-              <input
-                id="deductionNote"
-                type="text"
-                value={deductionNote}
-                onChange={(e) => setDeductionNote(e.target.value)}
-                required={deductionAmount !== "" && Number(deductionAmount) > 0}
-                placeholder="회수 불가 자재비 등"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-rose-500 focus:outline-none"
-              />
-            </div>
-          </div>
+            {hasPendingAdjustment ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                자재비 수정이 포함된 다른 환불이 처리 중입니다. 먼저 완료하거나 반려한 뒤 수정할 수 있습니다.
+              </p>
+            ) : manualCosts.length === 0 && editableMaterials.length === 0 ? (
+              <p className="text-xs text-gray-400">수정할 자재비 항목이 없습니다.</p>
+            ) : (
+              <ul className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white text-sm">
+                {manualCosts.map((c, i) => {
+                  const key = `manual:${i}`;
+                  const d = adjustments[key];
+                  return (
+                    <li key={key} className="flex flex-wrap items-center gap-2 px-3 py-2">
+                      <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={!!d}
+                          onChange={() => toggleAdjustment(key, true)}
+                          className="accent-rose-500"
+                        />
+                        <span className="truncate text-gray-700">{c.description}</span>
+                      </label>
+                      <span className={`tabular-nums text-xs ${d ? "text-gray-400 line-through" : "text-gray-900"}`}>
+                        {won(c.amount)}
+                      </span>
+                      {d && (
+                        <input
+                          type="number"
+                          min={0}
+                          max={c.amount - 1}
+                          value={d.after ?? ""}
+                          onChange={(e) => setAdjustmentAmount(key, e.target.value)}
+                          aria-label={`${c.description} 수정 금액`}
+                          className={inputClass}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
+
+                {editableMaterials.map((m) => {
+                  const key = `material:${m.id}`;
+                  const d = adjustments[key];
+                  const nonPhysical = isNonPhysical(m);
+                  const unit = unitPriceOf(m);
+                  return (
+                    <li key={key} className="flex flex-wrap items-center gap-2 px-3 py-2">
+                      <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={!!d}
+                          onChange={() => toggleAdjustment(key, nonPhysical)}
+                          className="accent-rose-500"
+                        />
+                        <span className="truncate text-gray-700">
+                          {materialLabel(m)}
+                          {m.quantity > 1 && <span className="ml-1 text-gray-400">×{m.quantity}</span>}
+                        </span>
+                        <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600">
+                          {nonPhysical ? "금액 수정" : "회수"}
+                        </span>
+                      </label>
+                      <span className={`tabular-nums text-xs ${d ? "text-gray-400 line-through" : "text-gray-900"}`}>
+                        {won(unit * m.quantity)}
+                      </span>
+                      {d && nonPhysical && (
+                        <span className="flex items-center gap-1 text-xs text-gray-500">
+                          단가
+                          <input
+                            type="number"
+                            min={0}
+                            max={unit - 1}
+                            value={d.after ?? ""}
+                            onChange={(e) => setAdjustmentAmount(key, e.target.value)}
+                            aria-label={`${materialLabel(m)} 수정 단가`}
+                            className={inputClass}
+                          />
+                        </span>
+                      )}
+                      {d && !nonPhysical && (
+                        <span className="text-xs text-rose-700">회수 → 반환 확인 후 재고 복구</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            {/* 처리 결과 미리보기 */}
+            <dl className="mt-3 grid gap-x-6 gap-y-2 rounded-lg bg-white p-3 text-xs sm:grid-cols-3">
+              <div>
+                <dt className="text-gray-500">환불 금액</dt>
+                <dd className="mt-0.5 font-semibold tabular-nums text-rose-700">{won(refundAmountNum)}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">환불 후 결제금액</dt>
+                <dd className="mt-0.5 font-semibold tabular-nums text-gray-900">{won(netAfterRefund)}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">자재비</dt>
+                <dd className="mt-0.5 font-semibold tabular-nums text-gray-900">
+                  {adjustedMaterialTotal !== currentMaterialTotal ? (
+                    <>
+                      <span className="text-gray-400 line-through">{won(currentMaterialTotal)}</span>{" "}
+                      {won(adjustedMaterialTotal)}
+                    </>
+                  ) : (
+                    won(currentMaterialTotal)
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </fieldset>
 
           <div className="flex justify-end gap-2">
             <button

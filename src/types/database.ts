@@ -176,7 +176,10 @@ export interface TicketRefund {
   /** 원 거래가 현금영수증 발급 건이면 true — 취소 확인 전에는 완료 불가 */
   cash_receipt_cancel_required: boolean;
   cash_receipt_canceled_at: string | null;
+  /** 042 이전 기록 보존용. 신규 요청은 material_adjustments를 쓴다 */
   parts_recovery: PartsRecovery;
+  /** 자재비 수정안 (요청 시점 스냅샷). 환불 완료 시 반영, 완료 후 무효처리 시 되돌림 */
+  material_adjustments: RefundMaterialAdjustment[];
   status: RefundStatus;
   /** 증빙 이미지 목록 (repair_tickets.images와 동일 구조) */
   evidence: {
@@ -202,6 +205,27 @@ export interface TicketRefund {
   created_at: string;
   updated_at: string;
 }
+
+/** 환불 자재비 수정안 요소 — request_refund RPC가 스냅샷 필드를 채워 저장한다 */
+export type RefundMaterialAdjustment =
+  | { kind: "manual"; index: number; description: string; before: number; after: number }
+  | {
+      kind: "inventory_price";
+      material_id: string;
+      label: string;
+      quantity: number;
+      before_unit: number;
+      before_override: number | null;
+      after_unit: number;
+    }
+  | {
+      kind: "inventory_recover";
+      material_id: string;
+      label: string;
+      quantity: number;
+      unit_price: number;
+      request_type: string;
+    };
 
 /** 처리 현황 및 로그 테이블 (ticket_logs) - 타임라인 역할 */
 export interface TicketLog {
@@ -229,6 +253,8 @@ export interface TicketMaterial {
   ticket_id: string; // FK → repair_tickets.id
   inventory_item_id: string; // FK → inventory_items.id
   quantity: number;
+  /** 이 접수건에만 적용하는 단가. NULL이면 inventory_items.base_estimate */
+  override_unit_price: number | null;
   request_status: MaterialRequestStatus;
   notes: string | null;
   created_by: string | null; // FK → employees.id

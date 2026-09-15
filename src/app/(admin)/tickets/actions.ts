@@ -539,35 +539,17 @@ export async function addMaterialCostAction(formData: FormData) {
   // 기존 배열에 항목 추가
   const existing = Array.isArray(ticket.material_cost_details) ? ticket.material_cost_details : [];
   const newDetails = [...existing, { description, amount }];
-  const manualTotal = newDetails.reduce((sum: number, item: { amount: number }) => sum + item.amount, 0);
-
-  // 승인 완료된 자재 비용 합산
-  const { data: approvedMats } = await supabase
-    .from("ticket_materials")
-    .select("quantity, inventory_item_id")
-    .eq("ticket_id", ticketId)
-    .eq("request_status", "approved");
-
-  let approvedTotal = 0;
-  if (approvedMats && approvedMats.length > 0) {
-    const itemIds = approvedMats.map((m) => m.inventory_item_id);
-    const { data: items } = await supabase
-      .from("inventory_items")
-      .select("id, base_estimate")
-      .in("id", itemIds);
-    const estMap = new Map<string, number>();
-    for (const item of items ?? []) estMap.set(item.id, item.base_estimate ?? 0);
-    approvedTotal = approvedMats.reduce((s, m) => s + (estMap.get(m.inventory_item_id) ?? 0) * m.quantity, 0);
-  }
-
-  const newTotal = approvedTotal + manualTotal;
 
   const { error } = await supabase
     .from("repair_tickets")
-    .update({ material_cost_details: newDetails, material_cost: newTotal })
+    .update({ material_cost_details: newDetails })
     .eq("id", ticketId);
 
   if (error) return { error: "자재비 추가에 실패했습니다: " + error.message };
+
+  // 자재비 합계는 DB 함수가 재고 자재(단가 조정 포함) + 수동 비용으로 재계산한다
+  const { data: newTotalRaw } = await supabase.rpc("recalc_ticket_material_cost", { p_ticket_id: ticketId });
+  const newTotal = (newTotalRaw as number | null) ?? 0;
 
   // 자동 로그
   const adminSupa = createAdminClient();
@@ -636,38 +618,19 @@ export async function updateMaterialCostAction(
     amount: Math.round(amount),
   };
 
-  const manualTotal = details.reduce((sum, item) => sum + item.amount, 0);
-
-  // 승인 완료된 자재 비용 합산 (addMaterialCostAction과 동일 로직)
-  const { data: approvedMats } = await supabase
-    .from("ticket_materials")
-    .select("quantity, inventory_item_id")
-    .eq("ticket_id", ticketId)
-    .eq("request_status", "approved");
-
-  let approvedTotal = 0;
-  if (approvedMats && approvedMats.length > 0) {
-    const itemIds = approvedMats.map((m) => m.inventory_item_id);
-    const { data: items } = await supabase
-      .from("inventory_items")
-      .select("id, base_estimate")
-      .in("id", itemIds);
-    const estMap = new Map<string, number>();
-    for (const item of items ?? []) estMap.set(item.id, item.base_estimate ?? 0);
-    approvedTotal = approvedMats.reduce((s, m) => s + (estMap.get(m.inventory_item_id) ?? 0) * m.quantity, 0);
-  }
-
-  const newTotal = approvedTotal + manualTotal;
-
   // 사용자 세션 클라이언트로 업데이트해야 protect_approved_ticket 트리거가 auth.uid()로
   // 역할(ADMIN/MANAGER)을 판정해 통과시킨다. service_role(admin) 클라이언트는 auth.uid()=NULL이라 차단됨.
   // RLS tickets_update: ADMIN/MANAGER는 전체 건, 기사는 본인 배정건만 UPDATE 허용.
   const { error } = await supabase
     .from("repair_tickets")
-    .update({ material_cost_details: details, material_cost: newTotal })
+    .update({ material_cost_details: details })
     .eq("id", ticketId);
 
   if (error) return { error: "수동 추가 비용 수정에 실패했습니다: " + error.message };
+
+  // 자재비 합계는 DB 함수가 재고 자재(단가 조정 포함) + 수동 비용으로 재계산한다
+  const { data: newTotalRaw } = await supabase.rpc("recalc_ticket_material_cost", { p_ticket_id: ticketId });
+  const newTotal = (newTotalRaw as number | null) ?? 0;
 
   const adminSupa = createAdminClient();
   await adminSupa.from("ticket_logs").insert({
@@ -1454,46 +1417,8 @@ export async function approveMaterialDispatchAction(materialId: string) {
       });
     }
 
-    // 해당 티켓의 모든 approved 자재 비용 합산
-    const { data: approvedMats } = await adminSupa
-      .from("ticket_materials")
-      .select("quantity, inventory_item_id")
-      .eq("ticket_id", mat.ticket_id)
-      .eq("request_status", "approved");
-
-    // 승인 자재 비용 합산
-    let approvedTotal = 0;
-    if (approvedMats && approvedMats.length > 0) {
-      const itemIds = approvedMats.map((m) => m.inventory_item_id);
-      const { data: items } = await adminSupa
-        .from("inventory_items")
-        .select("id, base_estimate")
-        .in("id", itemIds);
-
-      const estimateMap = new Map<string, number>();
-      for (const item of items ?? []) {
-        estimateMap.set(item.id, item.base_estimate ?? 0);
-      }
-
-      approvedTotal = approvedMats.reduce((sum, m) => {
-        return sum + (estimateMap.get(m.inventory_item_id) ?? 0) * m.quantity;
-      }, 0);
-    }
-
-    // 수동 추가 비용 합산
-    const { data: ticketRow } = await adminSupa
-      .from("repair_tickets")
-      .select("material_cost_details")
-      .eq("id", mat.ticket_id)
-      .single();
-
-    const manualDetails = Array.isArray(ticketRow?.material_cost_details) ? ticketRow.material_cost_details : [];
-    const manualTotal = manualDetails.reduce((s: number, item: { amount: number }) => s + (item.amount ?? 0), 0);
-
-    await adminSupa
-      .from("repair_tickets")
-      .update({ material_cost: approvedTotal + manualTotal })
-      .eq("id", mat.ticket_id);
+    // 자재비 합계 재계산 (재고 자재 단가 조정 + 수동 비용)
+    await adminSupa.rpc("recalc_ticket_material_cost", { p_ticket_id: mat.ticket_id });
 
     // 로그
     const approveLabel = mat.request_type === "purchase" ? "자재 구매가" : "자재 출고가";
@@ -1769,44 +1694,8 @@ export async function confirmMaterialReturnAction(materialId: string) {
     }
   }
 
-  // 4) 티켓 자재비 합계 재계산
-  const { data: approvedMats } = await adminSupa
-    .from("ticket_materials")
-    .select("quantity, inventory_item_id")
-    .eq("ticket_id", mat.ticket_id)
-    .eq("request_status", "approved");
-
-  let approvedTotal = 0;
-  if (approvedMats && approvedMats.length > 0) {
-    const itemIds = approvedMats.map((m) => m.inventory_item_id);
-    const { data: items } = await adminSupa
-      .from("inventory_items")
-      .select("id, base_estimate")
-      .in("id", itemIds);
-
-    const estimateMap = new Map<string, number>();
-    for (const item of items ?? []) {
-      estimateMap.set(item.id, item.base_estimate ?? 0);
-    }
-
-    approvedTotal = approvedMats.reduce((sum, m) => {
-      return sum + (estimateMap.get(m.inventory_item_id) ?? 0) * m.quantity;
-    }, 0);
-  }
-
-  const { data: ticketRow } = await adminSupa
-    .from("repair_tickets")
-    .select("material_cost_details")
-    .eq("id", mat.ticket_id)
-    .single();
-
-  const manualDetails = Array.isArray(ticketRow?.material_cost_details) ? ticketRow.material_cost_details : [];
-  const manualTotal = manualDetails.reduce((s: number, item: { amount: number }) => s + (item.amount ?? 0), 0);
-
-  await adminSupa
-    .from("repair_tickets")
-    .update({ material_cost: approvedTotal + manualTotal })
-    .eq("id", mat.ticket_id);
+  // 4) 티켓 자재비 합계 재계산 (재고 자재 단가 조정 + 수동 비용)
+  await adminSupa.rpc("recalc_ticket_material_cost", { p_ticket_id: mat.ticket_id });
 
   // 5) 로그
   const returnLabel = mat.request_type === "purchase" ? "자재 구매" : "자재 출고";
@@ -2353,13 +2242,16 @@ export async function requestRefundAction(input: {
   amount: number;
   reasonCode: string;
   refundMethod: string;
-  partsRecovery?: string;
-  deductionAmount?: number;
-  deductionNote?: string;
   reasonNote?: string;
   refundBank?: string;
   refundAccount?: string;
   refundHolder?: string;
+  /** 자재비 수정안. 스냅샷 필드(before 등)는 RPC가 DB에서 채운다 */
+  materialAdjustments?: (
+    | { kind: "manual"; index: number; after: number }
+    | { kind: "inventory_price"; material_id: string; after: number }
+    | { kind: "inventory_recover"; material_id: string }
+  )[];
 }) {
   const employee = await getCurrentEmployee();
   if (!employee) return { error: "인증이 필요합니다." };
@@ -2371,13 +2263,11 @@ export async function requestRefundAction(input: {
     p_amount: input.amount,
     p_reason_code: input.reasonCode,
     p_refund_method: input.refundMethod,
-    p_parts_recovery: input.partsRecovery ?? "NONE",
-    p_deduction_amount: input.deductionAmount ?? 0,
-    p_deduction_note: input.deductionNote ?? null,
     p_reason_note: input.reasonNote ?? null,
     p_refund_bank: input.refundBank ?? null,
     p_refund_account: input.refundAccount ?? null,
     p_refund_holder: input.refundHolder ?? null,
+    p_material_adjustments: input.materialAdjustments ?? [],
   });
 
   // RPC의 RAISE EXCEPTION 메시지는 그대로 화면에 보여줄 수 있는 안내문이다
@@ -2391,8 +2281,9 @@ export async function requestRefundAction(input: {
     `사유: ${REFUND_REASON_LABELS[input.reasonCode] ?? input.reasonCode}`,
     `방법: ${REFUND_METHOD_LABELS[input.refundMethod] ?? input.refundMethod}`,
   ];
-  if (input.deductionAmount && input.deductionAmount > 0) {
-    logParts.push(`공제 ${input.deductionAmount.toLocaleString()}원`);
+  const adjustmentCount = input.materialAdjustments?.length ?? 0;
+  if (adjustmentCount > 0) {
+    logParts.push(`자재비 수정 ${adjustmentCount}건 (환불 완료 시 반영)`);
   }
 
   const adminSupa = createAdminClient();
