@@ -113,6 +113,7 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
               id="customerName"
               name="customerName"
               type="text"
+              lang="ko"
               required
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
@@ -141,6 +142,7 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
               id="customerAddress"
               name="customerAddress"
               type="text"
+              lang="ko"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
@@ -213,6 +215,8 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
               id="deviceModel"
               name="deviceModel"
               type="text"
+              lang="en"
+              maxLength={30}
               placeholder="예: GF63 Thin 10SCXR"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
@@ -225,6 +229,7 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
             <textarea
               id="symptoms"
               name="symptoms"
+              lang="ko"
               required
               rows={4}
               placeholder="고객이 설명한 증상을 상세히 기록해 주세요."

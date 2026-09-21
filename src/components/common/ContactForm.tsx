@@ -57,7 +57,7 @@ export function ContactForm({
 
   const [showToast, setShowToast] = useState(false);
   const [imageEntries, setImageEntries] = useState<
-    { file: File; description: string }[]
+    { file: File; description: string; previewUrl: string }[]
   >([]);
   const [receiptType, setReceiptType] = useState<string>("");
   const [visitDate, setVisitDate] = useState("");
@@ -70,7 +70,10 @@ export function ContactForm({
     setFormKey((k) => k + 1);
     if (state.success) {
       setShowToast(true);
-      setImageEntries([]);
+      setImageEntries((prev) => {
+        prev.forEach((entry) => URL.revokeObjectURL(entry.previewUrl));
+        return [];
+      });
       setVisitDate("");
       setVisitTimeSlot("");
       setParcelMethod("");
@@ -194,7 +197,10 @@ export function ContactForm({
 
               for (const entry of imageEntries) {
                 formData.append("images", entry.file);
-                formData.append("imageDescriptions", entry.description);
+                formData.append(
+                  "imageDescriptions",
+                  entry.description.trim()
+                );
               }
               formAction(formData);
             }}
@@ -644,8 +650,10 @@ function PhotoAttacher({
 }: {
   cf: ContactFormData;
   theme: ThemeData;
-  entries: { file: File; description: string }[];
-  onChange: (next: { file: File; description: string }[]) => void;
+  entries: { file: File; description: string; previewUrl: string }[];
+  onChange: (
+    next: { file: File; description: string; previewUrl: string }[]
+  ) => void;
   max: number;
 }) {
   return (
@@ -667,35 +675,60 @@ function PhotoAttacher({
           style={{ borderColor: theme.borderSoft }}
         >
           <img
-            src={URL.createObjectURL(entry.file)}
+            src={entry.previewUrl}
             alt={`첨부 ${idx + 1}`}
             className="h-16 w-16 shrink-0 rounded-xl border object-cover"
             style={{ borderColor: theme.borderSoft }}
           />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs text-slate-600">{entry.file.name}</p>
-            {entry.description && (
-              <p className="mt-0.5 text-xs text-slate-400">{entry.description}</p>
-            )}
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-center gap-2">
+              <p className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                {entry.file.name}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  URL.revokeObjectURL(entry.previewUrl);
+                  onChange(entries.filter((_, i) => i !== idx));
+                }}
+                aria-label="첨부 취소"
+                className="shrink-0 rounded-full p-1 text-red-500 hover:bg-red-50"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <input
+              type="text"
+              value={entry.description}
+              onChange={(e) =>
+                onChange(
+                  entries.map((it, i) =>
+                    i === idx ? { ...it, description: e.target.value } : it
+                  )
+                )
+              }
+              placeholder="사진 설명 (선택사항)"
+              className="w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              style={{ borderColor: theme.borderSoft }}
+            />
           </div>
-          <button
-            type="button"
-            onClick={() => onChange(entries.filter((_, i) => i !== idx))}
-            aria-label="첨부 삭제"
-            className="shrink-0 rounded-full p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
         </div>
       ))}
 
       {entries.length < max && (
         <PhotoAdder
           theme={theme}
-          onAdd={(file, description) =>
-            onChange([...entries, { file, description }])
+          onAdd={(file) =>
+            onChange([
+              ...entries,
+              {
+                file,
+                description: "",
+                previewUrl: URL.createObjectURL(file),
+              },
+            ])
           }
         />
       )}
@@ -708,96 +741,34 @@ function PhotoAdder({
   onAdd,
 }: {
   theme: ThemeData;
-  onAdd: (file: File, description: string) => void;
+  onAdd: (file: File) => void;
 }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [desc, setDesc] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
-    if (selected && selected.type.startsWith("image/")) setFile(selected);
+    if (selected && selected.type.startsWith("image/")) onAdd(selected);
     e.target.value = "";
   };
 
-  const handleAdd = () => {
-    if (!file) return;
-    onAdd(file, desc.trim());
-    setFile(null);
-    setDesc("");
-  };
-
-  if (!file) {
-    return (
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-4 text-sm font-medium transition-all hover:border-blue-400 hover:text-blue-600"
-        style={{ borderColor: theme.borderSoft, color: theme.textSecondary }}
-      >
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-        사진 첨부 버튼
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleSelect}
-        />
-      </button>
-    );
-  }
-
   return (
-    <div
-      className="space-y-2 rounded-2xl border p-3"
-      style={{
-        borderColor: theme.accentSoft,
-        background: `${theme.accentSoft}40`,
-      }}
+    <button
+      type="button"
+      onClick={() => inputRef.current?.click()}
+      className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-4 text-sm font-medium transition-all hover:border-blue-400 hover:text-blue-600"
+      style={{ borderColor: theme.borderSoft, color: theme.textSecondary }}
     >
-      <div className="flex items-center gap-3">
-        <img
-          src={URL.createObjectURL(file)}
-          alt="미리보기"
-          className="h-16 w-16 shrink-0 rounded-xl border object-cover"
-          style={{ borderColor: theme.borderSoft }}
-        />
-        <p className="min-w-0 flex-1 truncate text-xs text-slate-600">
-          {file.name}
-        </p>
-      </div>
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      사진 첨부 버튼
       <input
-        type="text"
-        value={desc}
-        onChange={(e) => setDesc(e.target.value)}
-        placeholder="사진 설명 (선택사항)"
-        className="w-full rounded-xl border bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-        style={{ borderColor: theme.borderSoft }}
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleSelect}
       />
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={handleAdd}
-          className="rounded-xl px-4 py-2 text-xs font-bold text-white"
-          style={{ background: theme.accentColor }}
-        >
-          추가
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setFile(null);
-            setDesc("");
-          }}
-          className="rounded-xl border px-4 py-2 text-xs font-semibold"
-          style={{ borderColor: theme.borderSoft, color: theme.textSecondary }}
-        >
-          취소
-        </button>
-      </div>
-    </div>
+    </button>
   );
 }

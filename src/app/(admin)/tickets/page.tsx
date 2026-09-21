@@ -236,7 +236,7 @@ export default async function TicketsPage({
                     <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                       {ticket.device_brand}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">
+                    <td className="max-w-[30ch] truncate px-4 py-3 text-gray-600">
                       {ticket.device_model ?? "-"}
                     </td>
                     <td className="max-w-[200px] truncate px-4 py-3 text-gray-600">
