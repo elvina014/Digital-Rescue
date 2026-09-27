@@ -7,10 +7,11 @@ Recorded only; nothing here is changed without an explicit decision from Brad.
 | --- | --- | --- |
 | KI-1 | `device_models` cache: missing unique constraint | Recorded only |
 | KI-2 | Outsourced (외주) items modelled as inventory | Recorded only — separate cleanup planned by Brad |
-| KI-3 | Migration 019 duplicate / `019_cancel_method.sql` never applied | **Awaiting Brad's confirmation** |
+| KI-3 | Migration 019 duplicate / `019_cancel_method.sql` never applied | Resolved 2026-09-27 — not applied, archived (no references) |
 | KI-4 | `approve_material_dispatch` breaks purchase requests | Scheduled: Phase 0.5 |
 | KI-5 | Hand-written types vs generated types | To be filled in Phase 0.1 |
 | KI-6 | Production migration history out of sync with files | Resolved by Brad running the repair commands from Phase 0.1 |
+| KI-7 | `ticket-images` storage: public access, extra dashboard policy, no size limit | Recorded only — Brad to decide |
 
 ---
 
@@ -76,7 +77,14 @@ Filter by the same rule (`inventory_specs.name = '외주'`) until the separate c
   `getDisposalPendingTickets`, `restoreCanceledTicketAction`).
 - **Assessment:** `019_cancel_method.sql` is an abandoned draft; no new migration appears necessary.
   Both files move to `supabase/migrations_archive/` in Phase 0.1 unchanged.
-- **Question for Brad:** confirm that `019_cancel_method.sql` should *not* be applied.
+- **Decision (Brad, 2026-09-27):** do not apply; archive after verifying there are no references.
+- **Verification (2026-09-27):** the file creates only two columns (no functions, policies, triggers).
+  - Repo-wide search (excluding `node_modules`, `.next`, `.git`) for `cancel_method`, `cancelMethod`,
+    `disposal_confirmed`, `disposalConfirmed`: matches only in this doc set, `00-current-state.md`,
+    `02-roadmap.md` and the file itself. **No application code references.**
+  - Production (SELECT): no column with either name in any schema; no function body (`pg_proc.prosrc`)
+    and no RLS policy (`pg_policies` qual/with_check) mentions either name.
+  - → archived unchanged in Phase 0.1.
 
 ## KI-4. `approve_material_dispatch` breaks purchase requests
 
@@ -101,3 +109,68 @@ To be filled in Phase 0.1 after `supabase gen types` against the local baseline
   `allow_admin_message_dismiss_on_approved`; local files use `NNN_` numbering.
 - Phase 0.1 replaces the file history with a single baseline and provides the exact
   `supabase migration repair` commands. **Brad runs them; Claude does not.**
+
+## KI-7. `ticket-images` storage: public access, extra dashboard policy, no size limit
+
+Investigated 2026-09-27 (production catalog, SELECT only). **No policy changes made.**
+Phase 0.1 baseline reproduces the current state exactly.
+
+### 7.1 Current state
+
+Bucket `ticket-images` (created 2026-04-16 in the dashboard; archived `026_ticket_images_storage.sql`
+was never applied, which is why names/limits differ):
+
+| Setting | Value |
+| --- | --- |
+| `public` | **true** — files are downloadable by anyone who has the URL, without auth, regardless of RLS |
+| `file_size_limit` | **NULL** (no limit) |
+| `allowed_mime_types` | **NULL** (any type) |
+| Objects | 121, in 80 top-level folders named by ticket UUID; largest 6.1 MB; none > 10 MB; none under `public/` |
+
+Policies on `storage.objects` that concern this bucket:
+
+| Policy | Operation | Role(s) | Condition |
+| --- | --- | --- | --- |
+| **`Allow Public Access zutf89_0`** | SELECT | `anon` | `bucket_id='ticket-images'` AND first folder = `public` AND `auth.role()='anon'` |
+| `ticket_images_public_read` | SELECT | `public` (= every role incl. anon) | `bucket_id='ticket-images'` |
+| `ticket_images_auth_insert` | INSERT | `public` | WITH CHECK `bucket_id='ticket-images'` AND `auth.role()='authenticated'` |
+| `ticket_images_auth_delete` | DELETE | `public` | `bucket_id='ticket-images'` AND `auth.role()='authenticated'` |
+| (none) | UPDATE | — | not allowed |
+
+- `Allow Public Access zutf89_0` (dashboard template) targets **only** `ticket-images/public/*`,
+  **SELECT only**, **anon only**. The folder `public/` holds 0 objects and the app never writes there,
+  so today it grants nothing beyond `ticket_images_public_read`, which is broader.
+- The effective exposure comes from `ticket_images_public_read` + `public = true`:
+  anyone (anon key is public in the browser bundle) can **list** every object in the bucket via the
+  Storage API, not only fetch known URLs. Paths are `<ticket_uuid>/<timestamp>_<name>.webp`, so a listing
+  reveals all ticket IDs and customer device photos.
+- INSERT/DELETE: any authenticated user = every employee (9 auth users, all linked to `employees`,
+  0 anonymous users). Deleting is not limited by role or ticket assignment.
+
+### 7.2 How the app writes and shows images
+
+| Path | Code | Client |
+| --- | --- | --- |
+| Public intake form upload | `submitTicketAction` — `src/app/actions/ticketActions.ts:117` (client), upload :223, URL :233 | **service_role** (`createAdminClient`) — bypasses storage RLS |
+| Staff upload on ticket detail | `uploadTicketImageAction` — `src/app/(admin)/tickets/actions.ts:1164` (upload :1235, URL :1247) | session (`createClient`) → `ticket_images_auth_insert` |
+| Delete one image | `removeTicketImageAction` — `actions.ts:1270` (:1291) | session → `ticket_images_auth_delete` |
+| Delete all on cancel | `cancelTicketAction` — `actions.ts:1097` | session |
+| Display | `repair_tickets.images[].url` rendered as `<img src={img.url}>` — `TicketDetailForm.tsx:1646`, `:1769` | — |
+
+- URLs are **public URLs** from `getPublicUrl()` (`/storage/v1/object/public/ticket-images/...`), stored
+  permanently in `repair_tickets.images`. **No signed URLs are used anywhere** (`createSignedUrl` not found in `src/`).
+- Size is limited only in the app: 10 MB check (`actions.ts` `MAX_IMAGE_SIZE`, `src/lib/imageUpload.ts:61`),
+  then `sharp` resize + WebP conversion. The bucket itself would accept any size/type from any
+  authenticated client that bypasses the app.
+
+### 7.3 Options for Brad (not implemented)
+
+| # | Option | Effect | Impact / cost |
+| --- | --- | --- | --- |
+| A | Drop `Allow Public Access zutf89_0` | Removes an unused dashboard policy | **No functional impact today** (0 objects under `public/`). Pure cleanup. |
+| B | Drop `ticket_images_public_read` (keep bucket public) | Stops anonymous **listing/enumeration** via the API; public URLs keep working because public buckets serve `/object/public/` without RLS | Low. Need to check that nothing lists the bucket as anon (app code does not). Staff listing would need an authenticated-only SELECT policy if ever required. |
+| C | Set `file_size_limit` (e.g. 10 MB) and `allowed_mime_types` (image types incl. `image/webp`) | Server-side enforcement matching the app rule | Low. App already converts to WebP ≤ 10 MB; check HEIC originals are never uploaded raw. |
+| D | Restrict INSERT/DELETE by role/assignment (e.g. via `get_my_role()` and ticket assignment) | Prevents any employee from deleting any ticket's images | Medium. Must mirror `tickets_update` rules; cancel flow deletes via session client and must keep working. |
+| E | Make the bucket private + switch to signed URLs | Photos no longer reachable by URL alone | **High.** `images[].url` stores public URLs permanently → need URL generation at render time (server side), migration of 121 stored URLs or path-based rendering, changes in `TicketDetailForm`, intake flow, any customer-facing view; signed-URL expiry handling. |
+
+Suggested order if Brad wants to tighten: A → C → B → D; E only as a separate project.

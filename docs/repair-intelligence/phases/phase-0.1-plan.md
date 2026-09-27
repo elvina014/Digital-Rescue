@@ -1,6 +1,11 @@
 # Phase 0.1 — Migration baseline (마이그레이션 기준점 정리) — PLAN
 
-Status: **awaiting Brad's "APPROVED"**. Nothing below has been executed.
+Status: **APPROVED 2026-09-27** with conditions:
+1. KI-3 — archive `019_cancel_method.sql` only after confirming no references (done: none found, see KI-3).
+2. Storage — reproduce production as-is (no changes); document in KI-7 (done).
+3. Phase 0.5 includes the app-side OUTBOUND fallback fix (roadmap updated).
+4. Brad runs the dump himself; a secrets check of the dump file is part of the plan (step 2b).
+5. `migration repair` is not executed by Claude; commands and their exact effect are explained (step 9).
 
 ## Goal
 
@@ -34,6 +39,18 @@ npx supabase db dump --db-url "<SESSION_POOLER_URI>" -f supabase/baseline_raw/sc
 ```
 - Default `db dump` = schema only (no data), excludes Supabase-managed schemas (auth, storage, …).
 - Do not use `--data-only`. Tell Claude when the file exists.
+
+### 2b. Secrets / data check of the dump (Claude, before using the file)
+The file must contain **no password, no connection info, no data rows**. Checks (read-only, results in the report):
+- No connection strings or credentials:
+  `grep -niE "postgres(ql)?://|password|passwd|pooler\.supabase|:6543|:5432|sslmode|PGPASSWORD|service_role_key|anon_key|eyJhbGci" supabase/baseline_raw/schema.sql`
+  → expected: no matches except legitimate SQL (e.g. a column named `password` — none exist in public).
+- No data: `grep -nE "^(COPY |INSERT INTO)" …` → expected none (schema-only).
+  `SELECT set_config` / `pg_catalog.setval` lines are allowed.
+- No project host/ref strings: `grep -n "wnddkgeohcgcidoklrps"` → expected none.
+- No role passwords: `grep -niE "CREATE ROLE|ALTER ROLE|ENCRYPTED PASSWORD|SCRAM-SHA"` → expected none.
+If anything matches, Claude stops, does not copy the file anywhere, and reports the line numbers
+(not the content) to Brad; Brad deletes the file. `supabase/baseline_raw/` is git-ignored before the dump runs.
 
 ### 3. Assemble the baseline
 File: `supabase/migrations/<UTC timestamp at execution>_baseline.sql` (must be later than the last
@@ -124,8 +141,28 @@ npx supabase migration repair --status reverted 20260504055736 20260505035051 20
 npx supabase migration repair --status applied <BASELINE_TIMESTAMP>
 npx supabase migration list
 ```
-- `repair` only edits rows in `supabase_migrations.schema_migrations`; no schema or data change.
-- Without it, later `db push` / `migration list` report local/remote mismatches.
+What each command changes in production:
+
+| Command | Effect on production |
+| --- | --- |
+| `login` | Stores a Supabase access token on Brad's PC. Nothing in the DB. |
+| `link` | Writes project ref into local `supabase/.temp/`. May prompt for the DB password (entered by Brad only). Nothing in the DB. |
+| `repair --status reverted <18 versions>` | **Deletes 18 rows** from `supabase_migrations.schema_migrations` (024–042 history records). |
+| `repair --status applied <BASELINE>` | **Inserts 1 row** into `supabase_migrations.schema_migrations` (version, name, statements). The baseline SQL is **not executed**. |
+| `migration list` | Read-only comparison. |
+
+- `repair` never runs migration SQL; public/storage schemas, data, functions, RLS are untouched.
+  Only the migration-history bookkeeping table changes.
+- Correction to the brief's assumption ("1 row added, nothing else"): that holds only for the
+  `applied` command. The full clean-up also removes the 18 old history rows. Two ways:
+  - **Full (recommended):** both repair commands → history = exactly the baseline. `migration list` and
+    `db push` work without mismatch errors.
+  - **Minimal:** only `repair --status applied <BASELINE>` → 1 row added, 18 old rows kept.
+    Then the CLI reports 18 "remote-only" versions not found locally, and `db push` refuses
+    until they are reverted. Acceptable only if Brad never uses `db push` (e.g. keeps applying SQL manually).
+- Reverse (undo) of the full version: `repair --status reverted <BASELINE>` then
+  `repair --status applied <18 versions>` (restores version rows; the original `statements`/`name`
+  columns of those rows would not be restored — cosmetic only).
 - The final command list (with the real `<BASELINE_TIMESTAMP>`) is repeated in the report.
 
 ### 10. Docs, report, commit
