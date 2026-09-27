@@ -1,0 +1,55 @@
+# Repair Intelligence — Working Rules
+
+Read `01-design-principles.md`, `02-roadmap.md`, `00-current-state.md` and the relevant
+`phases/*.md` before any Repair Intelligence work. These rules are strict.
+
+**R1. One phase per session.**
+First write `docs/repair-intelligence/phases/phase-N-plan.md` (tables, columns, functions, RLS,
+UI files, migration names, rollback SQL, test plan, risks) and STOP. Implement only after Brad
+replies "APPROVED".
+
+**R2. Additive changes only.**
+New tables, new nullable columns, new functions. No DROP / RENAME / type changes on existing
+objects, and no changes to existing triggers or functions unless the approved plan explicitly lists them.
+
+**R3. Migrations.**
+New files only (never edit existing migrations). Every plan includes rollback SQL.
+Apply ONLY to the development target Brad specifies. Never apply to production; Brad does that.
+If a Supabase MCP is available, use it read-only for production; never run DDL/DML there.
+
+**R4. Security.**
+Every new table: RLS enabled, policies mirroring the existing role pattern (`get_my_role()`).
+Every SECURITY DEFINER function sets `search_path` explicitly and checks the caller's role.
+Run the Supabase security/performance advisors after migrations and fix new findings.
+
+**R5. Transactions & UX.**
+Inventory-affecting logic lives in Postgres functions executing as one transaction.
+UI uses optimistic updates with rollback on error, and Korean validation warnings.
+
+**R6. Verification & report.**
+After implementation: regenerate Supabase TypeScript types; typecheck, lint and build must pass;
+run the test plan. Write `phases/phase-N-report.md` (what changed, files, migrations, how Brad
+verifies, known risks) and give the summary in Korean.
+
+**R7. Git.**
+Work on branch `feat/repair-intelligence`. Commit locally per phase with a clear message.
+Never push, never merge, never deploy — Brad does that.
+
+**R8. Stop on ambiguity.**
+If anything is ambiguous, conflicts with the real schema, or a step fails twice: STOP and ask.
+Do not guess, do not work around principles, do not silently widen scope.
+
+**R9. Business data is untouchable.**
+Never delete or modify existing business data. Backfills only through the confirmed tools
+defined in the approved plan.
+
+## Project-specific notes (from Phase 0)
+
+- There is currently **no development database** (single Supabase project `wnddkgeohcgcidoklrps`,
+  no branches). Until Brad names a dev target, R3 means: write migration files only, apply nothing.
+- Supabase CLI is not installed; migrations have been applied via Supabase MCP `apply_migration`
+  and saved as `supabase/migrations/NNN_name.sql`. Next free number: `043`.
+- DB types are hand-written in `src/types/database.ts` / `src/types/enums.ts` (not generated).
+  "Regenerate types" (R6) needs a decision — see `00-current-state.md` §9.
+- `package.json` has no `typecheck` or `test` script: use `npx tsc --noEmit`, `npm run lint`, `npm run build`.
+- Communicate with Brad in Korean. All UI labels in Korean.
