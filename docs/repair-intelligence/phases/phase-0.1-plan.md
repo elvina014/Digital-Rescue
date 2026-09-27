@@ -1,6 +1,6 @@
 # Phase 0.1 — Migration baseline (마이그레이션 기준점 정리) — PLAN
 
-Status: **APPROVED 2026-09-27** with conditions:
+Status: **APPROVED 2026-09-27 — EXECUTED 2026-09-27** (see `phase-0.1-report.md`). Conditions:
 1. KI-3 — archive `019_cancel_method.sql` only after confirming no references (done: none found, see KI-3).
 2. Storage — reproduce production as-is (no changes); document in KI-7 (done).
 3. Phase 0.5 includes the app-side OUTBOUND fallback fix (roadmap updated).

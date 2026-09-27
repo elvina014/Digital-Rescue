@@ -1,0 +1,632 @@
+
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+
+export type Database = {
+  
+  "graphql_public": {
+          Tables: {
+            [_ in never]: never
+          }
+          Views: {
+            [_ in never]: never
+          }
+          Functions: {
+            "graphql":
+{ Args: { "extensions"?: Json,"operationName"?: string,"query"?: string,"variables"?: Json }; Returns: Json
+                           }
+          }
+          Enums: {
+            [_ in never]: never
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
+        },"public": {
+          Tables: {
+            "customers": {
+                  Row: {
+                    "address": string | null,"created_at": string,"id": string,"name": string,"phone": string
+                  }
+                  Insert: {
+                    "address"?: string | null,"created_at"?: string,"id"?: string,"name": string,"phone": string
+                  }
+                  Update: {
+                    "address"?: string | null,"created_at"?: string,"id"?: string,"name"?: string,"phone"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"device_models": {
+                  Row: {
+                    "brand": string,"created_at": string,"id": string,"min_repair_cost": number | null,"model_name": string,"release_price": number | null,"release_year": number | null,"specs": Json | null,"tag_info": string | null
+                  }
+                  Insert: {
+                    "brand": string,"created_at"?: string,"id"?: string,"min_repair_cost"?: number | null,"model_name": string,"release_price"?: number | null,"release_year"?: number | null,"specs"?: Json | null,"tag_info"?: string | null
+                  }
+                  Update: {
+                    "brand"?: string,"created_at"?: string,"id"?: string,"min_repair_cost"?: number | null,"model_name"?: string,"release_price"?: number | null,"release_year"?: number | null,"specs"?: Json | null,"tag_info"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"employees": {
+                  Row: {
+                    "created_at": string,"id": string,"is_assignable": boolean,"name": string,"phone": string | null,"role": Database["public"]['Enums']["employee_role"]
+                  }
+                  Insert: {
+                    "created_at"?: string,"id": string,"is_assignable"?: boolean,"name": string,"phone"?: string | null,"role": Database["public"]['Enums']["employee_role"]
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"is_assignable"?: boolean,"name"?: string,"phone"?: string | null,"role"?: Database["public"]['Enums']["employee_role"]
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"global_settings": {
+                  Row: {
+                    "base_service_cost": number,"discount_surcharge_rate": number,"id": boolean,"updated_at": string,"value_reference_amount": number
+                  }
+                  Insert: {
+                    "base_service_cost"?: number,"discount_surcharge_rate"?: number,"id"?: boolean,"updated_at"?: string,"value_reference_amount"?: number
+                  }
+                  Update: {
+                    "base_service_cost"?: number,"discount_surcharge_rate"?: number,"id"?: boolean,"updated_at"?: string,"value_reference_amount"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"inventory": {
+                  Row: {
+                    "condition": Database["public"]['Enums']["inventory_condition"],"cost_price": number,"created_at": string,"id": string,"part_name": string,"quantity": number
+                  }
+                  Insert: {
+                    "condition": Database["public"]['Enums']["inventory_condition"],"cost_price"?: number,"created_at"?: string,"id"?: string,"part_name": string,"quantity"?: number
+                  }
+                  Update: {
+                    "condition"?: Database["public"]['Enums']["inventory_condition"],"cost_price"?: number,"created_at"?: string,"id"?: string,"part_name"?: string,"quantity"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"inventory_categories": {
+                  Row: {
+                    "created_at": string,"id": string,"name": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"name": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"name"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"inventory_items": {
+                  Row: {
+                    "base_estimate": number,"capacity": string | null,"category_id": string,"condition": Database["public"]['Enums']["item_condition"],"created_at": string,"id": string,"product_id": string,"quantity": number,"spec_id": string,"updated_at": string
+                  }
+                  Insert: {
+                    "base_estimate"?: number,"capacity"?: string | null,"category_id": string,"condition"?: Database["public"]['Enums']["item_condition"],"created_at"?: string,"id"?: string,"product_id": string,"quantity"?: number,"spec_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "base_estimate"?: number,"capacity"?: string | null,"category_id"?: string,"condition"?: Database["public"]['Enums']["item_condition"],"created_at"?: string,"id"?: string,"product_id"?: string,"quantity"?: number,"spec_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "inventory_items_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "inventory_categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "inventory_items_product_id_fkey"
+      columns: ["product_id"]
+isOneToOne: false
+      referencedRelation: "inventory_products"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "inventory_items_spec_id_fkey"
+      columns: ["spec_id"]
+isOneToOne: false
+      referencedRelation: "inventory_specs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"inventory_products": {
+                  Row: {
+                    "created_at": string,"id": string,"name": string,"spec_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"name": string,"spec_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"name"?: string,"spec_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "inventory_products_spec_id_fkey"
+      columns: ["spec_id"]
+isOneToOne: false
+      referencedRelation: "inventory_specs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"inventory_specs": {
+                  Row: {
+                    "category_id": string,"created_at": string,"id": string,"name": string
+                  }
+                  Insert: {
+                    "category_id": string,"created_at"?: string,"id"?: string,"name": string
+                  }
+                  Update: {
+                    "category_id"?: string,"created_at"?: string,"id"?: string,"name"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "inventory_specs_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "inventory_categories"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"inventory_transactions": {
+                  Row: {
+                    "created_at": string,"id": string,"item_id": string,"notes": string | null,"quantity_changed": number,"ticket_id": string | null,"transaction_type": Database["public"]['Enums']["inventory_transaction_type"],"user_id": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"item_id": string,"notes"?: string | null,"quantity_changed": number,"ticket_id"?: string | null,"transaction_type": Database["public"]['Enums']["inventory_transaction_type"],"user_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"item_id"?: string,"notes"?: string | null,"quantity_changed"?: number,"ticket_id"?: string | null,"transaction_type"?: Database["public"]['Enums']["inventory_transaction_type"],"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "inventory_transactions_item_id_fkey"
+      columns: ["item_id"]
+isOneToOne: false
+      referencedRelation: "inventory_items"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "inventory_transactions_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "inventory_transactions_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"news_items": {
+                  Row: {
+                    "body": string,"created_at": string,"id": string,"news_date": string,"published_at": string | null,"source": string,"source_url": string | null,"status": string,"summary": string,"title": string,"updated_at": string,"updated_by": string | null
+                  }
+                  Insert: {
+                    "body"?: string,"created_at"?: string,"id"?: string,"news_date"?: string,"published_at"?: string | null,"source"?: string,"source_url"?: string | null,"status"?: string,"summary"?: string,"title": string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "body"?: string,"created_at"?: string,"id"?: string,"news_date"?: string,"published_at"?: string | null,"source"?: string,"source_url"?: string | null,"status"?: string,"summary"?: string,"title"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "news_items_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"page_contents": {
+                  Row: {
+                    "content_data": NonNullable<Json>,"created_at": string,"id": string,"page_key": string,"section_key": string,"updated_at": string,"updated_by": string | null
+                  }
+                  Insert: {
+                    "content_data"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"page_key": string,"section_key": string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "content_data"?: NonNullable<Json>,"created_at"?: string,"id"?: string,"page_key"?: string,"section_key"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "page_contents_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"receipt_no_sequence": {
+                  Row: {
+                    "current_seq": number,"date_key": string
+                  }
+                  Insert: {
+                    "current_seq"?: number,"date_key": string
+                  }
+                  Update: {
+                    "current_seq"?: number,"date_key"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"refund_no_sequence": {
+                  Row: {
+                    "current_seq": number,"date_key": string
+                  }
+                  Insert: {
+                    "current_seq"?: number,"date_key": string
+                  }
+                  Update: {
+                    "current_seq"?: number,"date_key"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"repair_tickets": {
+                  Row: {
+                    "assignee_id": string | null,"cancel_device_disposal": string | null,"canceled_at": string | null,"cash_receipt_issued": boolean | null,"completed_at": string | null,"confirmed_estimate": number | null,"created_at": string,"customer_id": string,"device_brand": string,"device_model": string | null,"device_type": Database["public"]['Enums']["device_type"],"dispose_confirmed_at": string | null,"evaluated_value": number | null,"expected_estimate": number,"final_price": number,"has_admin_message": boolean,"id": string,"images": NonNullable<Json>,"initial_estimate": number,"is_approved": boolean,"is_test": boolean,"material_cost": number,"material_cost_details": NonNullable<Json>,"minimum_estimate": number | null,"paid_at": string | null,"payment_method": string | null,"payment_status": Database["public"]['Enums']["payment_status"],"receipt_no": string,"receipt_type": Database["public"]['Enums']["receipt_type"],"received_at": string | null,"refunded_amount": number,"release_year": string | null,"status": Database["public"]['Enums']["ticket_status"],"symptoms": string,"tag_info": string | null,"updated_at": string
+                  }
+                  Insert: {
+                    "assignee_id"?: string | null,"cancel_device_disposal"?: string | null,"canceled_at"?: string | null,"cash_receipt_issued"?: boolean | null,"completed_at"?: string | null,"confirmed_estimate"?: number | null,"created_at"?: string,"customer_id": string,"device_brand": string,"device_model"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"],"dispose_confirmed_at"?: string | null,"evaluated_value"?: number | null,"expected_estimate"?: number,"final_price"?: number,"has_admin_message"?: boolean,"id"?: string,"images"?: NonNullable<Json>,"initial_estimate"?: number,"is_approved"?: boolean,"is_test"?: boolean,"material_cost"?: number,"material_cost_details"?: NonNullable<Json>,"minimum_estimate"?: number | null,"paid_at"?: string | null,"payment_method"?: string | null,"payment_status"?: Database["public"]['Enums']["payment_status"],"receipt_no": string,"receipt_type": Database["public"]['Enums']["receipt_type"],"received_at"?: string | null,"refunded_amount"?: number,"release_year"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"symptoms": string,"tag_info"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "assignee_id"?: string | null,"cancel_device_disposal"?: string | null,"canceled_at"?: string | null,"cash_receipt_issued"?: boolean | null,"completed_at"?: string | null,"confirmed_estimate"?: number | null,"created_at"?: string,"customer_id"?: string,"device_brand"?: string,"device_model"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"],"dispose_confirmed_at"?: string | null,"evaluated_value"?: number | null,"expected_estimate"?: number,"final_price"?: number,"has_admin_message"?: boolean,"id"?: string,"images"?: NonNullable<Json>,"initial_estimate"?: number,"is_approved"?: boolean,"is_test"?: boolean,"material_cost"?: number,"material_cost_details"?: NonNullable<Json>,"minimum_estimate"?: number | null,"paid_at"?: string | null,"payment_method"?: string | null,"payment_status"?: Database["public"]['Enums']["payment_status"],"receipt_no"?: string,"receipt_type"?: Database["public"]['Enums']["receipt_type"],"received_at"?: string | null,"refunded_amount"?: number,"release_year"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"symptoms"?: string,"tag_info"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "repair_tickets_assignee_id_fkey"
+      columns: ["assignee_id"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "repair_tickets_customer_id_fkey"
+      columns: ["customer_id"]
+isOneToOne: false
+      referencedRelation: "customers"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ticket_logs": {
+                  Row: {
+                    "created_at": string,"employee_id": string,"id": string,"message": string,"ticket_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"employee_id": string,"id"?: string,"message": string,"ticket_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"employee_id"?: string,"id"?: string,"message"?: string,"ticket_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ticket_logs_employee_id_fkey"
+      columns: ["employee_id"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_logs_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ticket_materials": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"inventory_item_id": string,"is_return_registered": boolean,"notes": string | null,"override_unit_price": number | null,"quantity": number,"request_status": Database["public"]['Enums']["material_request_status"],"request_type": string,"return_capacity": string | null,"return_category_id": string | null,"return_condition": string | null,"return_name": string | null,"return_quantity": number,"return_spec": string | null,"return_status": string | null,"ticket_id": string,"updated_at": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"inventory_item_id": string,"is_return_registered"?: boolean,"notes"?: string | null,"override_unit_price"?: number | null,"quantity"?: number,"request_status"?: Database["public"]['Enums']["material_request_status"],"request_type"?: string,"return_capacity"?: string | null,"return_category_id"?: string | null,"return_condition"?: string | null,"return_name"?: string | null,"return_quantity"?: number,"return_spec"?: string | null,"return_status"?: string | null,"ticket_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"inventory_item_id"?: string,"is_return_registered"?: boolean,"notes"?: string | null,"override_unit_price"?: number | null,"quantity"?: number,"request_status"?: Database["public"]['Enums']["material_request_status"],"request_type"?: string,"return_capacity"?: string | null,"return_category_id"?: string | null,"return_condition"?: string | null,"return_name"?: string | null,"return_quantity"?: number,"return_spec"?: string | null,"return_status"?: string | null,"ticket_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ticket_materials_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_materials_inventory_item_id_fkey"
+      columns: ["inventory_item_id"]
+isOneToOne: false
+      referencedRelation: "inventory_items"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_materials_return_category_id_fkey"
+      columns: ["return_category_id"]
+isOneToOne: false
+      referencedRelation: "inventory_categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_materials_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ticket_refunds": {
+                  Row: {
+                    "amount": number,"approved_at": string | null,"approved_by": string | null,"cash_receipt_cancel_required": boolean,"cash_receipt_canceled_at": string | null,"completed_at": string | null,"completed_by": string | null,"created_at": string,"deduction_amount": number,"deduction_note": string | null,"evidence": NonNullable<Json>,"id": string,"material_adjustments": NonNullable<Json>,"origin_payment_method": string,"parts_recovery": Database["public"]['Enums']["parts_recovery"],"reason_code": Database["public"]['Enums']["refund_reason"],"reason_note": string | null,"refund_account": string | null,"refund_bank": string | null,"refund_holder": string | null,"refund_method": Database["public"]['Enums']["refund_method"],"refund_no": string,"reject_note": string | null,"rejected_at": string | null,"rejected_by": string | null,"requested_at": string,"requested_by": string,"status": Database["public"]['Enums']["refund_status"],"ticket_id": string,"updated_at": string,"void_note": string | null,"voided_at": string | null,"voided_by": string | null
+                  }
+                  Insert: {
+                    "amount": number,"approved_at"?: string | null,"approved_by"?: string | null,"cash_receipt_cancel_required"?: boolean,"cash_receipt_canceled_at"?: string | null,"completed_at"?: string | null,"completed_by"?: string | null,"created_at"?: string,"deduction_amount"?: number,"deduction_note"?: string | null,"evidence"?: NonNullable<Json>,"id"?: string,"material_adjustments"?: NonNullable<Json>,"origin_payment_method": string,"parts_recovery"?: Database["public"]['Enums']["parts_recovery"],"reason_code": Database["public"]['Enums']["refund_reason"],"reason_note"?: string | null,"refund_account"?: string | null,"refund_bank"?: string | null,"refund_holder"?: string | null,"refund_method": Database["public"]['Enums']["refund_method"],"refund_no": string,"reject_note"?: string | null,"rejected_at"?: string | null,"rejected_by"?: string | null,"requested_at"?: string,"requested_by": string,"status"?: Database["public"]['Enums']["refund_status"],"ticket_id": string,"updated_at"?: string,"void_note"?: string | null,"voided_at"?: string | null,"voided_by"?: string | null
+                  }
+                  Update: {
+                    "amount"?: number,"approved_at"?: string | null,"approved_by"?: string | null,"cash_receipt_cancel_required"?: boolean,"cash_receipt_canceled_at"?: string | null,"completed_at"?: string | null,"completed_by"?: string | null,"created_at"?: string,"deduction_amount"?: number,"deduction_note"?: string | null,"evidence"?: NonNullable<Json>,"id"?: string,"material_adjustments"?: NonNullable<Json>,"origin_payment_method"?: string,"parts_recovery"?: Database["public"]['Enums']["parts_recovery"],"reason_code"?: Database["public"]['Enums']["refund_reason"],"reason_note"?: string | null,"refund_account"?: string | null,"refund_bank"?: string | null,"refund_holder"?: string | null,"refund_method"?: Database["public"]['Enums']["refund_method"],"refund_no"?: string,"reject_note"?: string | null,"rejected_at"?: string | null,"rejected_by"?: string | null,"requested_at"?: string,"requested_by"?: string,"status"?: Database["public"]['Enums']["refund_status"],"ticket_id"?: string,"updated_at"?: string,"void_note"?: string | null,"voided_at"?: string | null,"voided_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ticket_refunds_approved_by_fkey"
+      columns: ["approved_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_refunds_completed_by_fkey"
+      columns: ["completed_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_refunds_rejected_by_fkey"
+      columns: ["rejected_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_refunds_requested_by_fkey"
+      columns: ["requested_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_refunds_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_refunds_voided_by_fkey"
+      columns: ["voided_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
+                }
+          }
+          Views: {
+            [_ in never]: never
+          }
+          Functions: {
+            "apply_refund_material_adjustments":
+{ Args: { "p_refund_id": string,"p_revert": boolean }; Returns: undefined
+                           },
+"approve_material_dispatch":
+{ Args: { "p_material_id": string,"p_user_id"?: string }; Returns: Json
+                           },
+"get_my_role":
+{ Args: Record<PropertyKey, never>; Returns: Database["public"]['Enums']["employee_role"]
+                           },
+"recalc_ticket_material_cost":
+{ Args: { "p_ticket_id": string }; Returns: number
+                           },
+"request_refund":
+{ Args: { "p_amount": number,"p_material_adjustments"?: Json,"p_reason_code": Database["public"]['Enums']["refund_reason"],"p_reason_note"?: string,"p_refund_account"?: string,"p_refund_bank"?: string,"p_refund_holder"?: string,"p_refund_method": Database["public"]['Enums']["refund_method"],"p_ticket_id": string }; Returns: {
+              "amount": number,
+"approved_at": string | null,
+"approved_by": string | null,
+"cash_receipt_cancel_required": boolean,
+"cash_receipt_canceled_at": string | null,
+"completed_at": string | null,
+"completed_by": string | null,
+"created_at": string,
+"deduction_amount": number,
+"deduction_note": string | null,
+"evidence": NonNullable<Json>,
+"id": string,
+"material_adjustments": NonNullable<Json>,
+"origin_payment_method": string,
+"parts_recovery": Database["public"]['Enums']["parts_recovery"],
+"reason_code": Database["public"]['Enums']["refund_reason"],
+"reason_note": string | null,
+"refund_account": string | null,
+"refund_bank": string | null,
+"refund_holder": string | null,
+"refund_method": Database["public"]['Enums']["refund_method"],
+"refund_no": string,
+"reject_note": string | null,
+"rejected_at": string | null,
+"rejected_by": string | null,
+"requested_at": string,
+"requested_by": string,
+"status": Database["public"]['Enums']["refund_status"],
+"ticket_id": string,
+"updated_at": string,
+"void_note": string | null,
+"voided_at": string | null,
+"voided_by": string | null
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "ticket_refunds"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
+"transition_refund":
+{ Args: { "p_action": string,"p_cash_receipt_canceled"?: boolean,"p_note"?: string,"p_refund_id": string }; Returns: {
+              "amount": number,
+"approved_at": string | null,
+"approved_by": string | null,
+"cash_receipt_cancel_required": boolean,
+"cash_receipt_canceled_at": string | null,
+"completed_at": string | null,
+"completed_by": string | null,
+"created_at": string,
+"deduction_amount": number,
+"deduction_note": string | null,
+"evidence": NonNullable<Json>,
+"id": string,
+"material_adjustments": NonNullable<Json>,
+"origin_payment_method": string,
+"parts_recovery": Database["public"]['Enums']["parts_recovery"],
+"reason_code": Database["public"]['Enums']["refund_reason"],
+"reason_note": string | null,
+"refund_account": string | null,
+"refund_bank": string | null,
+"refund_holder": string | null,
+"refund_method": Database["public"]['Enums']["refund_method"],
+"refund_no": string,
+"reject_note": string | null,
+"rejected_at": string | null,
+"rejected_by": string | null,
+"requested_at": string,
+"requested_by": string,
+"status": Database["public"]['Enums']["refund_status"],
+"ticket_id": string,
+"updated_at": string,
+"void_note": string | null,
+"voided_at": string | null,
+"voided_by": string | null
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "ticket_refunds"
+        isOneToOne: true
+        isSetofReturn: false
+      } }
+          }
+          Enums: {
+            "device_type": "노트북"|"데스크탑"|"서버"|"나스"|"기타저장장치"|"태블릿","employee_role": "ADMIN"|"MANAGER"|"RECEPTION"|"TECHNICIAN"|"EXPERT_REPAIR"|"CS","inventory_condition": "NEW"|"GOOD"|"DEFECTIVE"|"SURPLUS","inventory_transaction_type": "INBOUND"|"OUTBOUND"|"ADJUSTMENT","item_condition": "NEW"|"USED","material_request_status": "pending"|"requested"|"approved"|"rejected"|"cancelled"|"cancel_requested","parts_recovery": "RECOVERED"|"NOT_RECOVERED"|"NONE","payment_status": "PENDING"|"PAID"|"PARTIALLY_REFUNDED"|"REFUNDED","receipt_type": "VISIT"|"DELIVERY"|"WALK_IN"|"QUICK"|"PARCEL"|"미정","refund_method": "CARD_CANCEL"|"CARD_PARTIAL_CANCEL"|"BANK_REFUND"|"CASH","refund_reason": "QUALITY"|"REPAIR_FAILED"|"OVERCHARGE"|"DUPLICATE"|"COMPLAINT"|"CHANGE_MIND"|"OTHER","refund_status": "REQUESTED"|"APPROVED"|"COMPLETED"|"REJECTED"|"VOID","ticket_status": "NEW"|"ASSIGNED"|"RECEIVED"|"IN_PROGRESS"|"WAITING_APPROVAL"|"COMPLETED"|"CANCELED"
+          }
+          CompositeTypes: {
+            [_ in never]: never
+          }
+        }
+}
+
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
+
+export const Constants = {
+  "graphql_public": {
+          Enums: {
+            
+          }
+        },"public": {
+          Enums: {
+            "device_type": ["노트북", "데스크탑", "서버", "나스", "기타저장장치", "태블릿"],"employee_role": ["ADMIN", "MANAGER", "RECEPTION", "TECHNICIAN", "EXPERT_REPAIR", "CS"],"inventory_condition": ["NEW", "GOOD", "DEFECTIVE", "SURPLUS"],"inventory_transaction_type": ["INBOUND", "OUTBOUND", "ADJUSTMENT"],"item_condition": ["NEW", "USED"],"material_request_status": ["pending", "requested", "approved", "rejected", "cancelled", "cancel_requested"],"parts_recovery": ["RECOVERED", "NOT_RECOVERED", "NONE"],"payment_status": ["PENDING", "PAID", "PARTIALLY_REFUNDED", "REFUNDED"],"receipt_type": ["VISIT", "DELIVERY", "WALK_IN", "QUICK", "PARCEL", "미정"],"refund_method": ["CARD_CANCEL", "CARD_PARTIAL_CANCEL", "BANK_REFUND", "CASH"],"refund_reason": ["QUALITY", "REPAIR_FAILED", "OVERCHARGE", "DUPLICATE", "COMPLAINT", "CHANGE_MIND", "OTHER"],"refund_status": ["REQUESTED", "APPROVED", "COMPLETED", "REJECTED", "VOID"],"ticket_status": ["NEW", "ASSIGNED", "RECEIVED", "IN_PROGRESS", "WAITING_APPROVAL", "COMPLETED", "CANCELED"]
+          }
+        }
+} as const
+

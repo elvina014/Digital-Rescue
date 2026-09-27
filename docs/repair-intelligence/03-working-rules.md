@@ -48,13 +48,16 @@ defined in the approved plan.
 - **Dev target = local Supabase on Docker** (decision Q9). Production (`wnddkgeohcgcidoklrps`) is
   read-only for Claude; Brad applies migrations to production himself.
   Until Phase 0.1 is complete, no migration may be applied anywhere.
-- After Phase 0.1: migrations are `supabase/migrations/<timestamp>_name.sql` on top of the
+- Since Phase 0.1 (baseline `20260927141005_baseline.sql`): migrations are `supabase/migrations/<timestamp>_name.sql` on top of the
   baseline; files 001–042 live in `supabase/migrations_archive/` (history only, never executed).
   Workflow: `npx supabase db reset` locally → tests → commit → Brad applies to production.
 - Types: generated `src/types/supabase.ts` (`npm run db:types`) is used by **new** features only.
   Hand-written `src/types/database.ts` / `enums.ts` stay for existing code (differences: KI-5).
 - Checks: `npm run typecheck` (added in Phase 0.1), `npm run lint`, `npm run build`.
   No test framework yet — each plan states how its tests run (SQL/pgTAP against the local DB).
+- Every new function must `REVOKE ALL … FROM PUBLIC, anon, authenticated` and then GRANT only what
+  it needs: Supabase default privileges grant EXECUTE to `anon`/`authenticated` on creation
+  (see `phases/phase-0.1-report.md` → "function privileges").
 - RI admin screens live on `login.` and are visible to ADMIN only.
 - Known issues and deferred work: `known-issues.md`.
 - Communicate with Brad in Korean. All UI labels in Korean.

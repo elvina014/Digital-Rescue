@@ -1,0 +1,744 @@
+-- =============================================================
+-- Local development seed — FAKE DATA ONLY
+-- Loaded by `supabase db reset` (config.toml [db.seed]).
+-- Never run against production. Contains no production customer data.
+--
+-- Local test accounts (all roles), local stack only:
+--   admin@example.test, manager@example.test, reception@example.test,
+--   tech@example.test, expert@example.test, cs@example.test
+--   password: LocalDev!2026   (local-only test credential)
+--
+-- Contents
+--   1. auth users + employees (one per role)
+--   2. global_settings (single row; pricing parameters, not customer data)
+--   3. page_contents (default public website copy from archived 021/022)
+--   4. inventory hierarchy + items (incl. qty-0 item for purchase tests, one 외주 item)
+--   5. customers (fake), tickets across all statuses
+--   6. ticket_materials in all request states + one extracted-part registration
+--   7. inventory_transactions consistent with item quantities
+-- =============================================================
+
+-- ---------- 1. auth users + employees ----------
+INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+                        raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                        confirmation_token, email_change, email_change_token_new, recovery_token)
+SELECT '00000000-0000-0000-0000-000000000000', u.id, 'authenticated', 'authenticated', u.email,
+       extensions.crypt('LocalDev!2026', extensions.gen_salt('bf')), now(),
+       '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''
+FROM (VALUES
+  ('00000000-0000-4000-a000-000000000001'::uuid, 'admin@example.test'),
+  ('00000000-0000-4000-a000-000000000002'::uuid, 'manager@example.test'),
+  ('00000000-0000-4000-a000-000000000003'::uuid, 'reception@example.test'),
+  ('00000000-0000-4000-a000-000000000004'::uuid, 'tech@example.test'),
+  ('00000000-0000-4000-a000-000000000005'::uuid, 'expert@example.test'),
+  ('00000000-0000-4000-a000-000000000006'::uuid, 'cs@example.test')
+) AS u(id, email);
+
+INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+SELECT gen_random_uuid(), u.id, u.id::text,
+       jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true),
+       'email', now(), now(), now()
+FROM auth.users u WHERE u.email LIKE '%@example.test';
+
+INSERT INTO public.employees (id, name, role, phone, is_assignable) VALUES
+  ('00000000-0000-4000-a000-000000000001', '테스트관리자', 'ADMIN',         '010-0000-0001', true),
+  ('00000000-0000-4000-a000-000000000002', '테스트팀장',   'MANAGER',       '010-0000-0002', true),
+  ('00000000-0000-4000-a000-000000000003', '테스트접수',   'RECEPTION',     '010-0000-0003', true),
+  ('00000000-0000-4000-a000-000000000004', '테스트기사',   'TECHNICIAN',    '010-0000-0004', true),
+  ('00000000-0000-4000-a000-000000000005', '테스트정밀',   'EXPERT_REPAIR', '010-0000-0005', true),
+  ('00000000-0000-4000-a000-000000000006', '테스트CS',     'CS',            '010-0000-0006', true);
+
+-- ---------- 2. global_settings ----------
+INSERT INTO public.global_settings (id, base_service_cost, value_reference_amount, discount_surcharge_rate)
+VALUES (true, 132000, 1500000, 100)
+ON CONFLICT (id) DO NOTHING;
+
+-- ---------- 3. page_contents (public website copy) ----------
+INSERT INTO public.page_contents (page_key, section_key, content_data) VALUES
+
+-- ----- main : theme -----
+('main', 'theme', $cms$
+{
+  "fontFamily": "var(--font-geist-sans), 'Pretendard', system-ui, sans-serif",
+  "accentColor": "#2563eb",
+  "accentSoft": "#dbeafe",
+  "textPrimary": "#0f172a",
+  "textSecondary": "#475569",
+  "surface": "#ffffff",
+  "surfaceMuted": "#f8fafc",
+  "borderSoft": "#e2e8f0",
+  "radius": "1.5rem"
+}
+$cms$::jsonb),
+
+-- ----- main : hero -----
+('main', 'hero', $cms$
+{
+  "badge": { "text": "Digital Rescue · Clean & Trust", "show": true },
+  "headline": {
+    "lines": [
+      { "text": "기술이 만드는", "emphasis": false },
+      { "text": "안심", "emphasis": true },
+      { "text": "그리고 신뢰.", "emphasis": false }
+    ],
+    "weight": 800,
+    "tracking": "tight"
+  },
+  "subheadline": "어떠한 브랜드의 IT기기든, 디지털레스큐가 신속하고 투명하게 해결합니다.",
+  "ctas": [
+    { "label": "무료 견적 받기", "href": "#contact", "variant": "primary" },
+    { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }
+  ],
+  "background": {
+    "type": "gradient-blobs",
+    "imageUrl": "",
+    "blobs": [
+      { "color": "#dbeafe", "x": "-10%", "y": "-15%", "size": "520px", "blur": "120px" },
+      { "color": "#e0e7ff", "x": "70%",  "y": "60%",  "size": "560px", "blur": "140px" },
+      { "color": "#f1f5f9", "x": "30%",  "y": "40%",  "size": "420px", "blur": "100px" }
+    ]
+  },
+  "trustStats": [
+    { "value": "12,000+",   "label": "누적 수리 건수" },
+    { "value": "98%",       "label": "고객 만족도" },
+    { "value": "All Brands","label": "전 브랜드 대응" }
+  ],
+  "animation": { "fadeInDurationMs": 900, "parallaxStrength": 0.18 }
+}
+$cms$::jsonb),
+
+-- ----- main : about -----
+('main', 'about', $cms$
+{
+  "eyebrow": "About Digital Rescue",
+  "title": "어떤 브랜드의 IT기기든,\n어떤 불편함이든.",
+  "intro": "디지털레스큐는 고객이 마주하는 모든 디지털 문제를 해결하는 종합 IT 케어 파트너입니다.",
+  "statements": [
+    { "lead": "All Brands.",         "body": "삼성, LG, 한성, ASUS, MSI, 레노버, HP, 델, 에이서, 애플 등 — 우리는 어떠한 브랜드의 IT기기도 모두 수리할 수 있는 전문가 집단입니다." },
+    { "lead": "All Problems.",       "body": "노트북·PC·서버·NAS·저장장치까지. 어떤 불편함도 우리는 끝까지 해결합니다." },
+    { "lead": "Fair Price.",         "body": "최적의 서비스를 합리적인 견적으로 제공하며, 고객 만족도를 최우선 가치로 둡니다." },
+    { "lead": "No Information Gap.", "body": "정보 불균형을 이용해 절대 폭리를 취하지 않습니다. 모든 견적은 투명하게 공개됩니다." },
+    { "lead": "Friendly Service.",   "body": "고객 친화적 서비스 — 가까운 친구에게 자신 있게 소개해 줄 수 있는 회사를 지향합니다." },
+    { "lead": "Global Vision.",      "body": "대한민국을 넘어 글로벌 IT기업으로 성장하겠다는 원대한 포부를 품고 있습니다." }
+  ],
+  "closing": "신뢰는 우리의 출발점이자, 끝까지 지켜야 할 약속입니다."
+}
+$cms$::jsonb),
+
+-- ----- main : services -----
+('main', 'services', $cms$
+{
+  "eyebrow": "Our Services",
+  "title": "어떤 기기든, 어떤 문제든.",
+  "subtitle": "디지털레스큐는 다양한 IT 기기와 소프트웨어 영역을 폭넓게 다룹니다.",
+  "items": [
+    { "id": "laptop",        "title": "노트북 수리",      "description": "삼성·LG·한성·ASUS·MSI·레노버·HP·델·애플 등 모든 브랜드의 노트북을 자체 기술진이 직접 수리합니다.", "imageUrl": "", "iconName": "laptop",   "accent": "#2563eb" },
+    { "id": "desktop",       "title": "데스크탑 수리",    "description": "조립 PC부터 브랜드 PC까지. 부팅 불가, 발열, 파츠 교체 등 전 영역을 정밀 진단합니다.",                       "imageUrl": "", "iconName": "desktop",  "accent": "#0ea5e9" },
+    { "id": "tablet",        "title": "태블릿 수리",      "description": "아이패드·갤럭시탭 등 태블릿의 액정·배터리·메인보드 수리를 신속하게 진행합니다.",                            "imageUrl": "", "iconName": "tablet",   "accent": "#6366f1" },
+    { "id": "data-recovery", "title": "데이터 복구",      "description": "HDD·SSD·NAS·서버까지. 물리·논리 손상 모두 대응하는 전문 데이터 복구 서비스.",                              "imageUrl": "", "iconName": "database", "accent": "#0d9488" },
+    { "id": "software",      "title": "각종 소프트웨어",  "description": "OS 설치·바이러스 제거·최적화·드라이버·업무용 소프트웨어 설정까지 종합 지원합니다.",                          "imageUrl": "", "iconName": "code",     "accent": "#7c3aed" }
+  ]
+}
+$cms$::jsonb),
+
+-- ----- main : symptoms -----
+('main', 'symptoms', $cms$
+{
+  "eyebrow": "Common Symptoms",
+  "title": "이런 증상, 익숙하시죠?",
+  "subtitle": "증상을 클릭하면 예상 고장부위와 수리 방법을 확인할 수 있습니다.",
+  "ctaLabel": "서비스 접수하기",
+  "ctaHref": "#contact",
+  "items": [
+    {
+      "id": "no-power", "title": "전원불가", "shortDescription": "전원 버튼을 눌러도 아무 반응이 없는 상태", "imageUrl": "", "iconName": "power",
+      "modal": {
+        "headline": "전원이 전혀 들어오지 않을 때",
+        "expectedParts": ["어댑터 / 충전 회로 손상", "배터리 모듈 수명 만료", "메인보드 전원부(IC, MOSFET) 손상", "전원 버튼 단자 단선"],
+        "repairMethod": "어댑터·배터리 동작 점검 후, 메인보드 전원부 회로를 단계별로 진단합니다. 부품 단위 교체 또는 회로 리워크로 복구 가능하며, 데이터는 그대로 보존된 상태로 작업합니다."
+      }
+    },
+    {
+      "id": "no-boot", "title": "부팅불가", "shortDescription": "전원은 들어오지만 부팅 화면에서 멈추거나 진입 실패", "imageUrl": "", "iconName": "loader",
+      "modal": {
+        "headline": "부팅이 되지 않을 때",
+        "expectedParts": ["저장장치(HDD/SSD) 배드섹터 또는 손상", "OS 부팅 영역 / 부트로더 손상", "RAM 접점 불량", "바이오스(UEFI) 설정 또는 펌웨어 이슈"],
+        "repairMethod": "저장장치 상태 점검 후, OS 부팅 영역 복구 또는 무손실 백업 후 재설치를 진행합니다. 필요시 SSD 클로닝으로 데이터 손실 없이 복구합니다."
+      }
+    },
+    {
+      "id": "no-display", "title": "화면불가", "shortDescription": "본체는 켜지지만 화면이 검거나 줄·잔상이 발생", "imageUrl": "", "iconName": "monitor",
+      "modal": {
+        "headline": "화면이 나오지 않거나 깨질 때",
+        "expectedParts": ["LCD/OLED 패널 손상", "백라이트 또는 인버터 고장", "그래픽칩(GPU) 솔더링 불량", "화면 케이블(LVDS/eDP) 단선"],
+        "repairMethod": "외부 모니터 출력 테스트로 패널/그래픽 원인 분리 후, 패널 교체 또는 GPU 리볼링·재납땜 작업을 진행합니다."
+      }
+    },
+    {
+      "id": "physical-damage", "title": "파손", "shortDescription": "낙하·충격으로 액정·하우징·내부 부품 손상", "imageUrl": "", "iconName": "alert-triangle",
+      "modal": {
+        "headline": "낙하·충격으로 파손되었을 때",
+        "expectedParts": ["디스플레이 패널 / 글래스", "하우징(상판/하판) 변형", "힌지 파손", "내부 메인보드 부품 이탈"],
+        "repairMethod": "외관 손상은 정품/호환 부품으로 교체하고, 내부 충격 손상은 메인보드 점검 후 변형된 부품 단위 교체로 복원합니다."
+      }
+    },
+    {
+      "id": "liquid-damage", "title": "침수", "shortDescription": "음료·물 등 액체가 기기 내부로 유입된 상태", "imageUrl": "", "iconName": "droplet",
+      "modal": {
+        "headline": "기기가 침수되었을 때",
+        "expectedParts": ["메인보드 부식 / 회로 단락", "키보드 모듈 / 트랙패드", "배터리 셀 단락 위험", "저장장치 데이터 손상 가능성"],
+        "repairMethod": "전원을 즉시 차단하고 보내주세요. 초음파 세척으로 부식 제거 후 회로 복원 작업을 진행하며, 골든타임 내 입고 시 데이터 보존 확률이 크게 높아집니다."
+      }
+    },
+    {
+      "id": "overheat", "title": "발열 / 소음", "shortDescription": "사용 중 과열되거나 팬 소음이 비정상적으로 큼", "imageUrl": "", "iconName": "thermometer",
+      "modal": {
+        "headline": "발열·소음이 심할 때",
+        "expectedParts": ["방열판 먼지·이물질 누적", "쿨링팬 베어링 마모", "써멀 컴파운드 경화", "CPU/GPU 부하 이상"],
+        "repairMethod": "전체 분해 청소 후 써멀 컴파운드 재도포, 필요 시 쿨링팬 교체. 이상 부하 발생 시 OS·드라이버 단의 원인까지 함께 진단합니다."
+      }
+    },
+    {
+      "id": "no-charging", "title": "충전불가", "shortDescription": "어댑터를 연결해도 충전이 되지 않는 상태", "imageUrl": "", "iconName": "battery-charging",
+      "modal": {
+        "headline": "충전이 되지 않을 때",
+        "expectedParts": ["어댑터 출력 불량", "DC 잭 / USB-C 포트 손상", "충전 IC(Charging IC) 손상", "배터리 보호회로(BMS) 차단"],
+        "repairMethod": "어댑터 출력 측정과 충전 회로 단계별 점검을 통해 원인 부품을 특정합니다. 포트 교체·충전 IC 리워크로 복구 가능합니다."
+      }
+    },
+    {
+      "id": "data-recovery", "title": "데이터복구", "shortDescription": "저장장치 인식 불가, 파일 손실, 포맷 등", "imageUrl": "", "iconName": "hard-drive",
+      "modal": {
+        "headline": "데이터 복구가 필요할 때",
+        "expectedParts": ["HDD 헤드 손상 / 플래터 스크래치", "SSD 컨트롤러 또는 펌웨어 손상", "파티션 / 파일 시스템 손상", "실수 삭제 · 포맷 · 랜섬웨어 감염"],
+        "repairMethod": "클린룸급 환경에서 물리·논리 복구를 단계별로 진행합니다. 작업 전 무료 진단으로 복구 가능 영역과 견적을 먼저 안내드립니다."
+      }
+    }
+  ]
+}
+$cms$::jsonb),
+
+-- ----- main : process -----
+('main', 'process', $cms$
+{
+  "eyebrow": "Service Process",
+  "title": "접수부터 A/S까지,\n5단계 신뢰 프로세스",
+  "subtitle": "투명하고 체계적인 단계별 진행으로, 어떤 고장도 안심하고 맡기실 수 있습니다.",
+  "ctaTarget": "#contact",
+  "ctaHint": "카드를 클릭하면 바로 접수할 수 있어요",
+  "steps": [
+    { "step": "01", "title": "접수", "description": "전화 또는 홈페이지를 통해 24시간 언제든 편하게 접수하세요.",          "iconName": "inbox" },
+    { "step": "02", "title": "진단", "description": "전문가 상담과 정밀 고장 진단 후, 합리적인 견적을 산출합니다.",          "iconName": "search" },
+    { "step": "03", "title": "수리", "description": "전문 엔지니어가 직접 정밀 수리하고, 충분한 안정화 테스트까지 진행합니다.","iconName": "wrench" },
+    { "step": "04", "title": "출고", "description": "수리 완료 확인 후 결제와 출고가 진행됩니다. 안전 포장으로 보내드립니다.","iconName": "package" },
+    { "step": "05", "title": "A/S",  "description": "출고 후 동일 증상·동일 부속에 대해 90일간 무상 보증을 제공합니다.",   "iconName": "shield-check" }
+  ]
+}
+$cms$::jsonb),
+
+-- ----- main : realtimeStatus -----
+('main', 'realtimeStatus', $cms$
+{
+  "eyebrow": "Live Repair Status",
+  "title": "실시간 수리 현황",
+  "subtitle": "현재 디지털레스큐에서 진행 중인 수리 건을 투명하게 공개합니다.",
+  "refreshIntervalMinutes": 10,
+  "rowCount": 8,
+  "columns": { "name": "고객명", "device": "기종", "symptom": "증상", "status": "상태" },
+  "statuses": [
+    { "label": "접수 완료", "color": "#3b82f6" },
+    { "label": "진단 중",   "color": "#eab308" },
+    { "label": "수리 중",   "color": "#f97316" },
+    { "label": "수리 완료", "color": "#22c55e" }
+  ],
+  "dummyData": {
+    "names":    ["김**","이**","박**","최**","정**","강**","조**","윤**","장**","임**","한**","오**","서**","신**","권**","황**"],
+    "devices":  ["삼성 갤럭시북 프로","LG 그램 17","레노버 씽크패드","ASUS ROG","HP 파빌리온","델 인스피론","맥북 프로 14","맥북 에어 M2","MSI GF63","에이서 스위프트","삼성 노트북9","LG 울트라PC","레노버 아이디어패드","HP 스펙터","델 XPS 15","ASUS 젠북"],
+    "symptoms": ["전원 불량","화면 깜빡임","충전 안됨","키보드 불량","블루스크린 반복","액정 파손","배터리 팽창","발열 심함","팬 소음 심함","SSD 인식 불가","와이파이 끊김","터치패드 오작동","힌지 파손","데이터 복구","윈도우 부팅 안됨","메인보드 수리"]
+  }
+}
+$cms$::jsonb),
+
+-- ----- main : contactForm -----
+('main', 'contactForm', $cms$
+{
+  "eyebrow": "Service Request",
+  "title": "서비스 접수",
+  "subtitle": "아래 정보를 남겨주시면 담당자가 1시간 이내 연락드립니다.",
+  "labels": {
+    "name": "이름", "namePlaceholder": "홍길동",
+    "phone": "휴대폰번호", "phonePlaceholder": "010-1234-5678",
+    "address": "주소", "addressPlaceholder": "서울시 강남구 ...",
+    "receiptType": "접수 방식", "deviceType": "기기 종류", "deviceBrand": "브랜드",
+    "deviceModel": "모델명", "deviceModelPlaceholder": "예: 갤럭시북 프로 360, 그램 17Z90R",
+    "symptoms": "고장 증상",
+    "symptomsPlaceholder": "고장 증상을 자세히 알려주세요.\n예: 전원이 켜지지 않음, 화면에 줄이 생김, 충전이 안됨 등",
+    "photos": "고장 사진 첨부", "submit": "서비스 접수하기", "submitting": "접수 중..."
+  },
+  "footnote": "접수 후 1시간 이내 담당자가 전화 드리겠습니다.",
+  "receiptTypes": [
+    { "value": "WALK_IN", "label": "내방 (센터 방문)" },
+    { "value": "VISIT",   "label": "출장 요청" },
+    { "value": "PARCEL",  "label": "택배 접수" },
+    { "value": "QUICK",   "label": "퀵 접수" }
+  ],
+  "deviceTypes": [
+    { "value": "노트북",       "label": "노트북" },
+    { "value": "데스크탑",     "label": "데스크탑" },
+    { "value": "태블릿",       "label": "태블릿" },
+    { "value": "서버",         "label": "서버" },
+    { "value": "나스",         "label": "나스" },
+    { "value": "기타저장장치", "label": "기타저장장치" }
+  ],
+  "brands": ["삼성","LG","한성","ASUS","MSI","레노버","HP","델","에이서","애플","기타"],
+  "maxImages": 2,
+  "dynamicGuides": {
+    "WALK_IN": {
+      "tone": "info",
+      "message": "내방 예정 일시를 기록해주세요.",
+      "extras": [{ "type": "datetime", "name": "visitDateTime", "label": "방문 예정 일시" }],
+      "address": { "label": "센터 주소", "value": "서울시 영등포구 양평로 157, 투웨니퍼스트밸리 506호" }
+    },
+    "VISIT": { "tone": "info", "message": "담당기사가 전화 드려 출장비, 출장 일정 안내 드립니다." },
+    "PARCEL": {
+      "tone": "info",
+      "message": "보내실 곳 주소, 고객 성함 / 배송 물품 리스트 / 기타 메모를 첨부해주세요.",
+      "extras": [{
+        "type": "radio", "name": "parcelMethod", "label": "택배 방식",
+        "options": [
+          { "value": "PICKUP",  "label": "문앞 택배 수거 요청" },
+          { "value": "PREPAID", "label": "직접 발송 (선불)" }
+        ]
+      }]
+    },
+    "QUICK": { "tone": "info", "message": "보내실 곳 주소, 고객 성함 / 배송 물품 리스트 / 기타 메모를 첨부해주세요." }
+  }
+}
+$cms$::jsonb),
+
+-- ----- main : digitalResources -----
+('main', 'digitalResources', $cms$
+{
+  "eyebrow": "Digital Library",
+  "title": "디지털 자료실",
+  "subtitle": "최신 IT 뉴스부터 긴급 상황 대처법, 브랜드별 공식 채널까지 한곳에서.",
+  "tabs": { "news": "IT 최신 뉴스", "emergency": "긴급 대처 요령", "brands": "브랜드 홈페이지" },
+  "news": {
+    "items": [
+      { "id": "ai-pc-2026",      "title": "2026년 노트북 시장, AI PC가 표준이 된다",         "date": "2026-04-22", "source": "Digital Rescue Insights", "summary": "NPU 탑재 AI PC가 전체 노트북 출하량의 60%를 넘어설 전망입니다.",                "body": "2026년부터는 NPU(신경망 처리 장치)를 탑재한 AI PC가 새로운 표준으로 자리잡고 있습니다. Intel Core Ultra, AMD Ryzen AI, Apple M4 시리즈 모두 온디바이스 AI 가속을 기본 기능으로 제공하면서, 기존 노트북과의 성능 차이가 점차 벌어지고 있습니다.\n\n디지털레스큐는 AI PC의 새로운 부품 구조와 발열 설계에 맞춘 진단 프로세스를 도입해, 어떤 차세대 기기도 안정적으로 수리할 수 있도록 준비를 마쳤습니다." },
+      { "id": "ssd-lifespan",    "title": "SSD 수명, 무엇이 결정하는가",                     "date": "2026-04-10", "source": "Digital Rescue Insights", "summary": "TBW와 사용 패턴이 SSD의 실제 수명을 어떻게 결정하는지 정리했습니다.",          "body": "SSD의 수명을 가장 직접적으로 결정하는 지표는 TBW(Total Bytes Written)입니다. 일반 사무용 사용자는 5년 이상 충분히 사용 가능하지만, 영상 편집·게임 캐시·가상머신 등 쓰기가 많은 워크로드에서는 수명이 빠르게 단축됩니다.\n\n예방을 위해서는 SMART 정보를 주기적으로 확인하고, 중요한 데이터는 항상 별도 백업을 유지하시기 바랍니다." },
+      { "id": "macbook-liquid",  "title": "맥북 침수 골든타임, 60초가 운명을 가른다",        "date": "2026-03-28", "source": "Digital Rescue Insights", "summary": "침수 직후 60초 안에 해야 하는 단 하나의 행동을 알려드립니다.",                  "body": "맥북·노트북에 액체가 유입된 직후 가장 중요한 것은 '즉시 전원 차단'입니다. 시스템이 켜진 채로 액체와 만나면 메인보드의 회로가 단락되어 부식 속도가 폭발적으로 빨라집니다.\n\n전원을 끈 뒤에는 전원 코드와 배터리(가능한 경우) 분리, 본체를 뒤집어 액체를 빼내고, 절대 드라이기로 가열하지 마시고 최대한 빠르게 전문 센터로 가져오시는 것이 데이터 보존의 핵심입니다." },
+      { "id": "windows-11-update","title": "Windows 11 24H2 업데이트, 알아둬야 할 호환성 이슈","date": "2026-03-15", "source": "Digital Rescue Insights", "summary": "일부 구형 드라이버가 24H2와 충돌해 부팅 불가 현상이 보고되고 있습니다.",       "body": "Windows 11 24H2 업데이트 적용 후, 일부 구형 그래픽 드라이버 및 보안 솔루션과의 호환성 문제로 부팅 불가, BSOD 등이 보고되고 있습니다.\n\n업데이트 전에는 반드시 시스템 복구 지점을 만들고, 가능한 경우 별도 디스크에 전체 백업을 진행하시길 권장드립니다. 이미 문제가 발생했다면 자가 복구를 시도하기보다 입고를 권해드립니다." }
+    ]
+  },
+  "emergency": {
+    "items": [
+      { "id": "liquid",         "title": "침수",        "iconName": "droplet",         "summary": "기기에 액체가 들어갔을 때",         "steps": ["즉시 전원을 차단하세요. 부팅 시도 금지.", "전원 코드 및 배터리(분리 가능한 경우)를 분리하세요.", "기기를 뒤집어 액체를 빼내고, 헤어드라이어 등으로 가열하지 마세요.", "골든타임 24시간 내 전문 센터에 입고하세요. 시간이 지날수록 부식이 심해집니다."] },
+      { "id": "short-circuit",  "title": "쇼트(합선)",  "iconName": "alert-triangle",  "summary": "타는 냄새, 스파크, 즉시 전원 꺼짐","steps": ["전원을 즉시 차단하고 어댑터를 분리하세요.", "재부팅을 시도하지 마세요. 추가 손상의 위험이 큽니다.", "기기 표면이 뜨겁다면 충분히 식힌 후 안전한 곳에 보관하세요.", "원인 부품을 진단해야 하므로 전문 센터로 입고하세요."] },
+      { "id": "hinge",          "title": "힌지 파손",   "iconName": "alert-triangle",  "summary": "화면이 흔들리거나 본체와 분리됨",   "steps": ["화면을 더 이상 여닫지 마세요. 케이블 단선으로 화면 불가까지 확장될 수 있습니다.", "기기를 닫은 상태로 고정해 이동하세요.", "외부 모니터가 있다면 화면이 닫힌 상태로 외부 출력만 사용하세요.", "힌지·상판·케이블 동시 점검이 필요하므로 입고를 권장드립니다."] },
+      { "id": "data-loss",      "title": "데이터 손실", "iconName": "hard-drive",      "summary": "삭제, 포맷, 인식 불가",             "steps": ["추가 쓰기를 절대 하지 마세요. 새 파일이 덮어쓰기되면 복구 확률이 급격히 낮아집니다.", "복구 프로그램을 무리하게 돌리지 마세요. 손상이 가속될 수 있습니다.", "저장장치를 분리해 전문 센터에 진단을 의뢰하세요.", "물리 손상 의심 시(이상 소음 등) 전원 자체를 켜지 마세요."] }
+    ]
+  },
+  "brands": {
+    "items": [
+      { "name": "삼성전자",       "url": "https://www.samsung.com/sec/",    "domain": "samsung.com" },
+      { "name": "LG전자",         "url": "https://www.lge.co.kr/",          "domain": "lge.co.kr" },
+      { "name": "한성컴퓨터",     "url": "https://www.monsterlabs.co.kr/",  "domain": "monsterlabs.co.kr" },
+      { "name": "ASUS",           "url": "https://www.asus.com/kr/",        "domain": "asus.com" },
+      { "name": "MSI",            "url": "https://kr.msi.com/",             "domain": "msi.com" },
+      { "name": "레노버",         "url": "https://www.lenovo.com/kr/ko/",   "domain": "lenovo.com" },
+      { "name": "HP",             "url": "https://www.hp.com/kr-ko/home.html","domain": "hp.com" },
+      { "name": "델",             "url": "https://www.dell.com/ko-kr",      "domain": "dell.com" },
+      { "name": "에이서",         "url": "https://www.acer.com/kr-ko/",     "domain": "acer.com" },
+      { "name": "애플",           "url": "https://www.apple.com/kr/",       "domain": "apple.com" }
+    ]
+  }
+}
+$cms$::jsonb),
+
+-- ----- brand intros (14 brands × 1 intro section each) -----
+
+('brand:samsung', 'intro', $cms$
+{
+  "displayName": "삼성", "formBrandValue": "삼성", "formDeviceType": null,
+  "eyebrow": "Samsung Specialist",
+  "headline": { "lines": [{ "text": "삼성", "emphasis": true }, { "text": "IT기기 수리 전문가", "emphasis": false }] },
+  "subheadline": "갤럭시북·노트북·데스크탑·데이터복구까지. 삼성의 모든 IT기기를 직영 기술진이 직접 진단·수리합니다.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "삼성 전 모델 대응",         "description": "갤럭시북·노트북·올인원·데스크탑 — 모든 라인업을 자체 기술진이 직접 수리합니다." },
+    { "iconName": "wrench",       "title": "노트북·데스크탑·데이터복구","description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+    { "iconName": "search",       "title": "투명한 견적",                "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:dell', 'intro', $cms$
+{
+  "displayName": "델", "formBrandValue": "델", "formDeviceType": null,
+  "eyebrow": "Dell Specialist",
+  "headline": { "lines": [{ "text": "Dell", "emphasis": true }, { "text": "노트북·워크스테이션 수리 전문", "emphasis": false }] },
+  "subheadline": "XPS·Latitude·Inspiron·Precision 워크스테이션까지. Dell의 모든 IT기기를 끝까지 책임집니다.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "Dell 전 라인업 전문",         "description": "XPS, Latitude, Inspiron, Precision — 직영 기술진이 직접 진단·수리." },
+    { "iconName": "wrench",       "title": "노트북·데스크탑·데이터복구",  "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+    { "iconName": "search",       "title": "투명한 견적",                  "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:lg', 'intro', $cms$
+{
+  "displayName": "LG", "formBrandValue": "LG", "formDeviceType": null,
+  "eyebrow": "LG Specialist",
+  "headline": { "lines": [{ "text": "LG", "emphasis": true }, { "text": "그램·울트라PC 수리 전문", "emphasis": false }] },
+  "subheadline": "그램(Gram), 울트라PC, LG 데스크탑까지. LG의 모든 IT기기를 직영 기술진이 직접 수리합니다.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "LG 그램 전문",                "description": "그램·울트라PC 모든 모델 메인보드·LCD·키보드 직접 수리." },
+    { "iconName": "wrench",       "title": "노트북·데스크탑·데이터복구",  "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+    { "iconName": "search",       "title": "투명한 견적",                  "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:surface', 'intro', $cms$
+{
+  "displayName": "Surface", "formBrandValue": "Surface", "formDeviceType": null,
+  "eyebrow": "Microsoft Surface Specialist",
+  "headline": { "lines": [{ "text": "Surface", "emphasis": true }, { "text": "Pro · Laptop · Book 수리 전문", "emphasis": false }] },
+  "subheadline": "Surface Pro, Laptop, Book, Studio. 일체형 설계의 까다로운 Surface도 직영 기술진이 정밀 수리합니다.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "Surface 전 모델 대응",       "description": "Pro·Laptop·Book·Studio. 일체형 분해·LCD·배터리 정밀 작업." },
+    { "iconName": "wrench",       "title": "노트북·태블릿·데이터복구",   "description": "Surface 특유의 일체형 구조에 맞춘 전문 진단 프로세스." },
+    { "iconName": "search",       "title": "투명한 견적",                "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:apple', 'intro', $cms$
+{
+  "displayName": "애플", "formBrandValue": "애플", "formDeviceType": null,
+  "eyebrow": "Apple Specialist",
+  "headline": { "lines": [{ "text": "MacBook · iMac", "emphasis": true }, { "text": "수리 전문", "emphasis": false }] },
+  "subheadline": "MacBook Pro/Air, iMac, Mac mini까지. Apple Silicon 시대에 맞춘 전문 진단·수리 서비스.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "Apple Silicon 대응",         "description": "M1/M2/M3/M4 전 세대 메인보드·SSD·배터리 정밀 수리." },
+    { "iconName": "wrench",       "title": "MacBook·iMac·데이터복구",    "description": "침수, 파손, 부팅 불가 등 모든 증상 끝까지 해결." },
+    { "iconName": "search",       "title": "투명한 견적",                "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:acer', 'intro', $cms$
+{
+  "displayName": "에이서", "formBrandValue": "에이서", "formDeviceType": null,
+  "eyebrow": "Acer Specialist",
+  "headline": { "lines": [{ "text": "Acer", "emphasis": true }, { "text": "Swift · Predator 수리 전문", "emphasis": false }] },
+  "subheadline": "Acer Swift·Aspire·Predator 게이밍 라인까지. 에이서의 모든 IT기기를 직영 기술진이 직접 수리합니다.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "Acer 전 라인업 전문",        "description": "Swift·Aspire·Nitro·Predator 전 모델 직접 수리." },
+    { "iconName": "wrench",       "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+    { "iconName": "search",       "title": "투명한 견적",                "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:hp', 'intro', $cms$
+{
+  "displayName": "HP", "formBrandValue": "HP", "formDeviceType": null,
+  "eyebrow": "HP Specialist",
+  "headline": { "lines": [{ "text": "HP", "emphasis": true }, { "text": "Pavilion · Spectre · Omen 수리 전문", "emphasis": false }] },
+  "subheadline": "HP Pavilion·Spectre·Envy·Omen 게이밍까지. HP의 모든 IT기기를 직영 기술진이 직접 수리합니다.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "HP 전 라인업 전문",          "description": "Pavilion·Spectre·Envy·Omen·EliteBook 모든 모델 직접 수리." },
+    { "iconName": "wrench",       "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+    { "iconName": "search",       "title": "투명한 견적",                "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:asus', 'intro', $cms$
+{
+  "displayName": "ASUS", "formBrandValue": "ASUS", "formDeviceType": null,
+  "eyebrow": "ASUS Specialist",
+  "headline": { "lines": [{ "text": "ASUS", "emphasis": true }, { "text": "ROG · ZenBook · TUF 수리 전문", "emphasis": false }] },
+  "subheadline": "ROG 게이밍, ZenBook, VivoBook, TUF까지. ASUS의 모든 IT기기를 직영 기술진이 직접 수리합니다.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "ASUS 전 라인업 전문",        "description": "ROG·TUF·ZenBook·VivoBook·ProArt 모든 모델 직접 수리." },
+    { "iconName": "wrench",       "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+    { "iconName": "search",       "title": "투명한 견적",                "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:msi', 'intro', $cms$
+{
+  "displayName": "MSI", "formBrandValue": "MSI", "formDeviceType": null,
+  "eyebrow": "MSI Specialist",
+  "headline": { "lines": [{ "text": "MSI", "emphasis": true }, { "text": "게이밍·크리에이터 노트북 수리 전문", "emphasis": false }] },
+  "subheadline": "MSI Stealth·Raider·Vector·Creator까지. 게이밍 노트북의 발열·성능 이슈도 정밀 진단합니다.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "MSI 게이밍 전문",            "description": "Stealth·Raider·Vector·Creator 전 모델 메인보드·GPU 정밀 작업." },
+    { "iconName": "wrench",       "title": "노트북·데스크탑·데이터복구", "description": "발열·소음·성능 저하까지 끝까지 해결합니다." },
+    { "iconName": "search",       "title": "투명한 견적",                "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:hansung', 'intro', $cms$
+{
+  "displayName": "한성", "formBrandValue": "한성", "formDeviceType": null,
+  "eyebrow": "한성컴퓨터 Specialist",
+  "headline": { "lines": [{ "text": "한성", "emphasis": true }, { "text": "노트북·데스크탑 수리 전문", "emphasis": false }] },
+  "subheadline": "한성 보스몬스터, 게이밍 노트북, 데스크탑까지. 한성컴퓨터의 모든 기기를 직영 기술진이 직접 수리합니다.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "한성 전 라인업 전문",        "description": "보스몬스터·노트북·데스크탑 모든 모델 직접 수리." },
+    { "iconName": "wrench",       "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+    { "iconName": "search",       "title": "투명한 견적",                "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:lenovo', 'intro', $cms$
+{
+  "displayName": "레노버", "formBrandValue": "레노버", "formDeviceType": null,
+  "eyebrow": "Lenovo Specialist",
+  "headline": { "lines": [{ "text": "Lenovo", "emphasis": true }, { "text": "ThinkPad · IdeaPad · LOQ 수리 전문", "emphasis": false }] },
+  "subheadline": "ThinkPad, IdeaPad, Yoga, LOQ 게이밍까지. 레노버의 모든 IT기기를 직영 기술진이 직접 수리합니다.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "Lenovo 전 라인업 전문",      "description": "ThinkPad·IdeaPad·Yoga·LOQ·Legion 모든 모델 직접 수리." },
+    { "iconName": "wrench",       "title": "노트북·데스크탑·데이터복구", "description": "어떤 종류의 불편함도 끝까지 해결합니다." },
+    { "iconName": "search",       "title": "투명한 견적",                "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:sandisk', 'intro', $cms$
+{
+  "displayName": "SanDisk", "formBrandValue": "SanDisk", "formDeviceType": "기타저장장치",
+  "eyebrow": "SanDisk Recovery Specialist",
+  "headline": { "lines": [{ "text": "SanDisk", "emphasis": true }, { "text": "SSD · USB · SD카드 데이터복구", "emphasis": false }] },
+  "subheadline": "SanDisk SSD, USB 메모리, SD/microSD까지. 인식 불가, 펌웨어 손상, 컨트롤러 이슈를 전문 복구합니다.",
+  "highlights": [
+    { "iconName": "hard-drive", "title": "SanDisk 저장장치 전문", "description": "SSD·USB·SD/microSD 컨트롤러·펌웨어 손상 정밀 복구." },
+    { "iconName": "database",   "title": "물리·논리 데이터복구",  "description": "포맷·삭제·랜섬웨어·인식 불가 모든 케이스 대응." },
+    { "iconName": "search",     "title": "투명한 견적",            "description": "복구 가능 영역 무료 진단 후 합리적인 견적 제공." }
+  ],
+  "ctas": [{ "label": "무료 진단 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:razer', 'intro', $cms$
+{
+  "displayName": "Razer", "formBrandValue": "Razer", "formDeviceType": null,
+  "eyebrow": "Razer Specialist",
+  "headline": { "lines": [{ "text": "Razer", "emphasis": true }, { "text": "Blade 게이밍 노트북 수리 전문", "emphasis": false }] },
+  "subheadline": "Razer Blade 시리즈의 슬림한 알루미늄 섀시, 고성능 GPU, RGB 키보드까지. 까다로운 게이밍 노트북도 직영 기술진이 정밀 수리합니다.",
+  "highlights": [
+    { "iconName": "shield-check", "title": "Razer Blade 전문",        "description": "Blade 14·15·17·Stealth 모든 모델 메인보드·GPU·키보드 정밀 작업." },
+    { "iconName": "wrench",       "title": "노트북·데이터복구",        "description": "발열·소음·RGB 이슈·SSD 인식 불가까지 끝까지 해결." },
+    { "iconName": "search",       "title": "투명한 견적",              "description": "정보 불균형 없이 합리적인 전자 견적을 먼저 안내드립니다." }
+  ],
+  "ctas": [{ "label": "무료 견적 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb),
+
+('brand:nas', 'intro', $cms$
+{
+  "displayName": "NAS", "formBrandValue": null, "formDeviceType": "나스",
+  "eyebrow": "NAS · Server Specialist",
+  "headline": { "lines": [{ "text": "NAS · 서버", "emphasis": true }, { "text": "데이터복구·구축·수리 전문", "emphasis": false }] },
+  "subheadline": "Synology, QNAP, ASUSTOR 등 모든 NAS와 서버. RAID 깨짐·디스크 인식 불가·볼륨 손상까지 정밀 복구합니다.",
+  "highlights": [
+    { "iconName": "database", "title": "RAID·볼륨 복구 전문",  "description": "RAID 0/1/5/6/10 깨짐, 볼륨 마운트 실패, 디스크 인식 불가 정밀 복구." },
+    { "iconName": "wrench",   "title": "NAS·서버·저장장치",    "description": "Synology·QNAP·ASUSTOR 전 모델, 자작 NAS·서버까지 대응." },
+    { "iconName": "search",   "title": "투명한 견적",          "description": "복구 가능 영역 무료 진단 후 합리적인 견적 제공." }
+  ],
+  "ctas": [{ "label": "무료 진단 받기", "href": "#contact", "variant": "primary" }, { "label": "수리 과정 보기", "href": "#process", "variant": "ghost" }]
+}
+$cms$::jsonb)
+
+ON CONFLICT (page_key, section_key) DO NOTHING;
+
+INSERT INTO public.page_contents (page_key, section_key, content_data) VALUES
+
+('main', 'header', $cms$
+{
+  "brand": {
+    "leadText":   "디지털",
+    "accentText": "레스큐",
+    "href":       "/"
+  },
+  "navLinks": [
+    { "label": "회사소개",   "href": "#about" },
+    { "label": "서비스 안내", "href": "#services" },
+    { "label": "수리 과정",   "href": "#process" },
+    { "label": "접수하기",   "href": "#contact" },
+    { "label": "내역조회",   "href": "/lookup" }
+  ],
+  "cta": { "label": "전화 상담", "href": "tel:010-0000-0000" }
+}
+$cms$::jsonb),
+
+('main', 'footer', $cms$
+{
+  "brand": {
+    "leadText":   "디지털",
+    "accentText": "레스큐",
+    "intro":      "직영 운영, 투명한 전자 견적.\n노트북·PC 수리 및 데이터 복구 전문 서비스."
+  },
+  "columns": [
+    {
+      "title": "서비스",
+      "items": [
+        { "label": "노트북 수리" },
+        { "label": "데스크탑 PC 수리" },
+        { "label": "데이터 복구" },
+        { "label": "부품 교체 / 업그레이드" }
+      ]
+    },
+    {
+      "title": "고객센터",
+      "items": [
+        { "label": "전화: 010-0000-0000", "href": "tel:010-0000-0000" },
+        { "label": "카카오톡 문의", "href": "https://pf.kakao.com/", "external": true },
+        { "label": "영업시간: 평일 10:00 ~ 19:00" }
+      ]
+    }
+  ],
+  "business": [
+    { "label": "상호명",         "value": "디지털레스큐" },
+    { "label": "대표자",         "value": "홍길동" },
+    { "label": "사업자등록번호", "value": "000-00-00000" },
+    { "label": "주소",           "value": "서울특별시 OO구 OO로 00, 0층" }
+  ],
+  "disclaimer": "본 센터는 제조사 공식 서비스 센터가 아닌 독립적인 사설 수리 전문점입니다.\n제조사의 공식 보증과는 별개로 운영되며, 수리 후 자체 보증을 제공합니다.",
+  "copyright":  "© %YEAR% 디지털레스큐. All rights reserved."
+}
+$cms$::jsonb)
+
+ON CONFLICT (page_key, section_key) DO NOTHING;
+
+-- ---------- 4. inventory ----------
+INSERT INTO public.inventory_categories (id, name) VALUES
+  ('00000000-0000-4000-b100-000000000001', 'RAM'),
+  ('00000000-0000-4000-b100-000000000002', '저장장치'),
+  ('00000000-0000-4000-b100-000000000003', '액정');
+
+INSERT INTO public.inventory_specs (id, category_id, name) VALUES
+  ('00000000-0000-4000-b200-000000000001', '00000000-0000-4000-b100-000000000001', '노트북용 DDR4'),
+  ('00000000-0000-4000-b200-000000000002', '00000000-0000-4000-b100-000000000002', 'M.2 NVMe'),
+  ('00000000-0000-4000-b200-000000000003', '00000000-0000-4000-b100-000000000003', '외주');
+
+INSERT INTO public.inventory_products (id, spec_id, name) VALUES
+  ('00000000-0000-4000-b300-000000000001', '00000000-0000-4000-b200-000000000001', '삼성 DDR4-3200'),
+  ('00000000-0000-4000-b300-000000000002', '00000000-0000-4000-b200-000000000001', '하이닉스 DDR4'),
+  ('00000000-0000-4000-b300-000000000003', '00000000-0000-4000-b200-000000000002', '삼성'),
+  ('00000000-0000-4000-b300-000000000004', '00000000-0000-4000-b200-000000000002', 'WD'),
+  ('00000000-0000-4000-b300-000000000005', '00000000-0000-4000-b200-000000000003', '테스트외주업체');
+
+-- quantities must match section 7
+INSERT INTO public.inventory_items (id, category_id, spec_id, product_id, capacity, condition, quantity, base_estimate) VALUES
+  -- i1 in stock (4 in, 1 out)
+  ('00000000-0000-4000-b400-000000000001', '00000000-0000-4000-b100-000000000001', '00000000-0000-4000-b200-000000000001', '00000000-0000-4000-b300-000000000001', '8GB',   'USED', 3,  40000),
+  -- i2 qty 0 → UI auto-selects "purchase" (Phase 0.5 test)
+  ('00000000-0000-4000-b400-000000000002', '00000000-0000-4000-b100-000000000001', '00000000-0000-4000-b200-000000000001', '00000000-0000-4000-b300-000000000001', '16GB',  'NEW',  0,  90000),
+  -- i3 in stock (3 in, 1 out)
+  ('00000000-0000-4000-b400-000000000003', '00000000-0000-4000-b100-000000000002', '00000000-0000-4000-b200-000000000002', '00000000-0000-4000-b300-000000000003', '512GB', 'NEW',  2,  80000),
+  -- i4 (1 in, 1 out, 1 rollback in)
+  ('00000000-0000-4000-b400-000000000004', '00000000-0000-4000-b100-000000000002', '00000000-0000-4000-b200-000000000002', '00000000-0000-4000-b300-000000000004', '256GB', 'USED', 1,  40000),
+  -- i5 outsourced service item (placeholder quantity, like production)
+  ('00000000-0000-4000-b400-000000000005', '00000000-0000-4000-b100-000000000003', '00000000-0000-4000-b200-000000000003', '00000000-0000-4000-b300-000000000005', '테스트 노트북 액정교체', 'NEW', 99, 150000),
+  -- i6 qty 0 used item
+  ('00000000-0000-4000-b400-000000000006', '00000000-0000-4000-b100-000000000001', '00000000-0000-4000-b200-000000000001', '00000000-0000-4000-b300-000000000002', '8GB',   'USED', 0,  35000);
+
+-- ---------- 5. customers + tickets ----------
+INSERT INTO public.customers (id, name, phone, address) VALUES
+  ('00000000-0000-4000-c000-000000000001', '테스트고객1', '010-0000-1001', '테스트시 테스트구 1'),
+  ('00000000-0000-4000-c000-000000000002', '테스트고객2', '010-0000-1002', NULL),
+  ('00000000-0000-4000-c000-000000000003', '테스트고객3', '010-0000-1003', NULL),
+  ('00000000-0000-4000-c000-000000000004', '테스트고객4', '010-0000-1004', NULL),
+  ('00000000-0000-4000-c000-000000000005', '테스트고객5', '010-0000-1005', NULL);
+
+-- receipt_no is generated by trigger
+INSERT INTO public.repair_tickets
+  (id, customer_id, assignee_id, status, receipt_type, device_type, device_brand, device_model, tag_info, symptoms,
+   initial_estimate, final_price, is_approved, payment_status, material_cost,
+   received_at, completed_at, paid_at, canceled_at, cancel_device_disposal, created_at)
+VALUES
+  ('00000000-0000-4000-d000-000000000001', '00000000-0000-4000-c000-000000000001', NULL,
+   'NEW', 'WALK_IN', '노트북', 'LG', '15ZD90P-GX56K', '15ZD90P-GX56K', '전원이 들어오지 않음',
+   0, 0, false, 'PENDING', 0, NULL, NULL, NULL, NULL, NULL, now() - interval '1 day'),
+  ('00000000-0000-4000-d000-000000000002', '00000000-0000-4000-c000-000000000002', '00000000-0000-4000-a000-000000000004',
+   'ASSIGNED', 'DELIVERY', '노트북', '삼성', 'NT950QED', NULL, '화면 깜빡임',
+   0, 0, false, 'PENDING', 0, NULL, NULL, NULL, NULL, NULL, now() - interval '2 days'),
+  ('00000000-0000-4000-d000-000000000003', '00000000-0000-4000-c000-000000000003', '00000000-0000-4000-a000-000000000004',
+   'RECEIVED', 'VISIT', '노트북', 'lenovo', 'L15 Gen2', NULL, '충전 안 됨',
+   0, 0, false, 'PENDING', 0, now() - interval '2 days', NULL, NULL, NULL, NULL, now() - interval '3 days'),
+  ('00000000-0000-4000-d000-000000000004', '00000000-0000-4000-c000-000000000004', '00000000-0000-4000-a000-000000000004',
+   'IN_PROGRESS', 'WALK_IN', '노트북', 'asus', 'GA403', NULL, '부팅 중 멈춤',
+   0, 0, false, 'PENDING', 0, now() - interval '3 days', NULL, NULL, NULL, NULL, now() - interval '4 days'),
+  ('00000000-0000-4000-d000-000000000005', '00000000-0000-4000-c000-000000000005', '00000000-0000-4000-a000-000000000004',
+   'WAITING_APPROVAL', 'WALK_IN', '노트북', 'LG', '16Z90S', NULL, 'SSD 인식 불가',
+   0, 250000, false, 'PENDING', 80000, now() - interval '4 days', NULL, NULL, NULL, NULL, now() - interval '5 days'),
+  ('00000000-0000-4000-d000-000000000006', '00000000-0000-4000-c000-000000000001', '00000000-0000-4000-a000-000000000005',
+   'COMPLETED', 'WALK_IN', '노트북', 'HP', 'Pavilion 15', NULL, '메모리 오류',
+   0, 180000, true, 'PAID', 40000, now() - interval '9 days', now() - interval '6 days', now() - interval '6 days', NULL, NULL, now() - interval '10 days'),
+  ('00000000-0000-4000-d000-000000000007', '00000000-0000-4000-c000-000000000002', '00000000-0000-4000-a000-000000000004',
+   'CANCELED', 'DELIVERY', '노트북', 'LG', '14Z90R', NULL, '액정 파손 — 고객 수리 포기',
+   0, 0, false, 'PENDING', 150000, now() - interval '7 days', NULL, NULL, now() - interval '5 days', 'DISPOSE', now() - interval '8 days'),
+  ('00000000-0000-4000-d000-000000000008', '00000000-0000-4000-c000-000000000003', '00000000-0000-4000-a000-000000000005',
+   'CANCELED', 'WALK_IN', '노트북', '삼성', 'NT950QCG', NULL, '견적 확인 후 취소',
+   0, 0, false, 'PENDING', 0, now() - interval '6 days', NULL, NULL, now() - interval '4 days', 'RETURN', now() - interval '7 days'),
+  ('00000000-0000-4000-d000-000000000009', '00000000-0000-4000-c000-000000000004', '00000000-0000-4000-a000-000000000004',
+   'IN_PROGRESS', 'WALK_IN', '노트북', 'ms서피스', '1866', NULL, '저장장치 교체 후 재작업',
+   0, 0, false, 'PENDING', 0, now() - interval '5 days', NULL, NULL, NULL, NULL, now() - interval '6 days'),
+  ('00000000-0000-4000-d000-000000000010', '00000000-0000-4000-c000-000000000005', NULL,
+   'NEW', '미정', '태블릿', '애플', '아이패드 프로 11 1세대', NULL, '유리 파손',
+   0, 0, false, 'PENDING', 0, NULL, NULL, NULL, NULL, NULL, now());
+
+-- ---------- 6. ticket_materials ----------
+INSERT INTO public.ticket_materials
+  (id, ticket_id, inventory_item_id, quantity, request_status, request_type, created_by,
+   is_return_registered, return_category_id, return_spec, return_name, return_condition, return_status, return_quantity, return_capacity)
+VALUES
+  -- t4: pending / requested dispatch / requested purchase (qty-0 item) / rejected
+  ('00000000-0000-4000-e000-000000000001', '00000000-0000-4000-d000-000000000004', '00000000-0000-4000-b400-000000000001', 1, 'pending',   'dispatch', '00000000-0000-4000-a000-000000000004', false, NULL, NULL, NULL, NULL, NULL, 1, NULL),
+  ('00000000-0000-4000-e000-000000000002', '00000000-0000-4000-d000-000000000004', '00000000-0000-4000-b400-000000000003', 1, 'requested', 'dispatch', '00000000-0000-4000-a000-000000000004', false, NULL, NULL, NULL, NULL, NULL, 1, NULL),
+  ('00000000-0000-4000-e000-000000000003', '00000000-0000-4000-d000-000000000004', '00000000-0000-4000-b400-000000000002', 1, 'requested', 'purchase', '00000000-0000-4000-a000-000000000004', false, NULL, NULL, NULL, NULL, NULL, 1, NULL),
+  ('00000000-0000-4000-e000-000000000004', '00000000-0000-4000-d000-000000000004', '00000000-0000-4000-b400-000000000004', 1, 'rejected',  'dispatch', '00000000-0000-4000-a000-000000000004', false, NULL, NULL, NULL, NULL, NULL, 1, NULL),
+  -- t5: approved dispatch + extracted old SSD registered, awaiting inbound approval
+  ('00000000-0000-4000-e000-000000000005', '00000000-0000-4000-d000-000000000005', '00000000-0000-4000-b400-000000000003', 1, 'approved',  'dispatch', '00000000-0000-4000-a000-000000000004',
+   true, '00000000-0000-4000-b100-000000000002', 'M.2 NVMe', 'SK하이닉스', '중고품', 'pending', 1, '256GB'),
+  -- t6 (completed): approved dispatch
+  ('00000000-0000-4000-e000-000000000006', '00000000-0000-4000-d000-000000000006', '00000000-0000-4000-b400-000000000001', 1, 'approved',  'dispatch', '00000000-0000-4000-a000-000000000005', false, NULL, NULL, NULL, NULL, NULL, 1, NULL),
+  -- t7 (canceled): approved material waiting for admin return confirmation
+  ('00000000-0000-4000-e000-000000000007', '00000000-0000-4000-d000-000000000007', '00000000-0000-4000-b400-000000000005', 1, 'cancel_requested', 'dispatch', '00000000-0000-4000-a000-000000000004', false, NULL, NULL, NULL, NULL, NULL, 1, NULL),
+  -- t9: dispatch that was cancelled and returned to stock
+  ('00000000-0000-4000-e000-000000000008', '00000000-0000-4000-d000-000000000009', '00000000-0000-4000-b400-000000000004', 1, 'cancelled', 'dispatch', '00000000-0000-4000-a000-000000000004', false, NULL, NULL, NULL, NULL, NULL, 1, NULL);
+
+-- ---------- 7. inventory_transactions (consistent with item quantities) ----------
+INSERT INTO public.inventory_transactions (item_id, user_id, transaction_type, quantity_changed, ticket_id, notes, created_at) VALUES
+  ('00000000-0000-4000-b400-000000000001', '00000000-0000-4000-a000-000000000001', 'INBOUND',  4,   NULL, '신규 재고 등록', now() - interval '30 days'),
+  ('00000000-0000-4000-b400-000000000003', '00000000-0000-4000-a000-000000000001', 'INBOUND',  3,   NULL, '신규 재고 등록', now() - interval '30 days'),
+  ('00000000-0000-4000-b400-000000000004', '00000000-0000-4000-a000-000000000001', 'INBOUND',  1,   NULL, '신규 재고 등록', now() - interval '30 days'),
+  ('00000000-0000-4000-b400-000000000005', '00000000-0000-4000-a000-000000000001', 'INBOUND',  100, NULL, '신규 재고 등록', now() - interval '30 days'),
+  ('00000000-0000-4000-b400-000000000003', '00000000-0000-4000-a000-000000000004', 'OUTBOUND', 1, '00000000-0000-4000-d000-000000000005', '자재 출고 승인', now() - interval '4 days'),
+  ('00000000-0000-4000-b400-000000000001', '00000000-0000-4000-a000-000000000005', 'OUTBOUND', 1, '00000000-0000-4000-d000-000000000006', '자재 출고 승인', now() - interval '8 days'),
+  ('00000000-0000-4000-b400-000000000005', '00000000-0000-4000-a000-000000000004', 'OUTBOUND', 1, '00000000-0000-4000-d000-000000000007', '자재 출고 승인', now() - interval '6 days'),
+  ('00000000-0000-4000-b400-000000000004', '00000000-0000-4000-a000-000000000004', 'OUTBOUND', 1, '00000000-0000-4000-d000-000000000009', '자재 출고 승인', now() - interval '5 days'),
+  ('00000000-0000-4000-b400-000000000004', '00000000-0000-4000-a000-000000000002', 'INBOUND',  1, '00000000-0000-4000-d000-000000000009', '접수 취소로 인한 자재 원복', now() - interval '4 days');
+
+INSERT INTO public.ticket_logs (ticket_id, employee_id, message, created_at) VALUES
+  ('00000000-0000-4000-d000-000000000006', '00000000-0000-4000-a000-000000000002', '시스템: 최종 승인되었습니다. (시드 데이터)', now() - interval '6 days'),
+  ('00000000-0000-4000-d000-000000000007', '00000000-0000-4000-a000-000000000004', '시스템: 접수가 취소되었습니다. (입고 후 취소, 처리방법: 기기 폐기)', now() - interval '5 days');

@@ -59,7 +59,7 @@ Brad's answers to the Phase 0 questions. Binding for all later plans.
 
 ---
 
-## Phase 0.1 — Migration baseline (마이그레이션 기준점 정리)
+## Phase 0.1 — Migration baseline (마이그레이션 기준점 정리) ✅ (report: `phases/phase-0.1-report.md`)
 
 **Goal:** one baseline migration identical to the current production schema, applied cleanly to a
 local Docker Supabase. No writes to production.

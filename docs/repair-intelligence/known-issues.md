@@ -9,7 +9,7 @@ Recorded only; nothing here is changed without an explicit decision from Brad.
 | KI-2 | Outsourced (외주) items modelled as inventory | Recorded only — separate cleanup planned by Brad |
 | KI-3 | Migration 019 duplicate / `019_cancel_method.sql` never applied | Resolved 2026-09-27 — not applied, archived (no references) |
 | KI-4 | `approve_material_dispatch` breaks purchase requests | Scheduled: Phase 0.5 |
-| KI-5 | Hand-written types vs generated types | To be filled in Phase 0.1 |
+| KI-5 | Hand-written types vs generated types | Recorded (Phase 0.1) — no change to existing types |
 | KI-6 | Production migration history out of sync with files | Resolved by Brad running the repair commands from Phase 0.1 |
 | KI-7 | `ticket-images` storage: public access, extra dashboard policy, no size limit | Recorded only — Brad to decide |
 
@@ -99,8 +99,43 @@ Filter by the same rule (`inventory_specs.name = '외주'`) until the separate c
 
 ## KI-5. Hand-written types vs generated types
 
-To be filled in Phase 0.1 after `supabase gen types` against the local baseline
-(missing columns, nullability mismatches, missing enum values in `src/types/database.ts` / `enums.ts`).
+Compared 2026-09-27 (Phase 0.1): hand-written `src/types/database.ts` / `enums.ts` vs the local
+baseline DB, which the generated `src/types/supabase.ts` mirrors. Decision Q10: **record only** —
+existing code keeps the hand-written types; new features use the generated file.
+
+**Columns present in DB but missing from the hand-written interface**
+
+| Table / interface | Missing | Note |
+| --- | --- | --- |
+| `repair_tickets` / `RepairTicket` | `images` (jsonb), `has_admin_message` (bool), `cancel_device_disposal` (text\|null), `canceled_at`, `completed_at`, `dispose_confirmed_at` (timestamptz\|null) | Code reads these through local ad-hoc types (e.g. `TicketDetailForm.tsx`) |
+| `ticket_materials` / `TicketMaterial` | `request_type` (text: dispatch\|purchase), `return_capacity` (text\|null) | `request_type` is central to Phase 0.5 |
+| `device_models` / `DeviceModel` | `created_at`, `tag_info` (text\|null) | |
+| `global_settings` / `GlobalSettings` | `id` (boolean, single-row key) | harmless |
+
+**Nullability mismatches (DB nullable, TS non-null)**
+
+| Column | DB | TS |
+| --- | --- | --- |
+| `repair_tickets.evaluated_value`, `minimum_estimate`, `confirmed_estimate` | `numeric \| null` | `number` |
+| `device_models.release_year`, `release_price`, `min_repair_cost` | `integer \| null` | `number` |
+
+(`device_models` columns were `NOT NULL` in migration 001; production has them nullable —
+changed outside the migration files. The baseline follows production.)
+
+**Enums**
+
+| Enum | Difference |
+| --- | --- |
+| `receipt_type` | TS `ReceiptType` lacks `DELIVERY` (legacy value, split into QUICK/PARCEL by 004 but still in the enum) and `미정` (024) |
+| `inventory_transaction_type` | no TS enum (INBOUND \| OUTBOUND \| ADJUSTMENT) |
+| all other 11 enums | identical |
+
+**Tables without a hand-written interface:** `inventory_transactions`, `news_items`, `page_contents`,
+`receipt_no_sequence`, `refund_no_sequence`.
+
+**Generated file note:** `supabase gen types` (CLI 2.118.0) emits unformatted output
+(several keys per line). It type-checks and lints cleanly; formatting is cosmetic
+(the CLI suggests `npx oxfmt src/types/supabase.ts`, not adopted).
 
 ## KI-6. Production migration history out of sync with files
 
