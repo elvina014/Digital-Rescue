@@ -12,7 +12,8 @@ Legend: `file:line` references are to the repo root.
 
 ### 1.1 Tables (live)
 
-The brief mentions a "7-tier" inventory. The live schema has **4 reference/stock tables + 2 attributes**:
+The inventory is a **4-tier hierarchy** (category → spec → product → item) with two item attributes
+(`capacity`, `condition`), plus a movement log:
 
 | Tier | Table | Key columns | Rows |
 | --- | --- | --- | --- |
@@ -22,8 +23,6 @@ The brief mentions a "7-tier" inventory. The live schema has **4 reference/stock
 | 4 | `inventory_items` | `category_id`/`spec_id`/`product_id` (RESTRICT), `capacity` varchar (free text: "8GB", "LG 그램 14인치 LCD"…), `condition item_condition` (NEW \| USED), `quantity ≥ 0`, `base_estimate ≥ 0`, `created_at`, `updated_at` | 31 |
 | log | `inventory_transactions` | `item_id` (CASCADE), `user_id`, `transaction_type` (INBOUND \| OUTBOUND \| ADJUSTMENT), `quantity_changed`, `ticket_id` (SET NULL), `notes` | 74 |
 | usage | `ticket_materials` | see §3 | 44 |
-
-Possible reading of "7 tiers": category → spec → product → capacity → condition (NEW/USED/적출=USED) → item → transaction. **[Open question Q0]**
 
 - **New / used / extracted:** only `item_condition` NEW \| USED. Extracted parts are inserted as
   `USED` with `base_estimate = 0` (`src/app/(admin)/tickets/actions.ts:1854`). There is no
@@ -184,13 +183,14 @@ same ticket. A part removed without a replacement being dispatched has no entry 
   Older ones (`approve_material_dispatch`) have no role check / search_path and are callable only by service_role.
 - Domains (`src/proxy.ts`): `login.` → admin portal `(admin)` (tickets, inventory, dashboard, stats, employees);
   `edit.` → CMS `(cms)/editor` only (page contents, news); apex → public site `(main)`.
-  **All ticket/inventory screens live on login.**; edit. has no operational screens.
+  **All ERP operational screens (tickets, inventory, approvals) live on `login.`**; `edit.` is CMS-only.
+  Repair Intelligence admin tools will also live on `login.`, visible to ADMIN only (decision Q12).
 - Settings/flags: `global_settings` single row (`id boolean PK CHECK id`), numeric pricing columns only,
   SELECT all / UPDATE ADMIN. **No feature-flag mechanism.**
 
 ---
 
-## 5. UI map (all under `login.` domain)
+## 5. UI map (all under `login.` — the ERP domain; `edit.` hosts only the CMS)
 
 | Screen | Files |
 | --- | --- |
@@ -263,6 +263,8 @@ PII occasionally pasted into the model field.
   (use `npx tsc --noEmit`, TS 5.9.3), **no test framework**.
 - Stack: Next.js 16.2.3 (App Router, `src/proxy.ts` instead of middleware), React 19.2, Supabase JS 2.103, zod 4, Tailwind 4.
 - **Dev database: none.** One Supabase project (production), zero branches.
+  Decision Q9: the dev target will be **local Supabase on Docker**, set up in Phase 0.1
+  (Docker Desktop 29.8.0 installed per-user on 2026-09-27).
 - Extensions: `pg_trgm` and `vector` are available but **not installed**; `pgtap` available (useful for RLS tests).
 
 ---
@@ -299,18 +301,22 @@ PII occasionally pasted into the model field.
 
 ---
 
-## 9. Open questions for Brad
+## 9. Questions — resolved 2026-09-27
 
-- **Q0.** What are the "7 tiers"? Live inventory is categories → specs → products → items (+capacity, condition).
-- **Q1.** `device_models` exists as a value-estimate cache. Extend it (additive columns) or create a new master table under a different name?
-- **Q2.** Where should the Phase 2 close gate hook: technician `submitEstimateAction` (→ WAITING_APPROVAL), manager `approveTicketAction` (→ COMPLETED), and/or `cancelTicketAction`?
-- **Q3.** Existing extracted-part registration needs a `ticket_materials` row and is not transactional. May Phase 2 wrap it in a new RPC (and switch the existing actions to it), or must the existing code path stay byte-identical?
-- **Q4.** Feature flags: OK to add boolean columns to `global_settings` (e.g. `ri_close_gate_enabled`)?
-- **Q5.** Should outsourced service items (spec "외주") be excluded from part/compatibility features, or tagged?
-- **Q6.** Donor conversion: exact "소유권 이전 확인" wording, and is it an alternative to DISPOSE confirmation?
-- **Q7.** May a TECHNICIAN see past repairs of tickets not assigned to them (full, or anonymised summary)?
-- **Q8.** Labels: per `inventory_items` row (bin/lot) or per physical unit (would require unit-level records)?
-- **Q9.** Development target for migrations: create a Supabase branch, a separate project, or local Supabase (Docker)? Until then nothing can be applied.
-- **Q10.** Types: introduce `supabase gen types` (would add a generated file alongside the hand-written types), or keep hand-writing types?
-- **Q11.** Should the `approve_material_dispatch` purchase defect (§8.4) be fixed in its own small change before Phase 6?
-- **Q12.** The brief says "management backend: edit.digital-rescue.com". In code, edit. is CMS-only and all operational screens are on login. Should RI admin tools live on login. (as assumed in this doc)?
+All answered by Brad. Full wording: `02-roadmap.md` → "Decisions (2026-09-27)".
+
+| # | Question | Decision |
+| --- | --- | --- |
+| Q0 | "7-tier" inventory? | Wording error. Use the real 4-tier structure. |
+| Q1 | `device_models` collision | Leave it untouched (AI value cache). New master under a different name (proposed in the Phase 1 plan). Unique-constraint bug → `known-issues.md` KI-1. |
+| Q2 | Close gate hook | Approval gate on `approveTicketAction` (repair record + removed parts required); light cancel gate on `cancelTicketAction` (result + removed parts). Both flag-controlled, default OFF. |
+| Q3 | Extracted-part / rollback flows | Approved: wrap each in a single-transaction RPC; prove identical results by test before switching UI; support no-`ticket_materials` case (donor); persist capacity. |
+| Q4 | Flags | Boolean columns on `global_settings`, default false. |
+| Q5 | Outsourced items | Excluded from compatibility/search/purchase guard. References documented in KI-2; no changes. |
+| Q6 | Donor wording | "고객이 기기 소유권 포기(폐기 위임)에 동의했음을 확인했습니다." Added as a "Donor로 전환" option in disposal confirmation, not a replacement. |
+| Q7 | Case visibility | All staff see repair cases; customer PII excluded from case views and VECTOR RPCs. |
+| Q8 | Labels | Mixed: new standard parts per item; extracted/used parts as qty-1 items with individual labels; one label per donor. Phase 7. |
+| Q9 | Dev target | Local Supabase on Docker. Phase 0.1 first (baseline). |
+| Q10 | Types | `supabase gen types` into a new file, used by new features only; differences → KI-5; add `typecheck` script. |
+| Q11 | Purchase approval bug | Fix first, as Phase 0.5. Dispatch behaviour must not change. |
+| Q12 | Admin domain | RI admin tools on `login.`, ADMIN only. |

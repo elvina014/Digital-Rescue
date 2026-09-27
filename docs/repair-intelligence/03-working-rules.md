@@ -45,11 +45,16 @@ defined in the approved plan.
 
 ## Project-specific notes (from Phase 0)
 
-- There is currently **no development database** (single Supabase project `wnddkgeohcgcidoklrps`,
-  no branches). Until Brad names a dev target, R3 means: write migration files only, apply nothing.
-- Supabase CLI is not installed; migrations have been applied via Supabase MCP `apply_migration`
-  and saved as `supabase/migrations/NNN_name.sql`. Next free number: `043`.
-- DB types are hand-written in `src/types/database.ts` / `src/types/enums.ts` (not generated).
-  "Regenerate types" (R6) needs a decision — see `00-current-state.md` §9.
-- `package.json` has no `typecheck` or `test` script: use `npx tsc --noEmit`, `npm run lint`, `npm run build`.
+- **Dev target = local Supabase on Docker** (decision Q9). Production (`wnddkgeohcgcidoklrps`) is
+  read-only for Claude; Brad applies migrations to production himself.
+  Until Phase 0.1 is complete, no migration may be applied anywhere.
+- After Phase 0.1: migrations are `supabase/migrations/<timestamp>_name.sql` on top of the
+  baseline; files 001–042 live in `supabase/migrations_archive/` (history only, never executed).
+  Workflow: `npx supabase db reset` locally → tests → commit → Brad applies to production.
+- Types: generated `src/types/supabase.ts` (`npm run db:types`) is used by **new** features only.
+  Hand-written `src/types/database.ts` / `enums.ts` stay for existing code (differences: KI-5).
+- Checks: `npm run typecheck` (added in Phase 0.1), `npm run lint`, `npm run build`.
+  No test framework yet — each plan states how its tests run (SQL/pgTAP against the local DB).
+- RI admin screens live on `login.` and are visible to ADMIN only.
+- Known issues and deferred work: `known-issues.md`.
 - Communicate with Brad in Korean. All UI labels in Korean.

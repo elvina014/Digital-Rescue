@@ -40,7 +40,9 @@ Never inferred from ticket completion alone. Never set by AI.
 **P5. Donor devices are potential stock.**
 Parts are extracted lazily, when needed, and then pass through the EXISTING extracted-part
 registration flow (today: `registerReturnMaterialAction` → `approveReturnMaterialAction`,
-see `00-current-state.md` §3.5).
+see `00-current-state.md` §3.5). Per decision Q3 that flow is being moved into a single-transaction
+RPC (Phase 2) that also works without a `ticket_materials` row; once switched, "the existing
+extracted-part registration flow" means that RPC.
 
 **P6. No double entry.**
 Parts used in a repair are read from the existing dispatch/checkout records (`ticket_materials`).
@@ -50,7 +52,12 @@ Staff never re-type them into the repair record.
 All inventory-affecting operations run inside a single DB transaction (Postgres function/RPC).
 Manual cost entries (`repair_tickets.material_cost_details`, `ticket_materials.override_unit_price`)
 are never overwritten. Existing dispatch approval, cancellation-with-admin-approval, and
-reverse-logistics rollback behaviour must not change.
+reverse-logistics rollback behaviour must not change.¹
+
+¹ Approved exceptions (2026-09-27): Q3 — extracted-part registration and admin-approved
+return/rollback are re-implemented as transactional RPCs, with results proven identical by test
+before the UI is switched (plus the capacity fix). Q11 — Phase 0.5 changes only the *purchase*
+branch of dispatch approval; the dispatch path must stay identical.
 
 **P8. AI access is read-only via RPC; AI writes go to a queue.**
 AI agents (including the in-house mainboard support agent **VECTOR**) read only through dedicated
