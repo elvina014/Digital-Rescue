@@ -80,7 +80,7 @@ no production data locally; app build unaffected.
 
 ---
 
-## Phase 0.5 — Purchase approval bug fix (구매 요청 승인 버그 수정)
+## Phase 0.5 — Purchase approval bug fix (구매 요청 승인 버그 수정) ✅ local (report: `phases/phase-0.5-report.md`; production deploy pending)
 
 **Goal:** purchase requests (`ticket_materials.request_type = 'purchase'`) can be approved without
 touching stock. Dispatch approval behaviour stays byte-for-byte the same.

@@ -1397,24 +1397,27 @@ export async function approveMaterialDispatchAction(materialId: string) {
     .single();
 
   if (mat) {
-    // inventory_transactions에 OUTBOUND 기록 (RPC가 구버전이라 미기록된 경우 보완)
-    const { count } = await adminSupa
-      .from("inventory_transactions")
-      .select("id", { count: "exact", head: true })
-      .eq("ticket_id", mat.ticket_id)
-      .eq("item_id", mat.inventory_item_id)
-      .eq("transaction_type", "OUTBOUND")
-      .gte("created_at", new Date(Date.now() - 10000).toISOString()); // 10초 이내
+    // 구매 요청은 재고가 움직이지 않으므로 출고(OUTBOUND) 기록을 남기지 않는다
+    if (mat.request_type !== "purchase") {
+      // inventory_transactions에 OUTBOUND 기록 (RPC가 구버전이라 미기록된 경우 보완)
+      const { count } = await adminSupa
+        .from("inventory_transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("ticket_id", mat.ticket_id)
+        .eq("item_id", mat.inventory_item_id)
+        .eq("transaction_type", "OUTBOUND")
+        .gte("created_at", new Date(Date.now() - 10000).toISOString()); // 10초 이내
 
-    if (!count || count === 0) {
-      await adminSupa.from("inventory_transactions").insert({
-        item_id: mat.inventory_item_id,
-        user_id: mat.created_by ?? employee.id, // 요청자 우선, 없으면 승인자
-        transaction_type: "OUTBOUND",
-        quantity_changed: mat.quantity,
-        ticket_id: mat.ticket_id,
-        notes: "자재 출고 승인",
-      });
+      if (!count || count === 0) {
+        await adminSupa.from("inventory_transactions").insert({
+          item_id: mat.inventory_item_id,
+          user_id: mat.created_by ?? employee.id, // 요청자 우선, 없으면 승인자
+          transaction_type: "OUTBOUND",
+          quantity_changed: mat.quantity,
+          ticket_id: mat.ticket_id,
+          notes: "자재 출고 승인",
+        });
+      }
     }
 
     // 자재비 합계 재계산 (재고 자재 단가 조정 + 수동 비용)

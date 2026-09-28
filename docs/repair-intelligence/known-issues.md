@@ -8,7 +8,7 @@ Recorded only; nothing here is changed without an explicit decision from Brad.
 | KI-1 | `device_models` cache: missing unique constraint | Recorded only |
 | KI-2 | Outsourced (외주) items modelled as inventory | Recorded only — separate cleanup planned by Brad |
 | KI-3 | Migration 019 duplicate / `019_cancel_method.sql` never applied | Resolved 2026-09-27 — not applied, archived (no references) |
-| KI-4 | `approve_material_dispatch` breaks purchase requests | Scheduled: Phase 0.5 |
+| KI-4 | `approve_material_dispatch` breaks purchase requests | Fixed locally in Phase 0.5 (migration `20260928043331`) — awaiting production deploy by Brad |
 | KI-5 | Hand-written types vs generated types | Recorded (Phase 0.1) — no change to existing types |
 | KI-6 | Production migration history out of sync with files | Resolved by Brad running the repair commands from Phase 0.1 |
 | KI-7 | `ticket-images` storage: public access, extra dashboard policy, no size limit | Recorded only — Brad to decide |
@@ -95,7 +95,7 @@ Filter by the same rule (`inventory_specs.name = '외주'`) until the separate c
   OUTBOUND row for purchases once the RPC stops doing it.
 - Also: no role check and no `search_path` in the function (mitigated — EXECUTE is granted to
   service_role only).
-- **Fix: Phase 0.5** (purchase branch only; dispatch path unchanged).
+- **Fixed in Phase 0.5** (purchase branch only; dispatch path unchanged; app fallback skipped for purchases) — see `phases/phase-0.5-report.md`. Production deploy pending (app first, then migration).
 
 ## KI-5. Hand-written types vs generated types
 

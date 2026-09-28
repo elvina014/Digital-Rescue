@@ -1,6 +1,6 @@
 # Phase 0.5 — Purchase approval bug fix (구매 요청 승인 버그 수정) — PLAN
 
-Status: **awaiting Brad's "APPROVED"**. Nothing below has been executed.
+Status: **APPROVED 2026-09-28 — EXECUTED 2026-09-28** (see `phase-0.5-report.md`).
 
 ## Goal
 
