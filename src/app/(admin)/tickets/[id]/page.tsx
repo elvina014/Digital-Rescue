@@ -32,6 +32,10 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       material_cost_details, final_price, is_approved, has_admin_message, images,
       payment_status, payment_method, cash_receipt_issued, refunded_amount, completed_at,
       cancel_device_disposal, dispose_confirmed_at, received_at, created_at, updated_at,
+      catalog_model_id, catalog_variant_id, catalog_board_id,
+      catalog_models!repair_tickets_catalog_model_fk ( name, catalog_brands ( name ) ),
+      catalog_variants!repair_tickets_catalog_variant_fk ( name ),
+      catalog_boards!repair_tickets_catalog_board_fk ( board_number, manufacturer ),
       customers ( name, phone, address ),
       employees:assignee_id ( id, name )
     `
@@ -216,6 +220,11 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     };
   });
 
+  // 기기 마스터 연결 (Phase 1)
+  const catalogModel = ticket.catalog_models as unknown as { name: string; catalog_brands: { name: string } | null } | null;
+  const catalogVariant = ticket.catalog_variants as unknown as { name: string } | null;
+  const catalogBoard = ticket.catalog_boards as unknown as { board_number: string; manufacturer: string | null } | null;
+
   // Supabase 조인 결과 타입 정리
   const ticketData = {
     id: ticket.id,
@@ -247,6 +256,21 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     received_at: (ticket as Record<string, unknown>).received_at as string | null ?? null,
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
+    catalog_model:
+      ticket.catalog_model_id && catalogModel
+        ? {
+            modelId: ticket.catalog_model_id as string,
+            variantId: (ticket.catalog_variant_id as string | null) ?? null,
+            label: [catalogModel.catalog_brands?.name, catalogModel.name, catalogVariant?.name].filter(Boolean).join(" · "),
+          }
+        : null,
+    catalog_board:
+      ticket.catalog_board_id && catalogBoard
+        ? {
+            boardId: ticket.catalog_board_id as string,
+            label: catalogBoard.board_number + (catalogBoard.manufacturer ? ` (${catalogBoard.manufacturer})` : ""),
+          }
+        : null,
     customer: ticket.customers as unknown as {
       name: string;
       phone: string;

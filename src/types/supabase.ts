@@ -23,7 +23,201 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "customers": {
+            "catalog_board_aliases": {
+                  Row: {
+                    "alias": string,"alias_norm": string | null,"board_id": string,"created_at": string,"created_by": string | null,"id": string
+                  }
+                  Insert: {
+                    "alias": string,"alias_norm"?: never,"board_id": string,"created_at"?: string,"created_by"?: string | null,"id"?: string
+                  }
+                  Update: {
+                    "alias"?: string,"alias_norm"?: never,"board_id"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "catalog_board_aliases_board_id_fkey"
+      columns: ["board_id"]
+isOneToOne: false
+      referencedRelation: "catalog_boards"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "catalog_board_aliases_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"catalog_boards": {
+                  Row: {
+                    "board_number": string,"board_number_norm": string | null,"created_at": string,"created_by": string | null,"id": string,"manufacturer": string | null,"notes": string | null,"updated_at": string
+                  }
+                  Insert: {
+                    "board_number": string,"board_number_norm"?: never,"created_at"?: string,"created_by"?: string | null,"id"?: string,"manufacturer"?: string | null,"notes"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "board_number"?: string,"board_number_norm"?: never,"created_at"?: string,"created_by"?: string | null,"id"?: string,"manufacturer"?: string | null,"notes"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "catalog_boards_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"catalog_brands": {
+                  Row: {
+                    "created_at": string,"id": string,"name": string,"name_norm": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"name": string,"name_norm"?: never
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"name"?: string,"name_norm"?: never
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"catalog_model_aliases": {
+                  Row: {
+                    "alias": string,"alias_norm": string | null,"created_at": string,"created_by": string | null,"id": string,"model_id": string,"source": string,"variant_id": string | null
+                  }
+                  Insert: {
+                    "alias": string,"alias_norm"?: never,"created_at"?: string,"created_by"?: string | null,"id"?: string,"model_id": string,"source": string,"variant_id"?: string | null
+                  }
+                  Update: {
+                    "alias"?: string,"alias_norm"?: never,"created_at"?: string,"created_by"?: string | null,"id"?: string,"model_id"?: string,"source"?: string,"variant_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "catalog_model_aliases_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "catalog_model_aliases_model_id_fkey"
+      columns: ["model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_models"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "catalog_model_aliases_variant_fk"
+      columns: ["variant_id","model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_variants"
+      referencedColumns: ["id","model_id"]
+    }
+                  ]
+                },"catalog_model_boards": {
+                  Row: {
+                    "board_id": string,"created_at": string,"created_by": string | null,"id": string,"model_id": string,"note": string | null,"variant_id": string | null
+                  }
+                  Insert: {
+                    "board_id": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"model_id": string,"note"?: string | null,"variant_id"?: string | null
+                  }
+                  Update: {
+                    "board_id"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"model_id"?: string,"note"?: string | null,"variant_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "catalog_model_boards_board_id_fkey"
+      columns: ["board_id"]
+isOneToOne: false
+      referencedRelation: "catalog_boards"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "catalog_model_boards_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "catalog_model_boards_model_id_fkey"
+      columns: ["model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_models"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "catalog_model_boards_variant_fk"
+      columns: ["variant_id","model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_variants"
+      referencedColumns: ["id","model_id"]
+    }
+                  ]
+                },"catalog_models": {
+                  Row: {
+                    "brand_id": string,"created_at": string,"created_by": string | null,"device_type": Database["public"]['Enums']["device_type"] | null,"id": string,"name": string,"name_norm": string | null,"needs_review": boolean,"notes": string | null,"release_year": number | null,"updated_at": string
+                  }
+                  Insert: {
+                    "brand_id": string,"created_at"?: string,"created_by"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"] | null,"id"?: string,"name": string,"name_norm"?: never,"needs_review"?: boolean,"notes"?: string | null,"release_year"?: number | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "brand_id"?: string,"created_at"?: string,"created_by"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"] | null,"id"?: string,"name"?: string,"name_norm"?: never,"needs_review"?: boolean,"notes"?: string | null,"release_year"?: number | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "catalog_models_brand_id_fkey"
+      columns: ["brand_id"]
+isOneToOne: false
+      referencedRelation: "catalog_brands"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "catalog_models_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"catalog_ticket_link_log": {
+                  Row: {
+                    "action": string,"alias_id": string | null,"done_at": string,"done_by": string | null,"id": string,"new_model_id": string | null,"new_variant_id": string | null,"old_model_id": string | null,"old_variant_id": string | null,"ticket_id": string
+                  }
+                  Insert: {
+                    "action": string,"alias_id"?: string | null,"done_at"?: string,"done_by"?: string | null,"id"?: string,"new_model_id"?: string | null,"new_variant_id"?: string | null,"old_model_id"?: string | null,"old_variant_id"?: string | null,"ticket_id": string
+                  }
+                  Update: {
+                    "action"?: string,"alias_id"?: string | null,"done_at"?: string,"done_by"?: string | null,"id"?: string,"new_model_id"?: string | null,"new_variant_id"?: string | null,"old_model_id"?: string | null,"old_variant_id"?: string | null,"ticket_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "catalog_ticket_link_log_alias_id_fkey"
+      columns: ["alias_id"]
+isOneToOne: false
+      referencedRelation: "catalog_model_aliases"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "catalog_ticket_link_log_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"catalog_variants": {
+                  Row: {
+                    "created_at": string,"id": string,"model_id": string,"name": string,"name_norm": string | null,"notes": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"model_id": string,"name": string,"name_norm"?: never,"notes"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"model_id"?: string,"name"?: string,"name_norm"?: never,"notes"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "catalog_variants_model_id_fkey"
+      columns: ["model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_models"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"customers": {
                   Row: {
                     "address": string | null,"created_at": string,"id": string,"name": string,"phone": string
                   }
@@ -267,13 +461,13 @@ isOneToOne: false
                   ]
                 },"repair_tickets": {
                   Row: {
-                    "assignee_id": string | null,"cancel_device_disposal": string | null,"canceled_at": string | null,"cash_receipt_issued": boolean | null,"completed_at": string | null,"confirmed_estimate": number | null,"created_at": string,"customer_id": string,"device_brand": string,"device_model": string | null,"device_type": Database["public"]['Enums']["device_type"],"dispose_confirmed_at": string | null,"evaluated_value": number | null,"expected_estimate": number,"final_price": number,"has_admin_message": boolean,"id": string,"images": NonNullable<Json>,"initial_estimate": number,"is_approved": boolean,"is_test": boolean,"material_cost": number,"material_cost_details": NonNullable<Json>,"minimum_estimate": number | null,"paid_at": string | null,"payment_method": string | null,"payment_status": Database["public"]['Enums']["payment_status"],"receipt_no": string,"receipt_type": Database["public"]['Enums']["receipt_type"],"received_at": string | null,"refunded_amount": number,"release_year": string | null,"status": Database["public"]['Enums']["ticket_status"],"symptoms": string,"tag_info": string | null,"updated_at": string
+                    "assignee_id": string | null,"cancel_device_disposal": string | null,"canceled_at": string | null,"cash_receipt_issued": boolean | null,"catalog_board_id": string | null,"catalog_model_id": string | null,"catalog_variant_id": string | null,"completed_at": string | null,"confirmed_estimate": number | null,"created_at": string,"customer_id": string,"device_brand": string,"device_model": string | null,"device_type": Database["public"]['Enums']["device_type"],"dispose_confirmed_at": string | null,"evaluated_value": number | null,"expected_estimate": number,"final_price": number,"has_admin_message": boolean,"id": string,"images": NonNullable<Json>,"initial_estimate": number,"is_approved": boolean,"is_test": boolean,"material_cost": number,"material_cost_details": NonNullable<Json>,"minimum_estimate": number | null,"paid_at": string | null,"payment_method": string | null,"payment_status": Database["public"]['Enums']["payment_status"],"receipt_no": string,"receipt_type": Database["public"]['Enums']["receipt_type"],"received_at": string | null,"refunded_amount": number,"release_year": string | null,"status": Database["public"]['Enums']["ticket_status"],"symptoms": string,"tag_info": string | null,"updated_at": string
                   }
                   Insert: {
-                    "assignee_id"?: string | null,"cancel_device_disposal"?: string | null,"canceled_at"?: string | null,"cash_receipt_issued"?: boolean | null,"completed_at"?: string | null,"confirmed_estimate"?: number | null,"created_at"?: string,"customer_id": string,"device_brand": string,"device_model"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"],"dispose_confirmed_at"?: string | null,"evaluated_value"?: number | null,"expected_estimate"?: number,"final_price"?: number,"has_admin_message"?: boolean,"id"?: string,"images"?: NonNullable<Json>,"initial_estimate"?: number,"is_approved"?: boolean,"is_test"?: boolean,"material_cost"?: number,"material_cost_details"?: NonNullable<Json>,"minimum_estimate"?: number | null,"paid_at"?: string | null,"payment_method"?: string | null,"payment_status"?: Database["public"]['Enums']["payment_status"],"receipt_no": string,"receipt_type": Database["public"]['Enums']["receipt_type"],"received_at"?: string | null,"refunded_amount"?: number,"release_year"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"symptoms": string,"tag_info"?: string | null,"updated_at"?: string
+                    "assignee_id"?: string | null,"cancel_device_disposal"?: string | null,"canceled_at"?: string | null,"cash_receipt_issued"?: boolean | null,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"completed_at"?: string | null,"confirmed_estimate"?: number | null,"created_at"?: string,"customer_id": string,"device_brand": string,"device_model"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"],"dispose_confirmed_at"?: string | null,"evaluated_value"?: number | null,"expected_estimate"?: number,"final_price"?: number,"has_admin_message"?: boolean,"id"?: string,"images"?: NonNullable<Json>,"initial_estimate"?: number,"is_approved"?: boolean,"is_test"?: boolean,"material_cost"?: number,"material_cost_details"?: NonNullable<Json>,"minimum_estimate"?: number | null,"paid_at"?: string | null,"payment_method"?: string | null,"payment_status"?: Database["public"]['Enums']["payment_status"],"receipt_no": string,"receipt_type": Database["public"]['Enums']["receipt_type"],"received_at"?: string | null,"refunded_amount"?: number,"release_year"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"symptoms": string,"tag_info"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "assignee_id"?: string | null,"cancel_device_disposal"?: string | null,"canceled_at"?: string | null,"cash_receipt_issued"?: boolean | null,"completed_at"?: string | null,"confirmed_estimate"?: number | null,"created_at"?: string,"customer_id"?: string,"device_brand"?: string,"device_model"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"],"dispose_confirmed_at"?: string | null,"evaluated_value"?: number | null,"expected_estimate"?: number,"final_price"?: number,"has_admin_message"?: boolean,"id"?: string,"images"?: NonNullable<Json>,"initial_estimate"?: number,"is_approved"?: boolean,"is_test"?: boolean,"material_cost"?: number,"material_cost_details"?: NonNullable<Json>,"minimum_estimate"?: number | null,"paid_at"?: string | null,"payment_method"?: string | null,"payment_status"?: Database["public"]['Enums']["payment_status"],"receipt_no"?: string,"receipt_type"?: Database["public"]['Enums']["receipt_type"],"received_at"?: string | null,"refunded_amount"?: number,"release_year"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"symptoms"?: string,"tag_info"?: string | null,"updated_at"?: string
+                    "assignee_id"?: string | null,"cancel_device_disposal"?: string | null,"canceled_at"?: string | null,"cash_receipt_issued"?: boolean | null,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"completed_at"?: string | null,"confirmed_estimate"?: number | null,"created_at"?: string,"customer_id"?: string,"device_brand"?: string,"device_model"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"],"dispose_confirmed_at"?: string | null,"evaluated_value"?: number | null,"expected_estimate"?: number,"final_price"?: number,"has_admin_message"?: boolean,"id"?: string,"images"?: NonNullable<Json>,"initial_estimate"?: number,"is_approved"?: boolean,"is_test"?: boolean,"material_cost"?: number,"material_cost_details"?: NonNullable<Json>,"minimum_estimate"?: number | null,"paid_at"?: string | null,"payment_method"?: string | null,"payment_status"?: Database["public"]['Enums']["payment_status"],"receipt_no"?: string,"receipt_type"?: Database["public"]['Enums']["receipt_type"],"received_at"?: string | null,"refunded_amount"?: number,"release_year"?: string | null,"status"?: Database["public"]['Enums']["ticket_status"],"symptoms"?: string,"tag_info"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -282,6 +476,24 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "employees"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "repair_tickets_catalog_board_fk"
+      columns: ["catalog_board_id"]
+isOneToOne: false
+      referencedRelation: "catalog_boards"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "repair_tickets_catalog_model_fk"
+      columns: ["catalog_model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_models"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "repair_tickets_catalog_variant_fk"
+      columns: ["catalog_variant_id","catalog_model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_variants"
+      referencedColumns: ["id","model_id"]
     },{
       foreignKeyName: "repair_tickets_customer_id_fkey"
       columns: ["customer_id"]
@@ -412,6 +624,33 @@ isOneToOne: false
                            },
 "approve_material_dispatch":
 { Args: { "p_material_id": string,"p_user_id"?: string }; Returns: Json
+                           },
+"catalog_create_model":
+{ Args: { "p_brand": string,"p_device_type"?: Database["public"]['Enums']["device_type"],"p_model": string,"p_variant"?: string }; Returns: Json
+                           },
+"catalog_map_model_string":
+{ Args: { "p_alias"?: string,"p_model_id": string,"p_norm": string,"p_variant_id"?: string }; Returns: Json
+                           },
+"catalog_normalize":
+{ Args: { "p": string }; Returns: string
+                           },
+"catalog_search_boards":
+{ Args: { "p_limit"?: number,"p_query": string }; Returns: {
+              "board_id": string,"board_number": string,"manufacturer": string,"matched": string,"score": number
+            }[]
+                           },
+"catalog_search_models":
+{ Args: { "p_limit"?: number,"p_query": string }; Returns: {
+              "brand_name": string,"matched": string,"model_id": string,"model_name": string,"score": number,"variant_id": string,"variant_name": string
+            }[]
+                           },
+"catalog_unmap_alias":
+{ Args: { "p_alias_id": string }; Returns: Json
+                           },
+"catalog_unmapped_model_strings":
+{ Args: { "p_limit"?: number }; Returns: {
+              "brands": (string)[],"norm": string,"raw_strings": (string)[],"suggestions": Json,"test_count": number,"ticket_count": number
+            }[]
                            },
 "get_my_role":
 { Args: Record<PropertyKey, never>; Returns: Database["public"]['Enums']["employee_role"]

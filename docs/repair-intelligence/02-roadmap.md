@@ -103,7 +103,7 @@ no stock change, no transaction; insufficient-stock dispatch still errors with t
 
 ---
 
-## Phase 1 — Device master data
+## Phase 1 — Device master data (기기 마스터) ✅ local (report: `phases/phase-1-report.md`; production deploy pending)
 
 **Goal:** a canonical device/board vocabulary that tickets can reference, without touching the
 existing free-text model field.
@@ -124,7 +124,7 @@ existing free-text model field.
 - `pg_trgm` is not installed → plan includes `CREATE EXTENSION pg_trgm` in `extensions`.
 - Backfilling approved tickets hits `trg_protect_approved_ticket`; the backfill needs an explicit
   bypass (like the `app.refund_sync` GUC) → modifies an existing trigger function → must be listed
-  in the plan (R2).
+  in the plan (R2). Done as Amendment A (`app.catalog_link_sync`, catalog columns only); see KI-9.
 - 367 distinct model strings across 394 real tickets (see `00-current-state.md` §6).
 
 **Dependencies:** Phase 0.1. **Acceptance:** picker works on ticket create/edit; mapping tool maps a

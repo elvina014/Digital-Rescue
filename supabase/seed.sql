@@ -742,3 +742,46 @@ INSERT INTO public.inventory_transactions (item_id, user_id, transaction_type, q
 INSERT INTO public.ticket_logs (ticket_id, employee_id, message, created_at) VALUES
   ('00000000-0000-4000-d000-000000000006', '00000000-0000-4000-a000-000000000002', '시스템: 최종 승인되었습니다. (시드 데이터)', now() - interval '6 days'),
   ('00000000-0000-4000-d000-000000000007', '00000000-0000-4000-a000-000000000004', '시스템: 접수가 취소되었습니다. (입고 후 취소, 처리방법: 기기 폐기)', now() - interval '5 days');
+
+-- ---------- 8. Phase 1: device catalog (기기 마스터) ----------
+INSERT INTO public.catalog_brands (id, name) VALUES
+  ('00000000-0000-4000-f100-000000000001', 'LG'),
+  ('00000000-0000-4000-f100-000000000002', '삼성'),
+  ('00000000-0000-4000-f100-000000000003', 'Lenovo');
+
+INSERT INTO public.catalog_models (id, brand_id, name, device_type, release_year, created_by) VALUES
+  ('00000000-0000-4000-f200-000000000001', '00000000-0000-4000-f100-000000000001', '그램 15 15Z90T', '노트북', 2022, '00000000-0000-4000-a000-000000000001'),
+  ('00000000-0000-4000-f200-000000000002', '00000000-0000-4000-f100-000000000002', '갤럭시북 프로 360 NT950QED', '노트북', 2021, '00000000-0000-4000-a000-000000000001'),
+  ('00000000-0000-4000-f200-000000000003', '00000000-0000-4000-f100-000000000003', 'ThinkPad L15 Gen 2', '노트북', 2021, '00000000-0000-4000-a000-000000000001');
+
+INSERT INTO public.catalog_variants (id, model_id, name) VALUES
+  ('00000000-0000-4000-f300-000000000001', '00000000-0000-4000-f200-000000000002', 'OLED 터치');
+
+INSERT INTO public.catalog_model_aliases (model_id, variant_id, alias, source, created_by) VALUES
+  ('00000000-0000-4000-f200-000000000001', NULL, '15Z90T', 'manual', '00000000-0000-4000-a000-000000000001'),
+  ('00000000-0000-4000-f200-000000000002', NULL, 'NT950QED', 'manual', '00000000-0000-4000-a000-000000000001'),
+  ('00000000-0000-4000-f200-000000000003', NULL, 'ThinkPad L15 Gen 2', 'created', '00000000-0000-4000-a000-000000000001');
+
+INSERT INTO public.catalog_boards (id, board_number, manufacturer, created_by) VALUES
+  ('00000000-0000-4000-f400-000000000001', 'LA-K091P', 'Compal', '00000000-0000-4000-a000-000000000001'),
+  ('00000000-0000-4000-f400-000000000002', 'BA92-21345A', 'Samsung', '00000000-0000-4000-a000-000000000001');
+
+INSERT INTO public.catalog_board_aliases (board_id, alias, created_by) VALUES
+  ('00000000-0000-4000-f400-000000000001', 'NM-D451', '00000000-0000-4000-a000-000000000001');
+
+INSERT INTO public.catalog_model_boards (model_id, board_id, created_by) VALUES
+  ('00000000-0000-4000-f200-000000000002', '00000000-0000-4000-f400-000000000002', '00000000-0000-4000-a000-000000000001');
+
+-- two unlinked tickets with spelling variants of the same SKU (one approved) → mapping demo
+INSERT INTO public.repair_tickets
+  (id, customer_id, assignee_id, status, receipt_type, device_type, device_brand, device_model, symptoms,
+   initial_estimate, final_price, is_approved, payment_status, material_cost,
+   received_at, completed_at, paid_at, created_at, updated_at)
+VALUES
+  ('00000000-0000-4000-d000-000000000011', '00000000-0000-4000-c000-000000000002', '00000000-0000-4000-a000-000000000004',
+   'COMPLETED', 'WALK_IN', '노트북', 'LG', '15Z90T-GP5HL', '키보드 일부 입력 안 됨',
+   0, 120000, true, 'PAID', 0, now() - interval '20 days', now() - interval '18 days', now() - interval '18 days',
+   now() - interval '21 days', now() - interval '18 days'),
+  ('00000000-0000-4000-d000-000000000012', '00000000-0000-4000-c000-000000000003', NULL,
+   'NEW', 'WALK_IN', '노트북', 'lg', '15z90t gp5hl', '배터리 빨리 닳음',
+   0, 0, false, 'PENDING', 0, NULL, NULL, NULL, now() - interval '2 hours', now() - interval '2 hours');

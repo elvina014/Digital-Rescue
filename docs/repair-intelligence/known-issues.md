@@ -12,6 +12,8 @@ Recorded only; nothing here is changed without an explicit decision from Brad.
 | KI-5 | Hand-written types vs generated types | Recorded (Phase 0.1) — no change to existing types |
 | KI-6 | Production migration history out of sync with files | Resolved by Brad running the repair commands from Phase 0.1 |
 | KI-7 | `ticket-images` storage: public access, extra dashboard policy, no size limit | Recorded only — Brad to decide |
+| KI-8 | Local Postgres crashes on "permission denied for function" | Recorded (Phase 1) — do NOT probe on production |
+| KI-9 | `protect_approved_ticket`: `current_role` variable is the SQL keyword → ADMIN/MANAGER branches never match | Recorded (Phase 1) — Brad to decide |
 
 ---
 
@@ -130,6 +132,10 @@ changed outside the migration files. The baseline follows production.)
 | `inventory_transaction_type` | no TS enum (INBOUND \| OUTBOUND \| ADJUSTMENT) |
 | all other 11 enums | identical |
 
+**Phase 1 (2026-09-29):** `repair_tickets.catalog_model_id` / `catalog_variant_id` / `catalog_board_id` and all
+`catalog_*` tables exist only in the generated types; the hand-written `RepairTicket` was not extended (new code uses
+`src/types/supabase.ts`).
+
 **Tables without a hand-written interface:** `inventory_transactions`, `news_items`, `page_contents`,
 `receipt_no_sequence`, `refund_no_sequence`.
 
@@ -209,3 +215,32 @@ Policies on `storage.objects` that concern this bucket:
 | E | Make the bucket private + switch to signed URLs | Photos no longer reachable by URL alone | **High.** `images[].url` stores public URLs permanently → need URL generation at render time (server side), migration of 121 stored URLs or path-based rendering, changes in `TicketDetailForm`, intake flow, any customer-facing view; signed-URL expiry handling. |
 
 Suggested order if Brad wants to tighten: A → C → B → D; E only as a separate project.
+
+## KI-8. Local Postgres crashes on "permission denied for function"
+
+Found 2026-09-28 (Phase 1 tests), local stack only (`supabase_db_digital-rescue`, PostgreSQL 17.6,
+`shared_preload_libraries` incl. `pgaudit`, `plpgsql_check`, `pg_tle`, `plan_filter`, `supautils`, …).
+
+- Calling **any** function the current role has no EXECUTE on (e.g. `SET ROLE anon; SELECT approve_material_dispatch(gen_random_uuid());`,
+  or a fresh `public.zz_probe()` with EXECUTE revoked) kills the backend with **signal 11 (segfault)**;
+  the postmaster restarts all connections. Table permission errors (42501 on SELECT/INSERT) do not crash.
+- Not caused by Repair Intelligence migrations (reproduced with a baseline function and a throw-away function).
+- **Production risk unknown.** If production behaves the same, an anonymous `POST /rest/v1/rpc/<revoked function>`
+  would restart the database. **Must not be tested on production by Claude.** Brad may check with Supabase support
+  or on a disposable project.
+- Tests therefore verify function ACLs with `has_function_privilege()` instead of calling denied functions.
+
+## KI-9. `protect_approved_ticket`: `current_role` shadowed by the SQL keyword
+
+Found 2026-09-28 (Phase 1). The function declares a variable `current_role employee_role` and does
+`SELECT role INTO current_role …; IF current_role = 'ADMIN' …`. In PL/pgSQL expressions `current_role` is the
+SQL keyword `CURRENT_ROLE` (the executing DB role). The function is SECURITY DEFINER, so it evaluates to
+`postgres` → the ADMIN and MANAGER branches never match, and every update of an approved ticket raises
+"승인 완료된 접수건은 수정할 수 없습니다. (권한: postgres)" — for ADMIN too.
+Verified locally: ADMIN (`get_my_role() = ADMIN`) updating `symptoms` of an approved ticket fails. Production has
+the same function body (Phase 0.1 parity).
+
+- Effective behaviour today: approved tickets can only change through the `app.refund_sync` GUC or a
+  `has_admin_message`-only change. Code that "uses the admin client to bypass" (e.g. `toggleTestFlagAction`) is also blocked.
+- Fixing it (renaming the variable) would **change behaviour**: ADMIN could edit approved tickets, MANAGER everything except price.
+  Separate decision for Brad; not part of Phase 1.

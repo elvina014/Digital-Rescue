@@ -32,6 +32,8 @@ import AddMaterialCard, { type InsertedMaterial } from "./AddMaterialCard";
 import { formatDateTime } from "@/lib/date";
 import RefundCard, { type RefundRow } from "./RefundCard";
 import RestoreCancelCard from "./RestoreCancelCard";
+import type { PickedModel } from "@/components/catalog/DeviceModelPicker";
+import type { PickedBoard } from "@/components/catalog/BoardPicker";
 
 interface TicketData {
   id: string;
@@ -68,6 +70,9 @@ interface TicketData {
   dispose_confirmed_at: string | null;
   created_at: string;
   updated_at: string;
+  /** 기기 마스터 표준 모델 / 메인보드 (Phase 1, 없으면 null) */
+  catalog_model: PickedModel | null;
+  catalog_board: PickedBoard | null;
   customer: { name: string; phone: string; address: string | null } | null;
   assignee: { id: string; name: string } | null;
 }
@@ -402,6 +407,13 @@ export default function TicketDetailForm({
             <dd className="mt-0.5 text-sm text-gray-900">{ticket.device_model ?? "-"}</dd>
           </div>
           <div>
+            <dt className="text-xs font-medium text-gray-500">표준 모델 / 보드</dt>
+            <dd className="mt-0.5 text-sm text-gray-900">
+              {ticket.catalog_model?.label ?? "미연결"}
+              {ticket.catalog_board && <span className="ml-1 text-xs text-purple-700">[{ticket.catalog_board.label}]</span>}
+            </dd>
+          </div>
+          <div>
             <dt className="text-xs font-medium text-gray-500">상태</dt>
             <dd className="mt-0.5"><TicketStatusBadge status={ticket.status} cancelDisposal={ticket.cancel_device_disposal} /></dd>
           </div>
@@ -530,6 +542,8 @@ export default function TicketDetailForm({
           currentDeviceModel={ticket.device_model}
           currentTagInfo={ticket.tag_info}
           currentReleaseYear={ticket.release_year}
+          currentCatalogModel={ticket.catalog_model}
+          currentCatalogBoard={ticket.catalog_board}
           categories={inventoryCategories}
           inventoryItems={inventoryItems}
           globalSettings={globalSettings}

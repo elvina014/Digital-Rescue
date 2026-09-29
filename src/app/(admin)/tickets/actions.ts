@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { getCurrentEmployee } from "@/lib/auth";
 import { EmployeeRole } from "@/types";
+import { toUuidOrNull } from "@/lib/catalogErrors";
 import sharp from "sharp";
 
 // ----- 신규 접수 생성 권한 -----
@@ -35,6 +36,9 @@ export async function createTicketAction(formData: FormData) {
   const deviceBrand = (formData.get("deviceBrand") as string)?.trim();
   const deviceModel = (formData.get("deviceModel") as string)?.trim() || null;
   const symptoms = (formData.get("symptoms") as string)?.trim();
+  // 기기 마스터 표준 모델 (선택사항, Phase 1)
+  const catalogModelId = toUuidOrNull(formData.get("catalogModelId"));
+  const catalogVariantId = catalogModelId ? toUuidOrNull(formData.get("catalogVariantId")) : null;
   // 테스트 접수 플래그는 ADMIN/MANAGER만 설정 가능 (UI는 RECEPTION에 숨겨져 있지만 서버에서도 강제)
   const canMarkAsTest =
     employee.role === EmployeeRole.ADMIN || employee.role === EmployeeRole.MANAGER;
@@ -86,6 +90,8 @@ export async function createTicketAction(formData: FormData) {
       device_model: deviceModel,
       symptoms,
       is_test: isTest,
+      catalog_model_id: catalogModelId,
+      catalog_variant_id: catalogVariantId,
     })
     .select("id")
     .single();
@@ -392,6 +398,10 @@ export async function startRepairAction(formData: FormData) {
   const minimumEstimate = parseInt(formData.get("minimumEstimate") as string, 10) || 0;
   const confirmedEstimate = parseInt(formData.get("confirmedEstimate") as string, 10) || 0;
   const materialsJson = formData.get("materials") as string;
+  // 기기 마스터 연결 (선택사항, Phase 1) — 선택기는 현재 값으로 채워져 있으므로 그대로 저장
+  const catalogModelId = toUuidOrNull(formData.get("catalogModelId"));
+  const catalogVariantId = catalogModelId ? toUuidOrNull(formData.get("catalogVariantId")) : null;
+  const catalogBoardId = toUuidOrNull(formData.get("catalogBoardId"));
 
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
   if (!deviceType) return { error: "기기 종류를 선택해 주세요." };
@@ -441,6 +451,9 @@ export async function startRepairAction(formData: FormData) {
       confirmed_estimate: confirmedEstimate,
       expected_estimate: confirmedEstimate,
       status: "IN_PROGRESS",
+      catalog_model_id: catalogModelId,
+      catalog_variant_id: catalogVariantId,
+      catalog_board_id: catalogBoardId,
     })
     .eq("id", ticketId);
 

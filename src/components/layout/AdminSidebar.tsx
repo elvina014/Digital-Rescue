@@ -53,6 +53,11 @@ const NAV_ITEMS: NavItem[] = [
     roles: ["ADMIN"] as EmployeeRole[],
   },
   {
+    label: "기기 마스터",
+    href: "/catalog",
+    roles: ["ADMIN"] as EmployeeRole[],
+  },
+  {
     label: "직원 관리",
     href: "/employees",
     roles: ["ADMIN"] as EmployeeRole[],
