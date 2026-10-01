@@ -6,6 +6,9 @@ import MeasurementList from "./MeasurementList";
 import FaultList from "./FaultList";
 import ActionList from "./ActionList";
 import RemovedPartsList from "./RemovedPartsList";
+import PartsUsedList from "./PartsUsedList";
+import type { PickedModel } from "@/components/catalog/DeviceModelPicker";
+import type { PickedBoard } from "@/components/catalog/BoardPicker";
 import type { MaterialReturnInfo, RepairRecordData } from "./labels";
 
 interface Props {
@@ -13,10 +16,13 @@ interface Props {
   data: RepairRecordData;
   materialReturns: MaterialReturnInfo[];
   categories: { id: string; name: string }[];
+  /** 접수건에 연결된 표준 모델/보드 (사용 부품 호환 확인의 대상) */
+  ticketModel: PickedModel | null;
+  ticketBoard: PickedBoard | null;
 }
 
 /** 접수건 상세의 "수리 기록" 섹션 — 수정 권한이 없으면 읽기 전용 */
-export default function RepairRecordSection({ ticketId, data, materialReturns, categories }: Props) {
+export default function RepairRecordSection({ ticketId, data, materialReturns, categories, ticketModel, ticketBoard }: Props) {
   const { canEdit } = data;
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-5">
@@ -30,24 +36,14 @@ export default function RepairRecordSection({ ticketId, data, materialReturns, c
         <FaultList ticketId={ticketId} faults={data.faults} canEdit={canEdit} />
         <ActionList ticketId={ticketId} actions={data.actions} canEdit={canEdit} />
 
-        <div>
-          <h3 className="mb-1.5 text-sm font-semibold text-gray-800">
-            사용 부품 <span className="text-xs font-normal text-gray-400">· 출고·구매 승인 내역에서 자동 표시</span>
-          </h3>
-          {data.partsUsed.length === 0 ? (
-            <p className="text-xs text-gray-400">승인된 자재가 없습니다.</p>
-          ) : (
-            <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-gray-50 text-sm">
-              {data.partsUsed.map((p) => (
-                <li key={p.material_id} className="px-3 py-2 text-gray-700">
-                  {[p.category_name, p.spec_name, p.product_name, p.capacity].filter(Boolean).join(" / ")} × {p.quantity}개
-                  {p.request_type === "purchase" && <span className="ml-2 text-xs text-amber-600">구매</span>}
-                  {p.is_outsourced && <span className="ml-2 text-xs text-gray-400">외주</span>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <PartsUsedList
+          ticketId={ticketId}
+          partsUsed={data.partsUsed}
+          partCompat={data.partCompat}
+          ticketModel={ticketModel}
+          ticketBoard={ticketBoard}
+          canEdit={canEdit}
+        />
 
         <RemovedPartsList
           ticketId={ticketId}

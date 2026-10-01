@@ -4,6 +4,8 @@ import { addRemovedPartAction, removeRepairRowAction, updateRemovedPartAction, t
 import { useOptimisticList } from "./useOptimisticList";
 import RecordList from "./RecordList";
 import RemovedPartForm from "./RemovedPartForm";
+import { PART_TYPE_LABEL } from "@/components/catalog/partLabels";
+import type { PickedPartSpec } from "@/components/catalog/PartSpecPicker";
 import { DISPOSITION_LABEL, type MaterialReturnInfo, type RemovedPartRow } from "./labels";
 
 interface Props {
@@ -17,19 +19,21 @@ interface Props {
 const toInput = (p: RemovedPartRow, disposition: string | null): RemovedPartInput => ({
   description: p.description, disposition, categoryId: p.category_id, returnSpec: p.return_spec ?? "",
   returnName: p.return_name ?? "", returnCapacity: p.return_capacity ?? "", returnCondition: p.return_condition ?? "", quantity: p.quantity,
+  partSpecId: p.part_spec_id,
 });
 
 /** 적출 부품: 자재 출고 행에서 등록한 것(읽기 전용) + 자재 행 없이 떼어낸 부품 */
 export default function RemovedPartsList({ ticketId, removedParts, materialReturns, categories, canEdit }: Props) {
   const list = useOptimisticList(removedParts);
 
-  function add(input: RemovedPartInput) {
+  function add(input: RemovedPartInput, spec: PickedPartSpec | null) {
     const temp: RemovedPartRow = {
       id: `temp-${Date.now()}`, ticket_id: ticketId, description: input.description.trim(), category_id: input.categoryId,
       disposition: input.disposition, return_spec: input.returnSpec || null, return_name: input.returnName || null,
       return_capacity: input.returnCapacity || null, return_condition: input.returnCondition || null, quantity: input.quantity,
       handled_by: null, handled_at: null, inbound_approved_at: null, inbound_approved_by: null, inventory_item_id: null,
       created_by: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+      part_spec_id: input.partSpecId, part_specs: spec && { part_type: "", name: spec.label },
     };
     return list.run((l) => [...l, temp], () => addRemovedPartAction(ticketId, input));
   }
@@ -74,6 +78,11 @@ export default function RemovedPartsList({ ticketId, removedParts, materialRetur
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-gray-900">{p.description}</span>
             {p.quantity > 1 && <span className="text-xs text-gray-500">× {p.quantity}개</span>}
+            {p.part_specs && (
+              <span className="rounded-full bg-teal-50 px-2 py-0.5 text-xs text-teal-800">
+                {[PART_TYPE_LABEL[p.part_specs.part_type], p.part_specs.name].filter(Boolean).join(" · ")}
+              </span>
+            )}
             {p.disposition === "STOCK" ? (
               <span className="text-xs text-indigo-600">
                 재고등록 ({[p.return_spec, p.return_name, p.return_capacity].filter(Boolean).join(" / ")} / {p.return_condition}) ·{" "}

@@ -1120,6 +1120,8 @@ export default function TicketDetailForm({
         <RepairRecordSection
           ticketId={ticket.id}
           data={repairRecord}
+          ticketModel={ticket.catalog_model}
+          ticketBoard={ticket.catalog_board}
           categories={inventoryCategories}
           materialReturns={materials
             .filter((m) => m.is_return_registered)
@@ -1145,6 +1147,8 @@ export default function TicketDetailForm({
         const allReturnsRegistered = hasMaterials && physicalMaterials.every((m) => m.is_return_registered);
         const hasUnregisteredReturns = hasMaterials && physicalMaterials.some((m) => !m.is_return_registered);
         const gateBlocked = repairRecord.gates.approvalEnabled && repairRecord.gates.approvalMissing.length > 0;
+        const compatParts = Object.values(repairRecord.partCompat).filter((c) => !c.excluded);
+        const compatAnswered = compatParts.filter((c) => c.answer).length;
 
         return (
         <section className="rounded-xl border border-blue-200 bg-blue-50 p-5">
@@ -1170,6 +1174,12 @@ export default function TicketDetailForm({
             최종 견적 <span className="font-semibold">{ticket.final_price.toLocaleString()}원</span>을 승인하시겠습니까?
             승인 후에는 ADMIN 외 수정이 불가합니다.
           </p>
+          {compatParts.length > 0 && (
+            <p className="mb-4 text-xs text-blue-700">
+              사용 부품 호환 확인: {compatAnswered} / {compatParts.length}건 응답
+              {compatAnswered < compatParts.length && " — 위 수리 기록의 “사용 부품”에서 장착 결과를 남길 수 있습니다. (선택 사항)"}
+            </p>
+          )}
           {gateBlocked && (
             <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
               <p className="text-sm font-bold text-amber-800">수리 기록이 완료되지 않아 승인할 수 없습니다.</p>

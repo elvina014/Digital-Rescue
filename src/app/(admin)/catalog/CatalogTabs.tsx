@@ -5,6 +5,8 @@ const TABS = [
   { href: "/catalog/models", label: "모델 목록" },
   { href: "/catalog/boards", label: "보드 목록" },
   { href: "/catalog/symptoms", label: "증상 코드" },
+  { href: "/catalog/parts", label: "부품 규격" },
+  { href: "/catalog/parts/stock", label: "재고 연결" },
 ] as const;
 
 /** 기기 마스터 화면 상단 탭 (ADMIN 전용 화면) */

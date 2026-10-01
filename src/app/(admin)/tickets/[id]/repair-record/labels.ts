@@ -1,4 +1,5 @@
 import type { Database } from "@/types/supabase";
+import type { PickedPartSpec } from "@/components/catalog/PartSpecPicker";
 
 type Tables = Database["public"]["Tables"];
 export type RepairRecordRow = Tables["repair_records"]["Row"];
@@ -6,9 +7,13 @@ export type TicketSymptomRow = Tables["ticket_symptoms"]["Row"];
 export type MeasurementRow = Tables["repair_measurements"]["Row"];
 export type FaultRow = Tables["repair_faults"]["Row"];
 export type ActionRow = Tables["repair_actions"]["Row"];
-export type RemovedPartRow = Tables["ticket_removed_parts"]["Row"];
+export type RemovedPartRow = Tables["ticket_removed_parts"]["Row"] & {
+  /** 연결된 부품 규격 (표시용 조인) */
+  part_specs?: { part_type: string; name: string } | null;
+};
 export type SymptomCodeRow = Tables["symptom_codes"]["Row"];
 export type PartUsedRow = Database["public"]["Views"]["repair_parts_used"]["Row"];
+export type CompatSummaryRow = Database["public"]["Views"]["compatibility_summary"]["Row"];
 
 /** 자재 출고 행에서 등록한 적출품 (기존 흐름) — 수리 기록에서는 읽기 전용으로 함께 보여준다 */
 export interface MaterialReturnInfo {
@@ -17,6 +22,21 @@ export interface MaterialReturnInfo {
   condition: string | null;
   quantity: number;
   status: string | null;
+}
+
+/** 사용 부품별 호환 확인 상태 (Phase 3) — 자재 id 기준 */
+export interface PartCompatInfo {
+  /** 외주·소프트웨어 — 호환 확인 대상 아님 */
+  excluded: boolean;
+  /** 재고 행에 연결된 기본 부품 규격 */
+  defaultSpec: PickedPartSpec | null;
+  /** 현재 유효한 응답 (없으면 미응답/판단불가) */
+  answer: {
+    answer: "OK" | "CONDITIONAL" | "INCOMPATIBLE";
+    limitationNote: string | null;
+    spec: PickedPartSpec;
+    summary: CompatSummaryRow | null;
+  } | null;
 }
 
 export interface RepairRecordData {
@@ -28,6 +48,7 @@ export interface RepairRecordData {
   removedParts: RemovedPartRow[];
   symptomCodes: SymptomCodeRow[];
   partsUsed: PartUsedRow[];
+  partCompat: Record<string, PartCompatInfo>;
   canEdit: boolean;
   gates: { approvalEnabled: boolean; cancelEnabled: boolean; approvalMissing: string[] };
 }

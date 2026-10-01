@@ -149,6 +149,7 @@ export interface RemovedPartInput {
   returnCapacity: string;
   returnCondition: string;
   quantity: number;
+  partSpecId: string | null;
 }
 
 function removedPartPayload(input: RemovedPartInput): { error: string } | { values: Record<string, unknown> } {
@@ -173,6 +174,7 @@ function removedPartPayload(input: RemovedPartInput): { error: string } | { valu
       return_capacity: stock ? text(input.returnCapacity) : null,
       return_condition: stock ? input.returnCondition : null,
       quantity: Math.max(1, Math.floor(input.quantity) || 1),
+      part_spec_id: toUuidOrNull(input.partSpecId),
     },
   };
 }
@@ -195,6 +197,37 @@ export async function updateRemovedPartAction(ticketId: string, id: string, inpu
   if ("error" in p) return p;
   const { data, error } = await s.supabase.from("ticket_removed_parts").update(p.values).eq("id", id).select("id");
   return done(ticketId, error, data?.length ?? 0);
+}
+
+// ----- 사용 부품 호환 확인 (Phase 3 — 단일 트랜잭션 RPC, 판단불가는 근거를 남기지 않는다) -----
+export async function recordPartResultAction(
+  ticketId: string,
+  input: {
+    materialId: string;
+    partSpecId: string | null;
+    answer: "OK" | "CONDITIONAL" | "INCOMPATIBLE" | "UNKNOWN";
+    limitationNote: string;
+    /** 접수건에 표준 모델/보드가 연결되지 않은 경우에만 사용된다 */
+    targetType: "MODEL" | "VARIANT" | "BOARD" | null;
+    targetId: string | null;
+  }
+): Promise<Result> {
+  const s = await session(ticketId);
+  if ("error" in s) return s;
+  if (!toUuidOrNull(input.materialId)) return { error: "자재 내역을 찾을 수 없습니다." };
+  if (input.answer !== "UNKNOWN") {
+    if (!toUuidOrNull(input.partSpecId)) return { error: "부품 규격을 선택해 주세요." };
+    if (input.answer === "CONDITIONAL" && !text(input.limitationNote)) return { error: "조건부는 제한사항을 입력해 주세요." };
+  }
+  const { error } = await s.supabase.rpc("record_part_install_result", {
+    p_material_id: input.materialId,
+    p_part_spec_id: toUuidOrNull(input.partSpecId) ?? undefined,
+    p_answer: input.answer,
+    p_limitation_note: text(input.limitationNote) ?? undefined,
+    p_target_type: input.targetType ?? undefined,
+    p_target_id: toUuidOrNull(input.targetId) ?? undefined,
+  });
+  return done(ticketId, error);
 }
 
 // ----- 목록 항목 삭제 (공통) -----

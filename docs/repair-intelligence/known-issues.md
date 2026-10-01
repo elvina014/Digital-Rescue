@@ -140,6 +140,10 @@ changed outside the migration files. The baseline follows production.)
 **Phase 2 (2026-10-01):** `global_settings.ri_approval_gate_enabled` / `ri_cancel_gate_enabled` and all repair-record tables
 (`symptom_codes`, `ticket_symptoms`, `repair_*`, `ticket_removed_parts`, `ticket_close_overrides`) exist only in the generated types.
 
+**Phase 3 (2026-10-02):** `inventory_items.part_spec_id`, `ticket_removed_parts.part_spec_id` and all part-knowledge tables
+(`part_specs`, `part_number_aliases`, `interchange_groups`, `part_compatibility`, `compatibility_evidence`, view `compatibility_summary`)
+exist only in the generated types; the hand-written `InventoryItem` was not extended.
+
 **Tables without a hand-written interface:** `inventory_transactions`, `news_items`, `page_contents`,
 `receipt_no_sequence`, `refund_no_sequence`.
 

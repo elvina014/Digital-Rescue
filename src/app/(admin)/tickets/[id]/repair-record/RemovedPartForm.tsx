@@ -1,23 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import PartSpecPicker, { type PickedPartSpec } from "@/components/catalog/PartSpecPicker";
 import type { RemovedPartInput } from "./actions";
 import { DISPOSITION_LABEL, INPUT_CLASS } from "./labels";
 
 interface Props {
   categories: { id: string; name: string }[];
   pending: boolean;
-  onAdd: (input: RemovedPartInput) => Promise<boolean>;
+  onAdd: (input: RemovedPartInput, spec: PickedPartSpec | null) => Promise<boolean>;
 }
 
 const EMPTY: RemovedPartInput = {
   description: "", disposition: null, categoryId: null, returnSpec: "", returnName: "", returnCapacity: "", returnCondition: "중고품", quantity: 1,
+  partSpecId: null,
 };
 
 /** 적출 부품 추가 폼 — 재고등록을 고르면 카테고리/사양/제품명/용량/상태를 입력한다 */
 export default function RemovedPartForm({ categories, pending, onAdd }: Props) {
   const [form, setForm] = useState(EMPTY);
   const [warning, setWarning] = useState<string | null>(null);
+  const [spec, setSpec] = useState<PickedPartSpec | null>(null);
   const stock = form.disposition === "STOCK";
 
   async function submit() {
@@ -26,7 +29,10 @@ export default function RemovedPartForm({ categories, pending, onAdd }: Props) {
       return setWarning("재고등록은 카테고리·사양·제품명을 입력해야 합니다.");
     }
     setWarning(null);
-    if (await onAdd(form)) setForm(EMPTY);
+    if (await onAdd({ ...form, partSpecId: spec?.partSpecId ?? null }, spec)) {
+      setForm(EMPTY);
+      setSpec(null);
+    }
   }
 
   return (
@@ -85,6 +91,12 @@ export default function RemovedPartForm({ categories, pending, onAdd }: Props) {
           <p className="w-full text-xs text-indigo-700">관리자/팀장이 입고 승인하면 중고 재고로 등록됩니다.</p>
         </div>
       )}
+      <div className="flex items-start gap-2">
+        <span className="shrink-0 pt-2 text-xs text-gray-500">부품 규격 (선택)</span>
+        <div className="min-w-0 flex-1">
+          <PartSpecPicker value={spec} onChange={setSpec} />
+        </div>
+      </div>
       {warning && <p className="text-xs text-red-600">{warning}</p>}
     </div>
   );

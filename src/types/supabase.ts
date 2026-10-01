@@ -217,6 +217,55 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"compatibility_evidence": {
+                  Row: {
+                    "compatibility_id": string,"created_at": string,"created_by": string,"id": string,"kind": string,"limitation_note": string | null,"note": string | null,"observed_status": string,"reference": string | null,"retract_reason": string | null,"retracted_at": string | null,"retracted_by": string | null,"ticket_id": string | null,"ticket_material_id": string | null
+                  }
+                  Insert: {
+                    "compatibility_id": string,"created_at"?: string,"created_by": string,"id"?: string,"kind": string,"limitation_note"?: string | null,"note"?: string | null,"observed_status": string,"reference"?: string | null,"retract_reason"?: string | null,"retracted_at"?: string | null,"retracted_by"?: string | null,"ticket_id"?: string | null,"ticket_material_id"?: string | null
+                  }
+                  Update: {
+                    "compatibility_id"?: string,"created_at"?: string,"created_by"?: string,"id"?: string,"kind"?: string,"limitation_note"?: string | null,"note"?: string | null,"observed_status"?: string,"reference"?: string | null,"retract_reason"?: string | null,"retracted_at"?: string | null,"retracted_by"?: string | null,"ticket_id"?: string | null,"ticket_material_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "compatibility_evidence_compatibility_id_fkey"
+      columns: ["compatibility_id"]
+isOneToOne: false
+      referencedRelation: "part_compatibility"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "compatibility_evidence_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "compatibility_evidence_retracted_by_fkey"
+      columns: ["retracted_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "compatibility_evidence_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "compatibility_evidence_ticket_material_id_fkey"
+      columns: ["ticket_material_id"]
+isOneToOne: false
+      referencedRelation: "repair_parts_used"
+      referencedColumns: ["material_id"]
+    },{
+      foreignKeyName: "compatibility_evidence_ticket_material_id_fkey"
+      columns: ["ticket_material_id"]
+isOneToOne: false
+      referencedRelation: "ticket_materials"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"customers": {
                   Row: {
                     "address": string | null,"created_at": string,"id": string,"name": string,"phone": string
@@ -269,6 +318,25 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"interchange_groups": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"name": string,"note": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"name": string,"note"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"name"?: string,"note"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "interchange_groups_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"inventory": {
                   Row: {
                     "condition": Database["public"]['Enums']["inventory_condition"],"cost_price": number,"created_at": string,"id": string,"part_name": string,"quantity": number
@@ -297,13 +365,13 @@ isOneToOne: false
                   ]
                 },"inventory_items": {
                   Row: {
-                    "base_estimate": number,"capacity": string | null,"category_id": string,"condition": Database["public"]['Enums']["item_condition"],"created_at": string,"id": string,"product_id": string,"quantity": number,"spec_id": string,"updated_at": string
+                    "base_estimate": number,"capacity": string | null,"category_id": string,"condition": Database["public"]['Enums']["item_condition"],"created_at": string,"id": string,"part_spec_id": string | null,"product_id": string,"quantity": number,"spec_id": string,"updated_at": string
                   }
                   Insert: {
-                    "base_estimate"?: number,"capacity"?: string | null,"category_id": string,"condition"?: Database["public"]['Enums']["item_condition"],"created_at"?: string,"id"?: string,"product_id": string,"quantity"?: number,"spec_id": string,"updated_at"?: string
+                    "base_estimate"?: number,"capacity"?: string | null,"category_id": string,"condition"?: Database["public"]['Enums']["item_condition"],"created_at"?: string,"id"?: string,"part_spec_id"?: string | null,"product_id": string,"quantity"?: number,"spec_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "base_estimate"?: number,"capacity"?: string | null,"category_id"?: string,"condition"?: Database["public"]['Enums']["item_condition"],"created_at"?: string,"id"?: string,"product_id"?: string,"quantity"?: number,"spec_id"?: string,"updated_at"?: string
+                    "base_estimate"?: number,"capacity"?: string | null,"category_id"?: string,"condition"?: Database["public"]['Enums']["item_condition"],"created_at"?: string,"id"?: string,"part_spec_id"?: string | null,"product_id"?: string,"quantity"?: number,"spec_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -311,6 +379,12 @@ isOneToOne: false
       columns: ["category_id"]
 isOneToOne: false
       referencedRelation: "inventory_categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "inventory_items_part_spec_id_fkey"
+      columns: ["part_spec_id"]
+isOneToOne: false
+      referencedRelation: "part_specs"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "inventory_items_product_id_fkey"
@@ -430,6 +504,93 @@ isOneToOne: false
       columns: ["updated_by"]
 isOneToOne: false
       referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"part_compatibility": {
+                  Row: {
+                    "board_id": string | null,"confidence": string,"created_at": string,"id": string,"limitation_note": string | null,"model_id": string | null,"part_spec_id": string,"status": string,"updated_at": string,"variant_id": string | null
+                  }
+                  Insert: {
+                    "board_id"?: string | null,"confidence"?: string,"created_at"?: string,"id"?: string,"limitation_note"?: string | null,"model_id"?: string | null,"part_spec_id": string,"status"?: string,"updated_at"?: string,"variant_id"?: string | null
+                  }
+                  Update: {
+                    "board_id"?: string | null,"confidence"?: string,"created_at"?: string,"id"?: string,"limitation_note"?: string | null,"model_id"?: string | null,"part_spec_id"?: string,"status"?: string,"updated_at"?: string,"variant_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "part_compatibility_board_id_fkey"
+      columns: ["board_id"]
+isOneToOne: false
+      referencedRelation: "catalog_boards"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "part_compatibility_model_id_fkey"
+      columns: ["model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_models"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "part_compatibility_part_spec_id_fkey"
+      columns: ["part_spec_id"]
+isOneToOne: false
+      referencedRelation: "part_specs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "part_compatibility_variant_id_fkey"
+      columns: ["variant_id"]
+isOneToOne: false
+      referencedRelation: "catalog_variants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"part_number_aliases": {
+                  Row: {
+                    "alias": string,"alias_norm": string | null,"alias_type": string,"created_at": string,"created_by": string | null,"id": string,"part_spec_id": string
+                  }
+                  Insert: {
+                    "alias": string,"alias_norm"?: never,"alias_type"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"part_spec_id": string
+                  }
+                  Update: {
+                    "alias"?: string,"alias_norm"?: never,"alias_type"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"part_spec_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "part_number_aliases_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "part_number_aliases_part_spec_id_fkey"
+      columns: ["part_spec_id"]
+isOneToOne: false
+      referencedRelation: "part_specs"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"part_specs": {
+                  Row: {
+                    "compat_target": string,"created_at": string,"created_by": string | null,"description": string | null,"id": string,"interchange_group_id": string | null,"manufacturer": string | null,"name": string,"name_norm": string | null,"needs_review": boolean,"part_type": string,"updated_at": string
+                  }
+                  Insert: {
+                    "compat_target": string,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"interchange_group_id"?: string | null,"manufacturer"?: string | null,"name": string,"name_norm"?: never,"needs_review"?: boolean,"part_type": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "compat_target"?: string,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"interchange_group_id"?: string | null,"manufacturer"?: string | null,"name"?: string,"name_norm"?: never,"needs_review"?: boolean,"part_type"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "part_specs_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "part_specs_interchange_group_id_fkey"
+      columns: ["interchange_group_id"]
+isOneToOne: false
+      referencedRelation: "interchange_groups"
       referencedColumns: ["id"]
     }
                   ]
@@ -771,13 +932,13 @@ isOneToOne: false
                   ]
                 },"ticket_removed_parts": {
                   Row: {
-                    "category_id": string | null,"created_at": string,"created_by": string | null,"description": string,"disposition": string | null,"handled_at": string | null,"handled_by": string | null,"id": string,"inbound_approved_at": string | null,"inbound_approved_by": string | null,"inventory_item_id": string | null,"quantity": number,"return_capacity": string | null,"return_condition": string | null,"return_name": string | null,"return_spec": string | null,"ticket_id": string,"updated_at": string
+                    "category_id": string | null,"created_at": string,"created_by": string | null,"description": string,"disposition": string | null,"handled_at": string | null,"handled_by": string | null,"id": string,"inbound_approved_at": string | null,"inbound_approved_by": string | null,"inventory_item_id": string | null,"part_spec_id": string | null,"quantity": number,"return_capacity": string | null,"return_condition": string | null,"return_name": string | null,"return_spec": string | null,"ticket_id": string,"updated_at": string
                   }
                   Insert: {
-                    "category_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"description": string,"disposition"?: string | null,"handled_at"?: string | null,"handled_by"?: string | null,"id"?: string,"inbound_approved_at"?: string | null,"inbound_approved_by"?: string | null,"inventory_item_id"?: string | null,"quantity"?: number,"return_capacity"?: string | null,"return_condition"?: string | null,"return_name"?: string | null,"return_spec"?: string | null,"ticket_id": string,"updated_at"?: string
+                    "category_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"description": string,"disposition"?: string | null,"handled_at"?: string | null,"handled_by"?: string | null,"id"?: string,"inbound_approved_at"?: string | null,"inbound_approved_by"?: string | null,"inventory_item_id"?: string | null,"part_spec_id"?: string | null,"quantity"?: number,"return_capacity"?: string | null,"return_condition"?: string | null,"return_name"?: string | null,"return_spec"?: string | null,"ticket_id": string,"updated_at"?: string
                   }
                   Update: {
-                    "category_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"description"?: string,"disposition"?: string | null,"handled_at"?: string | null,"handled_by"?: string | null,"id"?: string,"inbound_approved_at"?: string | null,"inbound_approved_by"?: string | null,"inventory_item_id"?: string | null,"quantity"?: number,"return_capacity"?: string | null,"return_condition"?: string | null,"return_name"?: string | null,"return_spec"?: string | null,"ticket_id"?: string,"updated_at"?: string
+                    "category_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"description"?: string,"disposition"?: string | null,"handled_at"?: string | null,"handled_by"?: string | null,"id"?: string,"inbound_approved_at"?: string | null,"inbound_approved_by"?: string | null,"inventory_item_id"?: string | null,"part_spec_id"?: string | null,"quantity"?: number,"return_capacity"?: string | null,"return_condition"?: string | null,"return_name"?: string | null,"return_spec"?: string | null,"ticket_id"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -809,6 +970,12 @@ isOneToOne: false
       columns: ["inventory_item_id"]
 isOneToOne: false
       referencedRelation: "inventory_items"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_removed_parts_part_spec_id_fkey"
+      columns: ["part_spec_id"]
+isOneToOne: false
+      referencedRelation: "part_specs"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "ticket_removed_parts_ticket_id_fkey"
@@ -852,7 +1019,14 @@ isOneToOne: false
                 }
           }
           Views: {
-            "repair_parts_used": {
+            "compatibility_summary": {
+                  Row: {
+                    "compatibility_id": string | null,"confidence": string | null,"document_count": number | null,"has_override": boolean | null,"inference_count": number | null,"install_conditional": number | null,"install_incompatible": number | null,"install_ok": number | null,"is_candidate": boolean | null,"last_evidence_at": string | null,"limitation_note": string | null,"manufacturer": string | null,"part_name": string | null,"part_spec_id": string | null,"part_type": string | null,"status": string | null,"target_id": string | null,"target_label": string | null,"target_type": string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"repair_parts_used": {
                   Row: {
                     "capacity": string | null,"category_name": string | null,"condition": Database["public"]['Enums']["item_condition"] | null,"is_outsourced": boolean | null,"material_id": string | null,"product_name": string | null,"quantity": number | null,"request_type": string | null,"spec_name": string | null,"ticket_id": string | null
                   }
@@ -913,8 +1087,22 @@ isOneToOne: false
 "get_my_role":
 { Args: Record<PropertyKey, never>; Returns: Database["public"]['Enums']["employee_role"]
                            },
+"part_spec_create":
+{ Args: { "p_compat_target"?: string,"p_manufacturer"?: string,"p_name": string,"p_part_type": string }; Returns: Json
+                           },
+"part_spec_search":
+{ Args: { "p_limit"?: number,"p_query": string }; Returns: {
+              "compat_target": string,"manufacturer": string,"matched": string,"name": string,"part_spec_id": string,"part_type": string,"score": number
+            }[]
+                           },
 "recalc_ticket_material_cost":
 { Args: { "p_ticket_id": string }; Returns: number
+                           },
+"record_compatibility_result":
+{ Args: { "p_kind": string,"p_limitation_note"?: string,"p_note"?: string,"p_observed_status": string,"p_part_spec_id": string,"p_reference"?: string,"p_target_id": string,"p_target_type": string }; Returns: Json
+                           },
+"record_part_install_result":
+{ Args: { "p_answer": string,"p_limitation_note"?: string,"p_material_id": string,"p_part_spec_id": string,"p_target_id"?: string,"p_target_type"?: string }; Returns: Json
                            },
 "register_return_material":
 { Args: { "p_capacity"?: string,"p_category_id": string,"p_condition": string,"p_material_id": string,"p_name": string,"p_quantity"?: number,"p_spec": string }; Returns: Json
@@ -973,8 +1161,17 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"retract_compatibility_evidence":
+{ Args: { "p_evidence_id": string,"p_reason": string }; Returns: Json
+                           },
+"ri_compatibility_row":
+{ Args: { "p_part_spec_id": string,"p_target_id": string,"p_target_type": string }; Returns: string
+                           },
 "ri_inbound_extracted_part":
 { Args: { "p_capacity": string,"p_category_id": string,"p_name": string,"p_quantity": number,"p_spec": string,"p_ticket_id": string,"p_tx_user_id": string }; Returns: string
+                           },
+"ri_recompute_compatibility":
+{ Args: { "p_compatibility_id": string }; Returns: undefined
                            },
 "transition_refund":
 { Args: { "p_action": string,"p_cash_receipt_canceled"?: boolean,"p_note"?: string,"p_refund_id": string }; Returns: {

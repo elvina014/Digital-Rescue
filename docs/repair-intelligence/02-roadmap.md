@@ -168,7 +168,7 @@ override logged; with flags OFF existing flows unchanged; RPC equivalence tests 
 
 ---
 
-## Phase 3 — Part knowledge & compatibility
+## Phase 3 — Part knowledge & compatibility ✅ local (report: `phases/phase-3-report.md`; production deploy pending)
 
 **Scope**
 - `part_specs`, `part_number_aliases` (incl. chip markings), `interchange_groups`.
