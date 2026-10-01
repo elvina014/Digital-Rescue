@@ -14,6 +14,7 @@ Recorded only; nothing here is changed without an explicit decision from Brad.
 | KI-7 | `ticket-images` storage: public access, extra dashboard policy, no size limit | Recorded only — Brad to decide |
 | KI-8 | Local Postgres crashes on "permission denied for function" | Recorded (Phase 1) — do NOT probe on production |
 | KI-9 | `protect_approved_ticket`: `current_role` variable is the SQL keyword → ADMIN/MANAGER branches never match | Recorded (Phase 1) — Brad to decide |
+| KI-10 | RECEPTION cannot cancel tickets (`tickets_update` has no WITH CHECK) | Recorded (Phase 2) — Brad to decide |
 
 ---
 
@@ -136,6 +137,9 @@ changed outside the migration files. The baseline follows production.)
 `catalog_*` tables exist only in the generated types; the hand-written `RepairTicket` was not extended (new code uses
 `src/types/supabase.ts`).
 
+**Phase 2 (2026-10-01):** `global_settings.ri_approval_gate_enabled` / `ri_cancel_gate_enabled` and all repair-record tables
+(`symptom_codes`, `ticket_symptoms`, `repair_*`, `ticket_removed_parts`, `ticket_close_overrides`) exist only in the generated types.
+
 **Tables without a hand-written interface:** `inventory_transactions`, `news_items`, `page_contents`,
 `receipt_no_sequence`, `refund_no_sequence`.
 
@@ -244,3 +248,15 @@ the same function body (Phase 0.1 parity).
   `has_admin_message`-only change. Code that "uses the admin client to bypass" (e.g. `toggleTestFlagAction`) is also blocked.
 - Fixing it (renaming the variable) would **change behaviour**: ADMIN could edit approved tickets, MANAGER everything except price.
   Separate decision for Brad; not part of Phase 1.
+
+## KI-10. RECEPTION cannot cancel tickets (RLS)
+
+Found 2026-10-01 (Phase 2 E2E), local stack; the policy is identical in production (Phase 0.1 parity).
+
+- `tickets_update` has only a USING clause (`RECEPTION → status = 'NEW'`). Without WITH CHECK, Postgres applies USING to the
+  **new** row as well, so a RECEPTION update that changes the status away from `NEW` (cancel → `CANCELED`) fails with
+  `new row violates row-level security policy for table "repair_tickets"`.
+- `cancelTicketAction` has no role check and uses the session client, so the "접수 취소" button is shown to RECEPTION but always fails
+  with "취소 처리에 실패했습니다: new row violates …". Reproduced with a plain SQL UPDATE as the seed RECEPTION user (rolled back).
+- Not caused by Phase 2 and not changed (R2). With the cancel gate ON, the chosen cancel type is saved before the failing update.
+- Options for Brad: add a WITH CHECK allowing RECEPTION `NEW → CANCELED`, or hide the button for RECEPTION.

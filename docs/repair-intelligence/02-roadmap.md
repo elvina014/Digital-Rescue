@@ -132,7 +132,7 @@ sample set; old tickets unaffected.
 
 ---
 
-## Phase 2 — Repair record module (ticket overhaul)
+## Phase 2 — Repair record module (ticket overhaul) ✅ local (report: `phases/phase-2-report.md`; production deploy pending)
 
 **Goal:** capture what was found and done on every repair, in structured form.
 

@@ -258,13 +258,13 @@ isOneToOne: false
                   ]
                 },"global_settings": {
                   Row: {
-                    "base_service_cost": number,"discount_surcharge_rate": number,"id": boolean,"updated_at": string,"value_reference_amount": number
+                    "base_service_cost": number,"discount_surcharge_rate": number,"id": boolean,"ri_approval_gate_enabled": boolean,"ri_cancel_gate_enabled": boolean,"updated_at": string,"value_reference_amount": number
                   }
                   Insert: {
-                    "base_service_cost"?: number,"discount_surcharge_rate"?: number,"id"?: boolean,"updated_at"?: string,"value_reference_amount"?: number
+                    "base_service_cost"?: number,"discount_surcharge_rate"?: number,"id"?: boolean,"ri_approval_gate_enabled"?: boolean,"ri_cancel_gate_enabled"?: boolean,"updated_at"?: string,"value_reference_amount"?: number
                   }
                   Update: {
-                    "base_service_cost"?: number,"discount_surcharge_rate"?: number,"id"?: boolean,"updated_at"?: string,"value_reference_amount"?: number
+                    "base_service_cost"?: number,"discount_surcharge_rate"?: number,"id"?: boolean,"ri_approval_gate_enabled"?: boolean,"ri_cancel_gate_enabled"?: boolean,"updated_at"?: string,"value_reference_amount"?: number
                   }
                   Relationships: [
                     
@@ -459,6 +459,118 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"repair_actions": {
+                  Row: {
+                    "action_type": string,"description": string,"fault_id": string | null,"id": string,"performed_at": string,"performed_by": string | null,"sort_order": number,"succeeded": boolean | null,"ticket_id": string
+                  }
+                  Insert: {
+                    "action_type"?: string,"description": string,"fault_id"?: string | null,"id"?: string,"performed_at"?: string,"performed_by"?: string | null,"sort_order"?: number,"succeeded"?: boolean | null,"ticket_id": string
+                  }
+                  Update: {
+                    "action_type"?: string,"description"?: string,"fault_id"?: string | null,"id"?: string,"performed_at"?: string,"performed_by"?: string | null,"sort_order"?: number,"succeeded"?: boolean | null,"ticket_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "repair_actions_fault_id_fkey"
+      columns: ["fault_id"]
+isOneToOne: false
+      referencedRelation: "repair_faults"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "repair_actions_performed_by_fkey"
+      columns: ["performed_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "repair_actions_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"repair_faults": {
+                  Row: {
+                    "component": string,"created_at": string,"created_by": string | null,"description": string | null,"fault_type": string,"id": string,"sort_order": number,"ticket_id": string
+                  }
+                  Insert: {
+                    "component": string,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"fault_type"?: string,"id"?: string,"sort_order"?: number,"ticket_id": string
+                  }
+                  Update: {
+                    "component"?: string,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"fault_type"?: string,"id"?: string,"sort_order"?: number,"ticket_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "repair_faults_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "repair_faults_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"repair_measurements": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"judgement": string,"kind": string,"label": string,"note": string | null,"sort_order": number,"ticket_id": string,"unit": string | null,"value": number | null,"value_text": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"judgement"?: string,"kind"?: string,"label": string,"note"?: string | null,"sort_order"?: number,"ticket_id": string,"unit"?: string | null,"value"?: number | null,"value_text"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"judgement"?: string,"kind"?: string,"label"?: string,"note"?: string | null,"sort_order"?: number,"ticket_id"?: string,"unit"?: string | null,"value"?: number | null,"value_text"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "repair_measurements_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "repair_measurements_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"repair_records": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"diagnosis_summary": string | null,"fault_category": string | null,"id": string,"notes": string | null,"removed_parts_confirmed": boolean,"result": string | null,"ticket_id": string,"updated_at": string,"updated_by": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"diagnosis_summary"?: string | null,"fault_category"?: string | null,"id"?: string,"notes"?: string | null,"removed_parts_confirmed"?: boolean,"result"?: string | null,"ticket_id": string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"diagnosis_summary"?: string | null,"fault_category"?: string | null,"id"?: string,"notes"?: string | null,"removed_parts_confirmed"?: boolean,"result"?: string | null,"ticket_id"?: string,"updated_at"?: string,"updated_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "repair_records_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "repair_records_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: true
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "repair_records_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"repair_tickets": {
                   Row: {
                     "assignee_id": string | null,"cancel_device_disposal": string | null,"canceled_at": string | null,"cash_receipt_issued": boolean | null,"catalog_board_id": string | null,"catalog_model_id": string | null,"catalog_variant_id": string | null,"completed_at": string | null,"confirmed_estimate": number | null,"created_at": string,"customer_id": string,"device_brand": string,"device_model": string | null,"device_type": Database["public"]['Enums']["device_type"],"dispose_confirmed_at": string | null,"evaluated_value": number | null,"expected_estimate": number,"final_price": number,"has_admin_message": boolean,"id": string,"images": NonNullable<Json>,"initial_estimate": number,"is_approved": boolean,"is_test": boolean,"material_cost": number,"material_cost_details": NonNullable<Json>,"minimum_estimate": number | null,"paid_at": string | null,"payment_method": string | null,"payment_status": Database["public"]['Enums']["payment_status"],"receipt_no": string,"receipt_type": Database["public"]['Enums']["receipt_type"],"received_at": string | null,"refunded_amount": number,"release_year": string | null,"status": Database["public"]['Enums']["ticket_status"],"symptoms": string,"tag_info": string | null,"updated_at": string
@@ -499,6 +611,50 @@ isOneToOne: false
       columns: ["customer_id"]
 isOneToOne: false
       referencedRelation: "customers"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"symptom_codes": {
+                  Row: {
+                    "code": string,"created_at": string,"id": string,"is_active": boolean,"name": string,"parent_id": string | null,"sort_order": number
+                  }
+                  Insert: {
+                    "code": string,"created_at"?: string,"id"?: string,"is_active"?: boolean,"name": string,"parent_id"?: string | null,"sort_order"?: number
+                  }
+                  Update: {
+                    "code"?: string,"created_at"?: string,"id"?: string,"is_active"?: boolean,"name"?: string,"parent_id"?: string | null,"sort_order"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "symptom_codes_parent_id_fkey"
+      columns: ["parent_id"]
+isOneToOne: false
+      referencedRelation: "symptom_codes"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ticket_close_overrides": {
+                  Row: {
+                    "created_at": string,"gate": string,"id": string,"missing": NonNullable<Json>,"overridden_by": string,"reason": string,"ticket_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"gate": string,"id"?: string,"missing": NonNullable<Json>,"overridden_by": string,"reason": string,"ticket_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"gate"?: string,"id"?: string,"missing"?: NonNullable<Json>,"overridden_by"?: string,"reason"?: string,"ticket_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ticket_close_overrides_overridden_by_fkey"
+      columns: ["overridden_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_close_overrides_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
       referencedColumns: ["id"]
     }
                   ]
@@ -613,10 +769,103 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"ticket_removed_parts": {
+                  Row: {
+                    "category_id": string | null,"created_at": string,"created_by": string | null,"description": string,"disposition": string | null,"handled_at": string | null,"handled_by": string | null,"id": string,"inbound_approved_at": string | null,"inbound_approved_by": string | null,"inventory_item_id": string | null,"quantity": number,"return_capacity": string | null,"return_condition": string | null,"return_name": string | null,"return_spec": string | null,"ticket_id": string,"updated_at": string
+                  }
+                  Insert: {
+                    "category_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"description": string,"disposition"?: string | null,"handled_at"?: string | null,"handled_by"?: string | null,"id"?: string,"inbound_approved_at"?: string | null,"inbound_approved_by"?: string | null,"inventory_item_id"?: string | null,"quantity"?: number,"return_capacity"?: string | null,"return_condition"?: string | null,"return_name"?: string | null,"return_spec"?: string | null,"ticket_id": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "category_id"?: string | null,"created_at"?: string,"created_by"?: string | null,"description"?: string,"disposition"?: string | null,"handled_at"?: string | null,"handled_by"?: string | null,"id"?: string,"inbound_approved_at"?: string | null,"inbound_approved_by"?: string | null,"inventory_item_id"?: string | null,"quantity"?: number,"return_capacity"?: string | null,"return_condition"?: string | null,"return_name"?: string | null,"return_spec"?: string | null,"ticket_id"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ticket_removed_parts_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "inventory_categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_removed_parts_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_removed_parts_handled_by_fkey"
+      columns: ["handled_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_removed_parts_inbound_approved_by_fkey"
+      columns: ["inbound_approved_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_removed_parts_inventory_item_id_fkey"
+      columns: ["inventory_item_id"]
+isOneToOne: false
+      referencedRelation: "inventory_items"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_removed_parts_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"ticket_symptoms": {
+                  Row: {
+                    "created_at": string,"created_by": string | null,"id": string,"note": string | null,"symptom_code_id": string | null,"ticket_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null,"symptom_code_id"?: string | null,"ticket_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"created_by"?: string | null,"id"?: string,"note"?: string | null,"symptom_code_id"?: string | null,"ticket_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ticket_symptoms_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_symptoms_symptom_code_id_fkey"
+      columns: ["symptom_code_id"]
+isOneToOne: false
+      referencedRelation: "symptom_codes"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ticket_symptoms_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
-            [_ in never]: never
+            "repair_parts_used": {
+                  Row: {
+                    "capacity": string | null,"category_name": string | null,"condition": Database["public"]['Enums']["item_condition"] | null,"is_outsourced": boolean | null,"material_id": string | null,"product_name": string | null,"quantity": number | null,"request_type": string | null,"spec_name": string | null,"ticket_id": string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ticket_materials_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    }
+                  ]
+                }
           }
           Functions: {
             "apply_refund_material_adjustments":
@@ -624,6 +873,12 @@ isOneToOne: false
                            },
 "approve_material_dispatch":
 { Args: { "p_material_id": string,"p_user_id"?: string }; Returns: Json
+                           },
+"approve_removed_part_inbound":
+{ Args: { "p_removed_part_id": string }; Returns: Json
+                           },
+"approve_return_material":
+{ Args: { "p_material_id": string }; Returns: Json
                            },
 "catalog_create_model":
 { Args: { "p_brand": string,"p_device_type"?: Database["public"]['Enums']["device_type"],"p_model": string,"p_variant"?: string }; Returns: Json
@@ -652,11 +907,29 @@ isOneToOne: false
               "brands": (string)[],"norm": string,"raw_strings": (string)[],"suggestions": Json,"test_count": number,"ticket_count": number
             }[]
                            },
+"confirm_material_return":
+{ Args: { "p_material_id": string }; Returns: Json
+                           },
 "get_my_role":
 { Args: Record<PropertyKey, never>; Returns: Database["public"]['Enums']["employee_role"]
                            },
 "recalc_ticket_material_cost":
 { Args: { "p_ticket_id": string }; Returns: number
+                           },
+"register_return_material":
+{ Args: { "p_capacity"?: string,"p_category_id": string,"p_condition": string,"p_material_id": string,"p_name": string,"p_quantity"?: number,"p_spec": string }; Returns: Json
+                           },
+"repair_gate_check":
+{ Args: { "p_gate": string,"p_ticket_id": string }; Returns: Json
+                           },
+"repair_gate_override":
+{ Args: { "p_gate": string,"p_reason": string,"p_ticket_id": string }; Returns: string
+                           },
+"repair_record_can_edit":
+{ Args: { "p_ticket_id": string }; Returns: boolean
+                           },
+"repair_set_cancel_result":
+{ Args: { "p_result": string,"p_ticket_id": string }; Returns: undefined
                            },
 "request_refund":
 { Args: { "p_amount": number,"p_material_adjustments"?: Json,"p_reason_code": Database["public"]['Enums']["refund_reason"],"p_reason_note"?: string,"p_refund_account"?: string,"p_refund_bank"?: string,"p_refund_holder"?: string,"p_refund_method": Database["public"]['Enums']["refund_method"],"p_ticket_id": string }; Returns: {
@@ -700,6 +973,9 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"ri_inbound_extracted_part":
+{ Args: { "p_capacity": string,"p_category_id": string,"p_name": string,"p_quantity": number,"p_spec": string,"p_ticket_id": string,"p_tx_user_id": string }; Returns: string
+                           },
 "transition_refund":
 { Args: { "p_action": string,"p_cash_receipt_canceled"?: boolean,"p_note"?: string,"p_refund_id": string }; Returns: {
               "amount": number,

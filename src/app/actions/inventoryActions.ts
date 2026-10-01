@@ -616,6 +616,26 @@ export async function updateGlobalSettings(settings: {
   return { success: true };
 }
 
+// 수리 기록 필수 확인(게이트) 설정 — 관리자 전용, 기본 OFF
+export async function updateRepairGateFlags(flags: { approvalEnabled: boolean; cancelEnabled: boolean }) {
+  const employee = await getCurrentEmployee();
+  const authErr = requireAuth(employee);
+  if (authErr) return authErr;
+  const permErr = requireAdmin(employee!);
+  if (permErr) return permErr;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("global_settings")
+    .update({ ri_approval_gate_enabled: flags.approvalEnabled, ri_cancel_gate_enabled: flags.cancelEnabled })
+    .eq("id", true);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/inventory/settings");
+  return { success: true };
+}
+
 // =============================================
 // 10. 재고 입출고 트랜잭션 조회 (관리자용)
 // =============================================

@@ -1,0 +1,557 @@
+{
+    "items": [
+        {
+            "item": "RAM / 노트북용 DDR4 / 삼성 DDR4-3200",
+            "capacity": "16GB",
+            "quantity": 0,
+            "condition": "NEW",
+            "base_estimate": 90000
+        },
+        {
+            "item": "RAM / 노트북용 DDR4 / 삼성 DDR4-3200",
+            "capacity": "8GB",
+            "quantity": 5,
+            "condition": "USED",
+            "base_estimate": 40000
+        },
+        {
+            "item": "RAM / 노트북용 DDR4 / 하이닉스 DDR4",
+            "capacity": "8GB",
+            "quantity": 1,
+            "condition": "USED",
+            "base_estimate": 35000
+        },
+        {
+            "item": "RAM / 신규스펙 / 신규제품",
+            "capacity": null,
+            "quantity": 1,
+            "condition": "USED",
+            "base_estimate": 0
+        },
+        {
+            "item": "액정 / 외주 / 테스트외주업체",
+            "capacity": "테스트 노트북 액정교체",
+            "quantity": 100,
+            "condition": "NEW",
+            "base_estimate": 150000
+        },
+        {
+            "item": "저장장치 / M.2 NVMe / SK하이닉스",
+            "capacity": null,
+            "quantity": 1,
+            "condition": "USED",
+            "base_estimate": 0
+        },
+        {
+            "item": "저장장치 / M.2 NVMe / WD",
+            "capacity": "256GB",
+            "quantity": 3,
+            "condition": "USED",
+            "base_estimate": 40000
+        },
+        {
+            "item": "저장장치 / M.2 NVMe / 삼성",
+            "capacity": "512GB",
+            "quantity": 2,
+            "condition": "NEW",
+            "base_estimate": 80000
+        }
+    ],
+    "specs": [
+        "RAM / 노트북용 DDR4",
+        "RAM / 신규스펙",
+        "액정 / 외주",
+        "저장장치 / M.2 NVMe"
+    ],
+    "products": [
+        "RAM / 노트북용 DDR4 / 삼성 DDR4-3200",
+        "RAM / 노트북용 DDR4 / 하이닉스 DDR4",
+        "RAM / 신규스펙 / 신규제품",
+        "액정 / 외주 / 테스트외주업체",
+        "저장장치 / M.2 NVMe / SK하이닉스",
+        "저장장치 / M.2 NVMe / WD",
+        "저장장치 / M.2 NVMe / 삼성"
+    ],
+    "ticket_logs": [
+        {
+            "message": "시스템: 적출 자재 입고 승인 완료 (저장장치 / M.2 NVMe / WD / 256GB / 중고품)",
+            "ticket_id": "00000000-0000-4000-d000-000000000004",
+            "employee_id": "00000000-0000-4000-a000-000000000002"
+        },
+        {
+            "message": "시스템: 적출 자재가 등록되었습니다. (M.2 NVMe / WD / 256GB / 중고품 × 1개)",
+            "ticket_id": "00000000-0000-4000-d000-000000000004",
+            "employee_id": "00000000-0000-4000-a000-000000000004"
+        },
+        {
+            "message": "시스템: 적출 자재 입고 승인 완료 (RAM / 노트북용 DDR4 / 삼성 DDR4-3200 / 8GB / 중고품)",
+            "ticket_id": "00000000-0000-4000-d000-000000000005",
+            "employee_id": "00000000-0000-4000-a000-000000000002"
+        },
+        {
+            "message": "시스템: 적출 자재 입고 승인 완료 (RAM / 노트북용 DDR4 / 하이닉스 DDR4 / 중고품)",
+            "ticket_id": "00000000-0000-4000-d000-000000000005",
+            "employee_id": "00000000-0000-4000-a000-000000000002"
+        },
+        {
+            "message": "시스템: 적출 자재 입고 승인 완료 (RAM / 신규스펙 / 신규제품 / 불량품)",
+            "ticket_id": "00000000-0000-4000-d000-000000000005",
+            "employee_id": "00000000-0000-4000-a000-000000000002"
+        },
+        {
+            "message": "시스템: 적출 자재 입고 승인 완료 (저장장치 / M.2 NVMe / SK하이닉스 / 256GB / 중고품)",
+            "ticket_id": "00000000-0000-4000-d000-000000000005",
+            "employee_id": "00000000-0000-4000-a000-000000000002"
+        },
+        {
+            "message": "시스템: 적출 자재 입고 승인 완료 (저장장치 / M.2 NVMe / WD / 256GB / 중고품)",
+            "ticket_id": "00000000-0000-4000-d000-000000000005",
+            "employee_id": "00000000-0000-4000-a000-000000000002"
+        },
+        {
+            "message": "시스템: 최종 승인되었습니다. (시드 데이터)",
+            "ticket_id": "00000000-0000-4000-d000-000000000006",
+            "employee_id": "00000000-0000-4000-a000-000000000002"
+        },
+        {
+            "message": "시스템: 자재 구매 반환이 확인되었습니다. (RAM / 노트북용 DDR4 / 삼성 DDR4-3200 / 16GB) (재고 복구 완료)",
+            "ticket_id": "00000000-0000-4000-d000-000000000007",
+            "employee_id": "00000000-0000-4000-a000-000000000002"
+        },
+        {
+            "message": "시스템: 자재 출고 반환이 확인되었습니다. (액정 / 외주 / 테스트외주업체 / 테스트 노트북 액정교체) (재고 복구 완료)",
+            "ticket_id": "00000000-0000-4000-d000-000000000007",
+            "employee_id": "00000000-0000-4000-a000-000000000002"
+        },
+        {
+            "message": "시스템: 접수가 취소되었습니다. (입고 후 취소, 처리방법: 기기 폐기)",
+            "ticket_id": "00000000-0000-4000-d000-000000000007",
+            "employee_id": "00000000-0000-4000-a000-000000000004"
+        }
+    ],
+    "transactions": [
+        {
+            "qty": 4,
+            "item": "RAM / 노트북용 DDR4 / 삼성 DDR4-3200",
+            "type": "INBOUND",
+            "notes": "신규 재고 등록",
+            "user_id": "00000000-0000-4000-a000-000000000001",
+            "capacity": "8GB",
+            "condition": "USED",
+            "ticket_id": null
+        },
+        {
+            "qty": 2,
+            "item": "RAM / 노트북용 DDR4 / 삼성 DDR4-3200",
+            "type": "INBOUND",
+            "notes": "적출품 반환 입고",
+            "user_id": "00000000-0000-4000-a000-000000000004",
+            "capacity": "8GB",
+            "condition": "USED",
+            "ticket_id": "00000000-0000-4000-d000-000000000005"
+        },
+        {
+            "qty": 1,
+            "item": "RAM / 노트북용 DDR4 / 삼성 DDR4-3200",
+            "type": "OUTBOUND",
+            "notes": "자재 출고 승인",
+            "user_id": "00000000-0000-4000-a000-000000000005",
+            "capacity": "8GB",
+            "condition": "USED",
+            "ticket_id": "00000000-0000-4000-d000-000000000006"
+        },
+        {
+            "qty": 1,
+            "item": "RAM / 노트북용 DDR4 / 하이닉스 DDR4",
+            "type": "INBOUND",
+            "notes": "적출품 반환 입고",
+            "user_id": "00000000-0000-4000-a000-000000000004",
+            "capacity": "8GB",
+            "condition": "USED",
+            "ticket_id": "00000000-0000-4000-d000-000000000005"
+        },
+        {
+            "qty": 1,
+            "item": "RAM / 신규스펙 / 신규제품",
+            "type": "INBOUND",
+            "notes": "적출품 반환 입고",
+            "user_id": "00000000-0000-4000-a000-000000000004",
+            "capacity": null,
+            "condition": "USED",
+            "ticket_id": "00000000-0000-4000-d000-000000000005"
+        },
+        {
+            "qty": 100,
+            "item": "액정 / 외주 / 테스트외주업체",
+            "type": "INBOUND",
+            "notes": "신규 재고 등록",
+            "user_id": "00000000-0000-4000-a000-000000000001",
+            "capacity": "테스트 노트북 액정교체",
+            "condition": "NEW",
+            "ticket_id": null
+        },
+        {
+            "qty": 1,
+            "item": "액정 / 외주 / 테스트외주업체",
+            "type": "INBOUND",
+            "notes": "접수 취소로 인한 자재 원복",
+            "user_id": "00000000-0000-4000-a000-000000000002",
+            "capacity": "테스트 노트북 액정교체",
+            "condition": "NEW",
+            "ticket_id": "00000000-0000-4000-d000-000000000007"
+        },
+        {
+            "qty": 1,
+            "item": "액정 / 외주 / 테스트외주업체",
+            "type": "OUTBOUND",
+            "notes": "자재 출고 승인",
+            "user_id": "00000000-0000-4000-a000-000000000004",
+            "capacity": "테스트 노트북 액정교체",
+            "condition": "NEW",
+            "ticket_id": "00000000-0000-4000-d000-000000000007"
+        },
+        {
+            "qty": 1,
+            "item": "저장장치 / M.2 NVMe / SK하이닉스",
+            "type": "INBOUND",
+            "notes": "적출품 반환 입고",
+            "user_id": "00000000-0000-4000-a000-000000000004",
+            "capacity": null,
+            "condition": "USED",
+            "ticket_id": "00000000-0000-4000-d000-000000000005"
+        },
+        {
+            "qty": 1,
+            "item": "저장장치 / M.2 NVMe / WD",
+            "type": "INBOUND",
+            "notes": "신규 재고 등록",
+            "user_id": "00000000-0000-4000-a000-000000000001",
+            "capacity": "256GB",
+            "condition": "USED",
+            "ticket_id": null
+        },
+        {
+            "qty": 1,
+            "item": "저장장치 / M.2 NVMe / WD",
+            "type": "INBOUND",
+            "notes": "적출품 반환 입고",
+            "user_id": "00000000-0000-4000-a000-000000000004",
+            "capacity": "256GB",
+            "condition": "USED",
+            "ticket_id": "00000000-0000-4000-d000-000000000004"
+        },
+        {
+            "qty": 1,
+            "item": "저장장치 / M.2 NVMe / WD",
+            "type": "INBOUND",
+            "notes": "적출품 반환 입고",
+            "user_id": "00000000-0000-4000-a000-000000000004",
+            "capacity": "256GB",
+            "condition": "USED",
+            "ticket_id": "00000000-0000-4000-d000-000000000005"
+        },
+        {
+            "qty": 1,
+            "item": "저장장치 / M.2 NVMe / WD",
+            "type": "INBOUND",
+            "notes": "접수 취소로 인한 자재 원복",
+            "user_id": "00000000-0000-4000-a000-000000000002",
+            "capacity": "256GB",
+            "condition": "USED",
+            "ticket_id": "00000000-0000-4000-d000-000000000009"
+        },
+        {
+            "qty": 1,
+            "item": "저장장치 / M.2 NVMe / WD",
+            "type": "OUTBOUND",
+            "notes": "자재 출고 승인",
+            "user_id": "00000000-0000-4000-a000-000000000004",
+            "capacity": "256GB",
+            "condition": "USED",
+            "ticket_id": "00000000-0000-4000-d000-000000000009"
+        },
+        {
+            "qty": 3,
+            "item": "저장장치 / M.2 NVMe / 삼성",
+            "type": "INBOUND",
+            "notes": "신규 재고 등록",
+            "user_id": "00000000-0000-4000-a000-000000000001",
+            "capacity": "512GB",
+            "condition": "NEW",
+            "ticket_id": null
+        },
+        {
+            "qty": 1,
+            "item": "저장장치 / M.2 NVMe / 삼성",
+            "type": "OUTBOUND",
+            "notes": "자재 출고 승인",
+            "user_id": "00000000-0000-4000-a000-000000000004",
+            "capacity": "512GB",
+            "condition": "NEW",
+            "ticket_id": "00000000-0000-4000-d000-000000000005"
+        }
+    ],
+    "material_cost": {
+        "00000000-0000-4000-d000-000000000001": 0,
+        "00000000-0000-4000-d000-000000000002": 0,
+        "00000000-0000-4000-d000-000000000003": 0,
+        "00000000-0000-4000-d000-000000000004": 0,
+        "00000000-0000-4000-d000-000000000005": 80000,
+        "00000000-0000-4000-d000-000000000006": 40000,
+        "00000000-0000-4000-d000-000000000007": 0,
+        "00000000-0000-4000-d000-000000000008": 0,
+        "00000000-0000-4000-d000-000000000009": 0,
+        "00000000-0000-4000-d000-000000000010": 0,
+        "00000000-0000-4000-d000-000000000011": 0,
+        "00000000-0000-4000-d000-000000000012": 0
+    },
+    "ticket_materials": [
+        {
+            "id": "00000000-0000-4000-e000-000000000001",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000004",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": null,
+            "return_spec": null,
+            "request_type": "dispatch",
+            "return_status": null,
+            "request_status": "pending",
+            "return_capacity": null,
+            "return_quantity": 1,
+            "return_condition": null,
+            "inventory_item_id": "00000000-0000-4000-b400-000000000001",
+            "return_category_id": null,
+            "override_unit_price": null,
+            "is_return_registered": false
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000002",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000004",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": "WD",
+            "return_spec": "M.2 NVMe",
+            "request_type": "dispatch",
+            "return_status": "approved",
+            "request_status": "approved",
+            "return_capacity": "256GB",
+            "return_quantity": 1,
+            "return_condition": "중고품",
+            "inventory_item_id": "00000000-0000-4000-b400-000000000003",
+            "return_category_id": "00000000-0000-4000-b100-000000000002",
+            "override_unit_price": null,
+            "is_return_registered": true
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000003",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000004",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": null,
+            "return_spec": null,
+            "request_type": "purchase",
+            "return_status": null,
+            "request_status": "requested",
+            "return_capacity": null,
+            "return_quantity": 1,
+            "return_condition": null,
+            "inventory_item_id": "00000000-0000-4000-b400-000000000002",
+            "return_category_id": null,
+            "override_unit_price": null,
+            "is_return_registered": false
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000004",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000004",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": null,
+            "return_spec": null,
+            "request_type": "dispatch",
+            "return_status": null,
+            "request_status": "rejected",
+            "return_capacity": null,
+            "return_quantity": 1,
+            "return_condition": null,
+            "inventory_item_id": "00000000-0000-4000-b400-000000000004",
+            "return_category_id": null,
+            "override_unit_price": null,
+            "is_return_registered": false
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000005",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000005",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": "SK하이닉스",
+            "return_spec": "M.2 NVMe",
+            "request_type": "dispatch",
+            "return_status": "approved",
+            "request_status": "approved",
+            "return_capacity": "256GB",
+            "return_quantity": 1,
+            "return_condition": "중고품",
+            "inventory_item_id": "00000000-0000-4000-b400-000000000003",
+            "return_category_id": "00000000-0000-4000-b100-000000000002",
+            "override_unit_price": null,
+            "is_return_registered": true
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000006",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000006",
+            "created_by": "00000000-0000-4000-a000-000000000005",
+            "return_name": null,
+            "return_spec": null,
+            "request_type": "dispatch",
+            "return_status": null,
+            "request_status": "approved",
+            "return_capacity": null,
+            "return_quantity": 1,
+            "return_condition": null,
+            "inventory_item_id": "00000000-0000-4000-b400-000000000001",
+            "return_category_id": null,
+            "override_unit_price": null,
+            "is_return_registered": false
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000007",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000007",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": null,
+            "return_spec": null,
+            "request_type": "dispatch",
+            "return_status": null,
+            "request_status": "cancelled",
+            "return_capacity": null,
+            "return_quantity": 1,
+            "return_condition": null,
+            "inventory_item_id": "00000000-0000-4000-b400-000000000005",
+            "return_category_id": null,
+            "override_unit_price": null,
+            "is_return_registered": false
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000008",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000009",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": null,
+            "return_spec": null,
+            "request_type": "dispatch",
+            "return_status": null,
+            "request_status": "cancelled",
+            "return_capacity": null,
+            "return_quantity": 1,
+            "return_condition": null,
+            "inventory_item_id": "00000000-0000-4000-b400-000000000004",
+            "return_category_id": null,
+            "override_unit_price": null,
+            "is_return_registered": false
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000021",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000007",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": null,
+            "return_spec": null,
+            "request_type": "purchase",
+            "return_status": null,
+            "request_status": "cancelled",
+            "return_capacity": null,
+            "return_quantity": 1,
+            "return_condition": null,
+            "inventory_item_id": "00000000-0000-4000-b400-000000000002",
+            "return_category_id": null,
+            "override_unit_price": null,
+            "is_return_registered": false
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000022",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000005",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": "삼성 DDR4-3200",
+            "return_spec": "노트북용 DDR4",
+            "request_type": "dispatch",
+            "return_status": "approved",
+            "request_status": "approved",
+            "return_capacity": "8GB",
+            "return_quantity": 2,
+            "return_condition": "중고품",
+            "inventory_item_id": "00000000-0000-4000-b400-000000000001",
+            "return_category_id": "00000000-0000-4000-b100-000000000001",
+            "override_unit_price": null,
+            "is_return_registered": true
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000023",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000005",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": "신규제품",
+            "return_spec": "신규스펙",
+            "request_type": "dispatch",
+            "return_status": "approved",
+            "request_status": "approved",
+            "return_capacity": null,
+            "return_quantity": 1,
+            "return_condition": "불량품",
+            "inventory_item_id": "00000000-0000-4000-b400-000000000001",
+            "return_category_id": "00000000-0000-4000-b100-000000000001",
+            "override_unit_price": null,
+            "is_return_registered": true
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000024",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000005",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": "하이닉스 DDR4",
+            "return_spec": "노트북용 DDR4",
+            "request_type": "dispatch",
+            "return_status": "approved",
+            "request_status": "approved",
+            "return_capacity": null,
+            "return_quantity": 1,
+            "return_condition": "중고품",
+            "inventory_item_id": "00000000-0000-4000-b400-000000000003",
+            "return_category_id": "00000000-0000-4000-b100-000000000001",
+            "override_unit_price": null,
+            "is_return_registered": true
+        },
+        {
+            "id": "00000000-0000-4000-e000-000000000025",
+            "notes": null,
+            "quantity": 1,
+            "ticket_id": "00000000-0000-4000-d000-000000000005",
+            "created_by": "00000000-0000-4000-a000-000000000004",
+            "return_name": "WD",
+            "return_spec": "M.2 NVMe",
+            "request_type": "dispatch",
+            "return_status": "approved",
+            "request_status": "approved",
+            "return_capacity": "256GB",
+            "return_quantity": 1,
+            "return_condition": "중고품",
+            "inventory_item_id": "00000000-0000-4000-b400-000000000004",
+            "return_category_id": null,
+            "override_unit_price": null,
+            "is_return_registered": true
+        }
+    ]
+}

@@ -175,3 +175,54 @@ export async function deleteBoardAliasAction(id: string): Promise<Result> {
   const { error } = await supabase.from("catalog_board_aliases").delete().eq("id", id);
   return done(error, BOARDS);
 }
+
+// ----- 증상 코드 (수리 기록용, Phase 2) -----
+const SYMPTOMS = "/catalog/symptoms";
+
+export async function createSymptomCodeAction(input: { parentId: string | null; code: string; name: string }): Promise<Result> {
+  const supabase = await adminClient();
+  if (!supabase) return DENIED;
+  const code = input.code.trim().toUpperCase();
+  if (!/^[A-Z0-9_]{1,40}$/.test(code)) return { error: "코드는 영문 대문자·숫자·밑줄(_)만 사용할 수 있습니다. (40자 이내)" };
+  if (!input.name.trim()) return { error: "이름을 입력해 주세요." };
+
+  let fullCode = code;
+  const parentId = toUuidOrNull(input.parentId);
+  if (parentId) {
+    const { data: parent } = await supabase.from("symptom_codes").select("code, parent_id").eq("id", parentId).single();
+    if (!parent) return { error: "대분류를 찾을 수 없습니다." };
+    if (parent.parent_id) return { error: "소분류 아래에는 코드를 추가할 수 없습니다." };
+    fullCode = `${parent.code}.${code}`;
+  }
+  const { data: last } = await supabase
+    .from("symptom_codes")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const { error } = await supabase
+    .from("symptom_codes")
+    .insert({ parent_id: parentId, code: fullCode, name: input.name.trim(), sort_order: (last?.sort_order ?? 0) + 10 });
+  return done(error, SYMPTOMS);
+}
+
+export async function updateSymptomCodeAction(
+  id: string,
+  input: { name?: string; sortOrder?: number; isActive?: boolean }
+): Promise<Result> {
+  const supabase = await adminClient();
+  if (!supabase) return DENIED;
+  if (input.name !== undefined && !input.name.trim()) return { error: "이름을 입력해 주세요." };
+  const { error } = await supabase
+    .from("symptom_codes")
+    .update({ name: input.name?.trim(), sort_order: input.sortOrder, is_active: input.isActive })
+    .eq("id", id);
+  return done(error, SYMPTOMS);
+}
+
+export async function deleteSymptomCodeAction(id: string): Promise<Result> {
+  const supabase = await adminClient();
+  if (!supabase) return DENIED;
+  const { error } = await supabase.from("symptom_codes").delete().eq("id", id);
+  return done(error, SYMPTOMS);
+}

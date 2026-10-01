@@ -6,6 +6,7 @@ import type { TicketStatus } from "@/types";
 import { daysSince } from "@/lib/date";
 import type { RefundMaterialAdjustment } from "@/types/database";
 import TicketDetailForm from "./TicketDetailForm";
+import { loadRepairRecord } from "./repair-record/loadRepairRecord";
 
 interface TicketDetailPageProps {
   params: Promise<{ id: string }>;
@@ -46,6 +47,9 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
   if (error || !ticket) {
     notFound();
   }
+
+  // 수리 기록 (Phase 2)
+  const repairRecord = await loadRepairRecord(id, ticket.status);
 
   // 담당기사 배정용: TECHNICIAN + EXPERT_REPAIR 직급 중 배정 가능(is_assignable) 직원 목록 조회
   const { data: assignableTechnicians } = await supabase
@@ -314,6 +318,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
         ticketMaterials={ticketMaterialRows}
         refunds={refundRows}
         daysSinceCompleted={daysSinceCompleted}
+        repairRecord={repairRecord}
       />
     </div>
   );
