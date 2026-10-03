@@ -1,7 +1,6 @@
 # Phase 8 — VECTOR integration (AI 읽기 전용 RPC · AI 후보 검토) — PLAN
 
-Status: **APPROVED 2026-10-03 with conditions; conditions recorded 2026-10-04 (R11), plan updated to reflect them.**
-Waiting for Brad's final "APPROVED" on this revision and on the open decisions O1–O2 (§12). Not implemented yet. Branch `feat/repair-intelligence`.
+Status: **APPROVED 2026-10-03 with conditions; conditions recorded 2026-10-04 (R11); this revision APPROVED by Brad 2026-10-04.** Branch `feat/repair-intelligence`.
 Held at precondition 0 (KI-8) and resumed after Phase 0.6 (see `phase-0.6-report.md`, incl. "후속 점검").
 
 ## 승인 조건 (Brad, 2026-10-03 승인 시 전달 · 2026-10-04 기록, R11)
@@ -38,6 +37,10 @@ Recorded as given by Brad. Where each condition is reflected: checklist in §13.
     verified로 단정하는 표현 금지, 사용 가능한 함수 목록과 파라미터.
 - **C15.** 수용 기준: `vector_agent`는 `ai_candidates` 제안 함수 외에는 어떤 테이블·시퀀스에도 쓰기 불가(실제 INSERT/UPDATE/DELETE 시도로 검증),
   로컬에서 로그인 활성화 후 실제 접속 검증 → 다시 NOLOGIN으로 복귀.
+
+- **APPROVED 2026-10-04 (최종).** Brad: "체크리스트 확인했습니다. APPROVED. phase-8-plan.md대로 구현 → 로컬 검증 → phase-8-report.md → 로컬 커밋 후 커밋 해시와 브랜치명을 알려주고 멈추세요."
+  O1·O2는 별도 선택 없이 "계획서대로" 승인됨 → 계획서 권장안 적용: **O1 (a)** 마이그레이션에서 `temp_file_limit` 미설정, 문서화 + 로컬은 `supabase_admin` 픽스처, 값 **10MB**;
+  **O2 (a)** n8n 워크플로가 헤더를 직접 비교해 "Respond to Webhook"으로 **401** 응답. Brad가 다른 선택을 원하면 보고서 검토 시 수정.
 
 Earlier decisions of §11 (2026-10-03 plan) are superseded where a condition above says otherwise; otherwise the recommended option was approved.
 
