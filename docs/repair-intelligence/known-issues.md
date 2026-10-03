@@ -16,6 +16,7 @@ Recorded only; nothing here is changed without an explicit decision from Brad.
 | KI-9 | `protect_approved_ticket`: `current_role` variable is the SQL keyword → ADMIN/MANAGER branches never match | Recorded (Phase 1) — Brad to decide |
 | KI-10 | RECEPTION cannot cancel tickets (`tickets_update` has no WITH CHECK) | Recorded (Phase 2) — Brad to decide |
 | KI-11 | `approve_material_dispatch` has no role check of its own | Recorded (Phase 0.6) — Brad to decide |
+| KI-12 | Server actions without their own login / role check (statistics) | Recorded (Phase 0.6 follow-up) — fix planned as **Phase 0.6.1**, after Phase 8 |
 
 ---
 
@@ -393,3 +394,25 @@ Found 2026-10-03 (Phase 0.6 planning). Recorded only — Brad to decide.
   - check `p_user_id` against `employees.role IN ('ADMIN','MANAGER')` inside the function;
   - set `search_path = public`;
   - optionally switch the action to the session client, with an `authenticated` + role check.
+
+## KI-12. Server actions without their own login / role check
+
+Found 2026-10-04 (Phase 0.6 follow-up audit, `phases/phase-0.6-report.md` → "후속 점검"). Recorded only — fixed in **Phase 0.6.1** (separate session, after Phase 8).
+
+Since Phase 0.6 the proxy no longer redirects server-action requests without a session, so every action must check login itself.
+The audit of all 151 exported actions in 16 `"use server"` files found:
+
+- **`src/app/actions/statisticsActions.ts` — 9 actions with no login and no role check** (`getAnnualRevenue`, `getMonthlyDailyRevenue`,
+  `getTechnicianMonthlyRevenue`, `getTechnicianPerformance`, `getBrandBreakdown`, `getStatusBreakdown`, `getReceiptTypeBreakdown`,
+  `getCancelStats`, `getRefundStats`).
+  - anon: session client + RLS → 0 rows (no leak).
+  - The `/stats` page is ADMIN / MANAGER only, but a direct call returns what RLS allows:
+    RECEPTION → every ticket (revenue), CS → all completed tickets (revenue), TECHNICIAN → own tickets.
+- `src/app/actions/inventoryActions.ts` `requireAuth()` still returns the old text "로그인이 필요합니다." (not updated in Phase 0.6 decision 6).
+- `lookupPastEvaluatedValue` (`src/app/(admin)/tickets/actions.ts`): login check only, then reads `device_models` (release price / year)
+  and past `repair_tickets` (`evaluated_value`, `tag_info`) with the **service_role** client, i.e. bypassing RLS, for any role.
+  Used by `EstimateCard`. Whether a role limit is needed is to be investigated in the Phase 0.6.1 plan.
+- Intentionally public (no change): `submitTicketAction` (customer receipt form), `loginAction`, `logoutAction`.
+
+Phase 0.6.1 scope (Brad, 2026-10-04): login + ADMIN/MANAGER check in the 9 statistics actions; unify the `requireAuth` message to
+"로그인이 필요합니다. 다시 로그인해 주세요."; investigate `lookupPastEvaluatedValue` and include a decision in the plan.

@@ -218,6 +218,15 @@ SELECT throws_ok(format('SELECT %s()', e.fn::oid::regproc), '0A000', NULL, 'dire
   FROM guard_expect e WHERE e.kind = 'trigger' ORDER BY e.fn::text;
 SELECT is(public.catalog_normalize(' LG 15Z90 '), public.catalog_normalize('lg15z90'), 'anon can run the pure catalog_normalize');
 RESET ROLE;
+-- runtime counterpart of the static authenticated assertions in device_catalog / device_knowledge / purchase_guard (0.6 follow-up)
+SET LOCAL ROLE authenticated;
+SELECT throws_ok($$ SELECT public.catalog_keep_ticket_updated_at() $$, '0A000', NULL,
+                 'authenticated: direct call of trigger function refused by Postgres: catalog_keep_ticket_updated_at()');
+SELECT throws_ok($$ SELECT public.model_note_stamp() $$, '0A000', NULL,
+                 'authenticated: direct call of trigger function refused by Postgres: model_note_stamp()');
+SELECT throws_ok($$ SELECT public.ri_purchase_guard_enforce() $$, '0A000', NULL,
+                 'authenticated: direct call of trigger function refused by Postgres: ri_purchase_guard_enforce()');
+RESET ROLE;
 
 SELECT * FROM finish();
 ROLLBACK;

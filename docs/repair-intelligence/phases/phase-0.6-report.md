@@ -14,7 +14,7 @@ Production: **read-only** catalog / log queries only, during planning (KI-8 §8.
 | Allowed roles unchanged (1 byte) | ✅ Exactness check **50/50**: every changed definition (`pg_get_functiondef`) minus the single guard line is byte-identical to the before-definition. Only ACLs gained the listed grants. Object snapshot (917 entries: functions + ACLs, views, policies, triggers, columns, table / sequence ACLs, schemas): only the 50 target functions + 2 new helpers differ |
 | Business flows identical | ✅ `test-fixtures/phase0.6/flows.sql` before vs after: **identical (96 lines)**. Covers dispatch + purchase approval (service_role), material cost + recalc, return confirmation (nested recalc), refund request → approve → complete (nested `apply_refund_material_adjustments`) → void, part spec + compatibility evidence (nested `ri_compatibility_row` / `ri_recompute_compatibility`), purchase guard (nested invoker helpers), RLS `repair_record_can_edit`, label lookup. Resulting rows compared for stock, transactions, materials, tickets, refunds, logs and compatibility |
 | Session expiry (UI) | ✅ After fix: staff see "로그인이 필요합니다. 다시 로그인해 주세요." (see Test D). Before: Next.js "This page couldn't load" |
-| pgTAP | ✅ **881/881**: existing 693, of which 26 ACL assertions were rewritten to the R10 form (Deviations), plus new 188 |
+| pgTAP | ✅ **881/881**: existing 693, of which ~~26~~ **25** ACL assertions were rewritten to the R10 form (Deviations; corrected in "후속 점검": they are static checks), plus new 188. After the follow-up: **884/884** |
 | `db reset` twice | ✅ (also after moving 0.6a next to 0.5) |
 | typecheck / lint / build | ✅ 0 errors / 0 errors (16 warnings, all pre-existing) / success |
 | Advisors (`--type all --level info`) | ✅ no new finding. The 14 WARNs are the pre-existing list. `approve_material_dispatch` "search_path mutable" is pre-existing (KI-11) and intentionally unchanged |
@@ -78,7 +78,7 @@ How the guards decide:
   - `DO`-block refusal;
   - trigger direct-call refusal;
   - anon `catalog_normalize`.
-- 9 existing test files: 26 ACL assertions rewritten (Deviations).
+- 9 existing test files: ~~26~~ **25** ACL assertions rewritten (Deviations). They remain **static** catalog checks; the runtime refusals are in `api_guard.test.sql` (see "후속 점검").
 - `supabase/test-fixtures/phase0.6/`:
   - `functions_before.sql` (verbatim before-definitions of the 50);
   - `rollback.sql`;
@@ -104,7 +104,7 @@ How the guards decide:
 | Definer guard = count stack frames (≤ 2 → top-level) | Look up the caller frames; allowed only if a SECURITY DEFINER caller (whose owner has EXECUTE) is above | Frame counting would have let calls from `DO` blocks / invoker functions / pgTAP through. Before 0.6 those were refused (the ACL check used the session role). The refined guard is exact for every case, and is what makes the pgTAP refusals testable |
 | Guard `search_path = pg_catalog` | `pg_catalog, public, extensions` | Found by the flow test: `PG_CONTEXT` shows a function's signature as **compiled**, so usually unqualified. Under `pg_catalog` the nested refund call was wrongly refused. Builtins stay first on the path |
 | All refusals give the guard message | `search_devices_for_part` (SQL) gives Postgres' own `42501 permission denied for view compatibility_summary` to anon | A SQL function rewrites all its statements at startup. The `security_invoker` view is checked before the guard statement runs. Still a clean 42501 / HTTP 401, no crash. Changing the language is not allowed |
-| "all 693 existing assertions pass unchanged" | 26 assertions of the form "role X cannot execute Y" rewritten to "EXECUTE granted **and** the guard denies X (or trigger)", with the suffix "(R10: EXECUTE granted, refused by the in-function guard)" | They asserted exactly the ACL state R10 changes. No behavioural assertion was changed |
+| "all 693 existing assertions pass unchanged" | ~~26~~ **25** assertions of the form "role X cannot execute Y" rewritten to "EXECUTE granted **and** the guard denies X (or trigger)", with the suffix "(R10: EXECUTE granted, refused by the in-function guard)" | They asserted exactly the ACL state R10 changes. No behavioural assertion was changed |
 | 0.6a timestamp after Phase 7 | renamed to `20260928043332` (right after 0.5) | Release order 0.5 → 0.6a. Phases 1–7 never redefine or re-grant those 8 functions (checked). Re-verified: exactness, snapshot, flows, 881 tests |
 | Test C via E2E UI flows | SQL flow script in exact app role contexts (before vs after, byte-compared) + UI regression (dispatch approval with a valid session) | Byte-level comparison needs identical inputs. The UI path calls the same RPCs (service_role / session) |
 | No app change unless test D fails | proxy + 46 literals | Test D failed ("This page couldn't load"); decision 6 |
@@ -168,3 +168,79 @@ Rehearsed: snapshot identical to before. Rollback brings back the KI-8 exposure 
   - KI-9, KI-10, KI-11;
   - Phase 2 decision 6;
   - exposed-schema confirmation (decision 8).
+
+## 후속 점검 (follow-up audit, 2026-10-04)
+
+Read-only audit requested by Brad before resuming Phase 8. Only change: 3 runtime tests added to `api_guard.test.sql` (separate commit).
+
+### A. Server actions — own login check
+
+Since Phase 0.6, `src/proxy.ts` no longer redirects server-action requests without a session, so every action must check login itself.
+All 16 `"use server"` files (file-level directive; no inline actions), 151 exported actions:
+
+| File | Actions | Own login check | How (helper) | Role check |
+| --- | --- | --- | --- | --- |
+| **`actions/statisticsActions.ts`** | `getAnnualRevenue`, `getMonthlyDailyRevenue`, `getTechnicianMonthlyRevenue`, `getTechnicianPerformance`, `getBrandBreakdown`, `getStatusBreakdown`, `getReceiptTypeBreakdown`, `getCancelStats`, `getRefundStats` (9) | ❌ **none** | session client + RLS only | ❌ → **KI-12 / Phase 0.6.1** |
+| `actions/ticketActions.ts` | `submitTicketAction` | — (public by design) | customer receipt form, Zod validation, service_role | — |
+| `(admin)/login/actions.ts` | `loginAction`, `logoutAction` | — (public by design) | login / logout itself | — |
+| `(admin)/catalog/actions.ts` | `searchCatalogModelsAction`, `getCatalogVariantsAction`, `searchCatalogBoardsAction`, `createCatalogModelAction` | ✅ | `requireEmployee()` → `getCurrentEmployee` | creation: in the DB function |
+| 〃 | `getUnmappedModelStringsAction`, `mapModelStringAction`, `unmapAliasAction` | ✅ | `requireAdmin()` | ADMIN |
+| `(admin)/catalog/adminActions.ts` | 16 (model / variant / alias / board / symptom-code CRUD) | ✅ | `adminClient()` | ADMIN |
+| `(admin)/catalog/partActions.ts` | `searchPartSpecsAction`, `createPartSpecAction` | ✅ | `getCurrentEmployee` | in the DB function |
+| 〃 | other 9 | ✅ | `adminClient()` | ADMIN |
+| `(admin)/donors/actions.ts` | 9 | ✅ | `session()` | RLS / DB function |
+| `(admin)/labels/actions.ts` | 3 | ✅ | `session()` | RLS / DB function |
+| `(admin)/lookup/actions.ts` | 6 | ✅ | `getCurrentEmployee` / `session()` | `TICKET_LINK_ROLES`, RLS |
+| `(admin)/tickets/actions.ts` | 39 | ✅ | `getCurrentEmployee` (refund approve / reject / complete / void via `transitionRefund()`) | mostly in code; refunds inside `transition_refund`; `lookupPastEvaluatedValue`: login only + service_role (KI-12) |
+| `(admin)/tickets/purchaseGuardActions.ts` | 2 | ✅ | `getCurrentEmployee` | DB function |
+| `(admin)/tickets/[id]/repair-record/actions.ts` | 10 + `approveRemovedPartInboundAction` | ✅ | `session(ticketId)` / `getCurrentEmployee` | RLS / ADMIN·MANAGER |
+| `(cms)/editor/actions.ts`, `(cms)/editor/news/news-actions.ts` | 1 + 6 | ✅ | `requireCmsAccess()` (redirect when logged out) | ADMIN·MANAGER |
+| `actions/employeeActions.ts` | 4 | ✅ | `getCurrentEmployee` | ADMIN (own profile: self) |
+| `actions/inventoryActions.ts` | 23 | ✅ | `getCurrentEmployee` + `requireAuth()` (old text "로그인이 필요합니다." — KI-12) | ADMIN / MANAGER per action |
+
+Correction to "Known risks" above: "Every `(admin)` action checks `getCurrentEmployee()`" did not cover `src/app/actions/statisticsActions.ts`.
+anon still gets 0 rows (RLS), but RECEPTION / CS / TECHNICIAN can call the statistics actions directly and get what RLS allows them.
+Recorded as **KI-12**; fixed in **Phase 0.6.1** (after Phase 8).
+
+### B. The rewritten pgTAP assertions — static checks; runtime refusals live in `api_guard.test.sql`
+
+**Correction:** the Phase 0.6 diff rewrote **25** assertions (not 26), and they are **static** catalog checks:
+"EXECUTE granted **and** the body contains the guard line for that role (or it is a trigger function)". Nothing is called.
+
+Decision (Brad, 2026-10-04, option b): keep them as static checks.
+**The runtime refusal ("call it and get refused") is verified by `supabase/tests/api_guard.test.sql`:**
+§3 loops over every guarded function per denied role; §6 calls trigger functions directly.
+
+Expected runtime result per role:
+
+| Role | Expected | Runtime test |
+| --- | --- | --- |
+| anon | 42501 "로그인이 필요합니다. 다시 로그인해 주세요." (exception `search_devices_for_part`: 42501 "permission denied for view compatibility_summary") | `api_guard` §3 |
+| authenticated | 42501 "직접 호출할 수 없는 함수입니다." (also from a `DO` block) | `api_guard` §3 |
+| service_role | 42501 "직접 호출할 수 없는 함수입니다." (`ri_compatibility_row`, `ri_recompute_compatibility`, `ri_inbound_extracted_part`) | `api_guard` §3 |
+| any role, trigger function | 0A000 (Postgres refuses direct calls) | `api_guard` §6: anon for all 10; **authenticated for the 3 below (added 2026-10-04)** |
+
+Mapping of the 25 static assertions to their runtime counterpart:
+
+| # | File | Function(s) | Role | Runtime counterpart |
+| --- | --- | --- | --- | --- |
+| 1–2 | `approve_material_dispatch` | `approve_material_dispatch` | anon / authenticated | §3 anon / authenticated |
+| 3 | `device_catalog` | `catalog_search_models` | anon | §3 anon |
+| 4 | `device_catalog` | every `catalog_*` except triggers and `catalog_normalize` | anon | §3 anon (6 functions) |
+| 5 | `device_catalog` | `catalog_keep_ticket_updated_at` (trigger) | authenticated | §6 authenticated — **added** |
+| 6–8 | `device_knowledge` | `search_parts_for_device`, `search_devices_for_part`, `get_device_knowledge` | anon | §3 anon |
+| 9 | `device_knowledge` | `model_note_stamp` (trigger) | authenticated | §6 authenticated — **added** |
+| 10 | `donor_devices` | `donor_convert_from_ticket`, `donor_extract_part` | anon | §3 anon |
+| 11 | `donor_devices` | `ri_inbound_extracted_part` | authenticated | §3 authenticated |
+| 12 | `inventory_flow_rpcs` | `register_return_material`, `approve_return_material`, `confirm_material_return`, `approve_removed_part_inbound` | anon | §3 anon |
+| 13 | `inventory_flow_rpcs` | `ri_inbound_extracted_part` | anon / authenticated / service_role | §3, all three |
+| 14 | `part_compatibility` | `record_compatibility_result`, `record_part_install_result`, `retract_compatibility_evidence`, `part_spec_create`, `part_spec_search` | anon | §3 anon |
+| 15 | `part_compatibility` | `ri_recompute_compatibility`, `ri_compatibility_row` | authenticated / service_role | §3 authenticated / service_role |
+| 16–18 | `physical_tracking` | `label_lookup`, `set_storage_location`, `ri_next_item_label` | anon | §3 anon |
+| 19 | `physical_tracking` | `ri_inbound_extracted_part` | authenticated / service_role | §3 |
+| 20–21 | `purchase_guard` | `purchase_guard_check`, `request_purchase_material` | anon | §3 anon |
+| 22–23 | `purchase_guard` | `ri_purchase_resources`, `ri_purchase_material_info` | authenticated | §3 authenticated |
+| 24 | `purchase_guard` | `ri_purchase_guard_enforce` (trigger) | authenticated | §6 authenticated — **added** |
+| 25 | `repair_records` | `repair_gate_check`, `repair_set_cancel_result`, `repair_gate_override`, `repair_record_can_edit` | anon | §3 anon |
+
+Result after adding the 3 tests: `npx supabase test db` → **884/884** (was 881).

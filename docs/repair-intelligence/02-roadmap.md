@@ -121,6 +121,20 @@ Production hotfix **cancelled** (KI-8 §8.3: REST path unaffected). Released wit
 
 ---
 
+## Phase 0.6.1 — Server action login / role checks (KI-12) — planned, after Phase 8
+
+**Goal:** every server action checks login itself (needed since Phase 0.6, when the proxy stopped redirecting action requests).
+Found by the Phase 0.6 follow-up audit (`phases/phase-0.6-report.md` → "후속 점검").
+
+**Scope** (plan in a separate session, after Phase 8)
+- `statisticsActions.ts`: login check + ADMIN / MANAGER role check in all 9 actions.
+- `inventoryActions.requireAuth`: message → "로그인이 필요합니다. 다시 로그인해 주세요.".
+- `lookupPastEvaluatedValue`: investigate what it returns (service_role read of release price and past evaluated values) and whether a role limit is needed; decision in the plan.
+
+**Acceptance:** the audit table shows an own login check for every non-public action; statistics actions refuse roles other than ADMIN / MANAGER.
+
+---
+
 ## Phase 1 — Device master data (기기 마스터) ✅ local (report: `phases/phase-1-report.md`; production deploy pending)
 
 **Goal:** a canonical device/board vocabulary that tickets can reference, without touching the
