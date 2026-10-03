@@ -6,11 +6,12 @@ import { updateRepairGateFlags } from "@/app/actions/inventoryActions";
 interface Props {
   approvalEnabled: boolean;
   cancelEnabled: boolean;
+  purchaseGuardEnabled: boolean;
 }
 
 /** 수리 기록 필수 확인(게이트) 켜기/끄기 — 관리자 전용. 먼저 화면을 바꾸고 실패하면 되돌린다 */
-export default function RepairGateSettingsCard({ approvalEnabled, cancelEnabled }: Props) {
-  const [flags, setFlags] = useState({ approvalEnabled, cancelEnabled });
+export default function RepairGateSettingsCard({ approvalEnabled, cancelEnabled, purchaseGuardEnabled }: Props) {
+  const [flags, setFlags] = useState({ approvalEnabled, cancelEnabled, purchaseGuardEnabled });
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -39,13 +40,18 @@ export default function RepairGateSettingsCard({ approvalEnabled, cancelEnabled 
       title: "접수 취소 시 취소 구분 필수",
       desc: "수리불가 / 고객포기 / 단순취소 선택을 요구하고, 입고된 기기는 적출 부품 처리까지 확인합니다.",
     },
+    {
+      key: "purchaseGuardEnabled" as const,
+      title: "구매 요청 시 내부 자원 확인",
+      desc: "구매 요청 전에 대체 가능한 재고·Donor 부품을 보여 주고, 있으면 구매 사유를 기록하게 합니다.",
+    },
   ];
 
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-5">
-      <h2 className="text-base font-semibold text-gray-800">수리 기록 필수 확인</h2>
+      <h2 className="text-base font-semibold text-gray-800">수리 기록 · 구매 요청 필수 확인</h2>
       <p className="mt-1 text-xs text-gray-500">
-        직원 교육 후에 켜 주세요. 꺼져 있으면 승인·취소는 기존과 동일하게 동작합니다. 관리자는 사유를 입력해 강제 진행할 수 있으며 이력이 남습니다.
+        직원 교육 후에 켜 주세요. 꺼져 있으면 승인·취소·구매 요청은 기존과 동일하게 동작합니다. 관리자는 사유를 입력해 강제 진행할 수 있으며 이력이 남습니다.
       </p>
       <ul className="mt-4 divide-y divide-gray-100">
         {rows.map((r) => (

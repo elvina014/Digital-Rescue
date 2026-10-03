@@ -53,6 +53,11 @@ const NAV_ITEMS: NavItem[] = [
     roles: ["ADMIN"] as EmployeeRole[],
   },
   {
+    label: "구매 사유 보고서",
+    href: "/inventory/purchase-guard",
+    roles: ["ADMIN"] as EmployeeRole[],
+  },
+  {
     label: "부품·기기 검색",
     href: "/lookup",
     roles: [],

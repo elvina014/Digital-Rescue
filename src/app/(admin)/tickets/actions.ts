@@ -1394,6 +1394,16 @@ export async function requestMaterialDispatchAction(materialId: string) {
   if (!mat) return { error: "자재 항목을 찾을 수 없습니다." };
   if (mat.request_status !== "pending") return { error: "이미 출고 요청 중이거나 승인된 항목입니다." };
 
+  // 구매 요청 확인(Phase 6)이 켜져 있으면 구매는 확인 창(requestPurchaseWithGuardAction)으로만 요청한다
+  if (mat.request_type === "purchase") {
+    const { data: flags } = await adminSupa
+      .from("global_settings")
+      .select("ri_purchase_guard_enabled")
+      .eq("id", true)
+      .single();
+    if (flags?.ri_purchase_guard_enabled) return { error: "구매 사유 확인이 필요합니다.", guard: true };
+  }
+
   const { error } = await adminSupa
     .from("ticket_materials")
     .update({ request_status: "requested" })

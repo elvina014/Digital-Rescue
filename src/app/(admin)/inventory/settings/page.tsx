@@ -20,11 +20,11 @@ export default async function InventorySettingsPage() {
     getGlobalSettings(),
   ]);
 
-  // 수리 기록 필수 확인(게이트) 설정 — 기본 OFF
+  // 수리 기록 필수 확인(게이트) · 구매 요청 확인 설정 — 기본 OFF
   const supabase = await createClient();
   const { data: gateFlags } = await supabase
     .from("global_settings")
-    .select("ri_approval_gate_enabled, ri_cancel_gate_enabled")
+    .select("ri_approval_gate_enabled, ri_cancel_gate_enabled, ri_purchase_guard_enabled")
     .eq("id", true)
     .single();
 
@@ -39,6 +39,7 @@ export default async function InventorySettingsPage() {
       <RepairGateSettingsCard
         approvalEnabled={gateFlags?.ri_approval_gate_enabled ?? false}
         cancelEnabled={gateFlags?.ri_cancel_gate_enabled ?? false}
+        purchaseGuardEnabled={gateFlags?.ri_purchase_guard_enabled ?? false}
       />
     </div>
   );

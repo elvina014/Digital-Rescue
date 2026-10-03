@@ -220,7 +220,7 @@ creates a normal `inventory_items` row + INBOUND transaction.
 
 ---
 
-## Phase 6 — Purchase guard
+## Phase 6 — Purchase guard ✅ local (report: `phases/phase-6-report.md`; production deploy pending)
 
 **Scope**
 - Hook the purchase request path (`ticket_materials.request_type='purchase'`, auto-selected when

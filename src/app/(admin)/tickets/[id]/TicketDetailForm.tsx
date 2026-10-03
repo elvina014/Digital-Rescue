@@ -35,6 +35,7 @@ import RestoreCancelCard from "./RestoreCancelCard";
 import type { PickedModel } from "@/components/catalog/DeviceModelPicker";
 import type { PickedBoard } from "@/components/catalog/BoardPicker";
 import RepairRecordSection from "./repair-record/RepairRecordSection";
+import PurchaseGuardDialog from "./PurchaseGuardDialog";
 import { CANCEL_RESULTS, RESULT_LABEL, type RepairRecordData } from "./repair-record/labels";
 
 interface TicketData {
@@ -153,6 +154,8 @@ interface TicketDetailFormProps {
   refunds: RefundRow[];
   daysSinceCompleted: number;
   repairRecord: RepairRecordData;
+  /** 구매 요청 시 내부 자원 확인 (Phase 6) */
+  purchaseGuardEnabled: boolean;
 }
 
 const RECEIPT_LABEL: Record<string, string> = {
@@ -175,8 +178,10 @@ export default function TicketDetailForm({
   refunds,
   daysSinceCompleted,
   repairRecord,
+  purchaseGuardEnabled,
 }: TicketDetailFormProps) {
   const [error, setError] = useState<string | null>(null);
+  const [guardMaterialId, setGuardMaterialId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [materials, setMaterials] = useState(initialMaterials);
   const [manualCosts, setManualCosts] = useState(ticket.material_cost_details);
@@ -613,6 +618,23 @@ export default function TicketDetailForm({
         <section className="rounded-xl border border-gray-200 bg-white p-5">
           <h2 className="mb-4 text-base font-semibold text-gray-800">자재비 관리</h2>
 
+          {guardMaterialId && (
+            <PurchaseGuardDialog
+              materialId={guardMaterialId}
+              onSubmitting={() =>
+                setMaterials((prev) =>
+                  prev.map((x) => (x.id === guardMaterialId ? { ...x, request_status: "requested" } : x))
+                )
+              }
+              onFailed={() =>
+                setMaterials((prev) =>
+                  prev.map((x) => (x.id === guardMaterialId ? { ...x, request_status: "pending" } : x))
+                )
+              }
+              onClose={() => setGuardMaterialId(null)}
+            />
+          )}
+
           {/* ticket_materials 목록 (재고 자재) */}
           {materials.length > 0 && (
             <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
@@ -647,6 +669,12 @@ export default function TicketDetailForm({
                             type="button"
                             disabled={isPending}
                             onClick={() => {
+                              // 구매 요청 확인이 켜져 있으면 내부 자원 확인 창에서 요청한다
+                              if (isPurchase && purchaseGuardEnabled) {
+                                setError(null);
+                                setGuardMaterialId(m.id);
+                                return;
+                              }
                               // Optimistic UI: 즉시 상태 변경
                               setMaterials((prev) =>
                                 prev.map((x) => (x.id === m.id ? { ...x, request_status: "requested" } : x))

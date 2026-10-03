@@ -159,6 +159,13 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     .eq("id", true)
     .single();
 
+  // 구매 요청 확인 (Phase 6) — 기본 OFF
+  const { data: purchaseGuardFlag } = await supabase
+    .from("global_settings")
+    .select("ri_purchase_guard_enabled")
+    .eq("id", true)
+    .single();
+
   // 해당 티켓의 ticket_materials 조회
   const { data: ticketMaterialsRaw } = await supabase
     .from("ticket_materials")
@@ -358,6 +365,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
         refunds={refundRows}
         daysSinceCompleted={daysSinceCompleted}
         repairRecord={repairRecord}
+        purchaseGuardEnabled={purchaseGuardFlag?.ri_purchase_guard_enabled ?? false}
       />
     </div>
   );

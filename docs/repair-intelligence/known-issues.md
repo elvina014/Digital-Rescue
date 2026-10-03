@@ -150,6 +150,9 @@ exist only in the generated types; the hand-written `InventoryItem` was not exte
 **Phase 5 (2026-10-03):** `model_notes` and the RPCs `search_parts_for_device` / `search_devices_for_part` / `get_device_knowledge`
 exist only in the generated types (the jsonb result of `get_device_knowledge` is typed by hand in `src/app/(admin)/lookup/actions.ts`).
 
+**Phase 6 (2026-10-03):** `global_settings.ri_purchase_guard_enabled`, `purchase_guard_logs` and the RPCs `purchase_guard_check` /
+`request_purchase_material` exist only in the generated types (the jsonb results are typed by hand in `src/app/(admin)/tickets/purchaseGuardActions.ts`).
+
 **Tables without a hand-written interface:** `inventory_transactions`, `news_items`, `page_contents`,
 `receipt_no_sequence`, `refund_no_sequence`.
 

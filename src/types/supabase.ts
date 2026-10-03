@@ -448,13 +448,13 @@ isOneToOne: false
                   ]
                 },"global_settings": {
                   Row: {
-                    "base_service_cost": number,"discount_surcharge_rate": number,"id": boolean,"ri_approval_gate_enabled": boolean,"ri_cancel_gate_enabled": boolean,"updated_at": string,"value_reference_amount": number
+                    "base_service_cost": number,"discount_surcharge_rate": number,"id": boolean,"ri_approval_gate_enabled": boolean,"ri_cancel_gate_enabled": boolean,"ri_purchase_guard_enabled": boolean,"updated_at": string,"value_reference_amount": number
                   }
                   Insert: {
-                    "base_service_cost"?: number,"discount_surcharge_rate"?: number,"id"?: boolean,"ri_approval_gate_enabled"?: boolean,"ri_cancel_gate_enabled"?: boolean,"updated_at"?: string,"value_reference_amount"?: number
+                    "base_service_cost"?: number,"discount_surcharge_rate"?: number,"id"?: boolean,"ri_approval_gate_enabled"?: boolean,"ri_cancel_gate_enabled"?: boolean,"ri_purchase_guard_enabled"?: boolean,"updated_at"?: string,"value_reference_amount"?: number
                   }
                   Update: {
-                    "base_service_cost"?: number,"discount_surcharge_rate"?: number,"id"?: boolean,"ri_approval_gate_enabled"?: boolean,"ri_cancel_gate_enabled"?: boolean,"updated_at"?: string,"value_reference_amount"?: number
+                    "base_service_cost"?: number,"discount_surcharge_rate"?: number,"id"?: boolean,"ri_approval_gate_enabled"?: boolean,"ri_cancel_gate_enabled"?: boolean,"ri_purchase_guard_enabled"?: boolean,"updated_at"?: string,"value_reference_amount"?: number
                   }
                   Relationships: [
                     
@@ -775,6 +775,43 @@ isOneToOne: false
       columns: ["interchange_group_id"]
 isOneToOne: false
       referencedRelation: "interchange_groups"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"purchase_guard_logs": {
+                  Row: {
+                    "created_at": string,"id": string,"item_label": string,"material_id": string,"quantity": number,"reason_code": string | null,"reason_note": string | null,"requested_by": string,"resource_count": number,"resources": NonNullable<Json>,"ticket_id": string
+                  }
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"item_label": string,"material_id": string,"quantity": number,"reason_code"?: string | null,"reason_note"?: string | null,"requested_by": string,"resource_count": number,"resources"?: NonNullable<Json>,"ticket_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"item_label"?: string,"material_id"?: string,"quantity"?: number,"reason_code"?: string | null,"reason_note"?: string | null,"requested_by"?: string,"resource_count"?: number,"resources"?: NonNullable<Json>,"ticket_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "purchase_guard_logs_material_id_fkey"
+      columns: ["material_id"]
+isOneToOne: true
+      referencedRelation: "repair_parts_used"
+      referencedColumns: ["material_id"]
+    },{
+      foreignKeyName: "purchase_guard_logs_material_id_fkey"
+      columns: ["material_id"]
+isOneToOne: true
+      referencedRelation: "ticket_materials"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "purchase_guard_logs_requested_by_fkey"
+      columns: ["requested_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "purchase_guard_logs_ticket_id_fkey"
+      columns: ["ticket_id"]
+isOneToOne: false
+      referencedRelation: "repair_tickets"
       referencedColumns: ["id"]
     }
                   ]
@@ -1301,6 +1338,9 @@ isOneToOne: false
               "compat_target": string,"manufacturer": string,"matched": string,"name": string,"part_spec_id": string,"part_type": string,"score": number
             }[]
                            },
+"purchase_guard_check":
+{ Args: { "p_material_id": string }; Returns: Json
+                           },
 "recalc_ticket_material_cost":
 { Args: { "p_ticket_id": string }; Returns: number
                            },
@@ -1324,6 +1364,9 @@ isOneToOne: false
                            },
 "repair_set_cancel_result":
 { Args: { "p_result": string,"p_ticket_id": string }; Returns: undefined
+                           },
+"request_purchase_material":
+{ Args: { "p_material_id": string,"p_reason_code"?: string,"p_reason_note"?: string }; Returns: Json
                            },
 "request_refund":
 { Args: { "p_amount": number,"p_material_adjustments"?: Json,"p_reason_code": Database["public"]['Enums']["refund_reason"],"p_reason_note"?: string,"p_refund_account"?: string,"p_refund_bank"?: string,"p_refund_holder"?: string,"p_refund_method": Database["public"]['Enums']["refund_method"],"p_ticket_id": string }; Returns: {
@@ -1375,6 +1418,14 @@ isOneToOne: false
                            },
 "ri_inbound_extracted_part":
 { Args: { "p_capacity": string,"p_category_id": string,"p_name": string,"p_quantity": number,"p_spec": string,"p_ticket_id": string,"p_tx_user_id": string }; Returns: string
+                           },
+"ri_purchase_material_info":
+{ Args: { "p_lock"?: boolean,"p_material_id": string }; Returns: {
+              "item_label": string,"material_id": string,"outsourced": boolean,"quantity": number,"request_status": string,"request_type": string,"ticket_id": string
+            }[]
+                           },
+"ri_purchase_resources":
+{ Args: { "p_material_id": string }; Returns: Json
                            },
 "ri_recompute_compatibility":
 { Args: { "p_compatibility_id": string }; Returns: undefined
