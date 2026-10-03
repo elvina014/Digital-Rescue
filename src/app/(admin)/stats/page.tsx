@@ -37,6 +37,15 @@ export default async function StatisticsPage() {
       getRefundStats(currentYear, currentMonth),
     ]);
 
+  // 위에서 ADMIN/MANAGER만 통과하므로 거부는 그 사이 세션·역할이 바뀐 경우뿐이다
+  if (
+    "error" in annualRevenue || "error" in dailyRevenue || "error" in techRevenue || "error" in techPerformance ||
+    "error" in brandBreakdown || "error" in statusBreakdown || "error" in receiptTypeBreakdown ||
+    "error" in cancelStats || "error" in refundStats
+  ) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="mb-6">
@@ -47,15 +56,15 @@ export default async function StatisticsPage() {
       </div>
 
       <StatisticsClient
-        annualRevenue={annualRevenue}
-        dailyRevenue={dailyRevenue}
-        techRevenue={techRevenue}
-        techPerformance={techPerformance}
-        brandBreakdown={brandBreakdown}
-        statusBreakdown={statusBreakdown}
-        receiptTypeBreakdown={receiptTypeBreakdown}
-        cancelStats={cancelStats}
-        refundStats={refundStats}
+        annualRevenue={annualRevenue.data}
+        dailyRevenue={dailyRevenue.data}
+        techRevenue={techRevenue.data}
+        techPerformance={techPerformance.data}
+        brandBreakdown={brandBreakdown.data}
+        statusBreakdown={statusBreakdown.data}
+        receiptTypeBreakdown={receiptTypeBreakdown.data}
+        cancelStats={cancelStats.data}
+        refundStats={refundStats.data}
         currentYear={currentYear}
         currentMonth={currentMonth}
       />

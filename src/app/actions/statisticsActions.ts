@@ -1,6 +1,20 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { getCurrentEmployee } from "@/lib/auth";
+import { EmployeeRole } from "@/types";
+
+// ─── 접근 확인 (로그인 + ADMIN/MANAGER) ───────────────────────
+export type StatsResult<T> = { data: T } | { error: string };
+
+async function requireStatsAccess(): Promise<string | null> {
+  const employee = await getCurrentEmployee();
+  if (!employee) return "로그인이 필요합니다. 다시 로그인해 주세요.";
+  if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+    return "통계 조회 권한이 없습니다. (ADMIN/MANAGER만 가능)";
+  }
+  return null;
+}
 
 // ─── 공통 날짜 헬퍼 ───────────────────────────────────────────
 function yearRange(year: number) {
@@ -163,7 +177,10 @@ const RECEIPT_LABEL_MAP: Record<string, string> = {
 /**
  * 선택 연도 기준 월별 매출 집계 — completed_at 기준
  */
-export async function getAnnualRevenue(year: number): Promise<MonthlyRevenueData[]> {
+export async function getAnnualRevenue(year: number): Promise<StatsResult<MonthlyRevenueData[]>> {
+  const denied = await requireStatsAccess();
+  if (denied) return { error: denied };
+
   const supabase = await createClient();
   const { start } = yearRange(year);
 
@@ -183,17 +200,20 @@ export async function getAnnualRevenue(year: number): Promise<MonthlyRevenueData
     monthMap[m] = (monthMap[m] ?? 0) + netRevenue(t);
   }
 
-  return Array.from({ length: 12 }, (_, i) => ({
+  return { data: Array.from({ length: 12 }, (_, i) => ({
     month: i + 1,
     label: `${i + 1}월`,
     revenue: monthMap[i + 1] ?? 0,
-  }));
+  })) };
 }
 
 /**
  * 선택 연/월 기준 일별 매출 집계 — completed_at 기준
  */
-export async function getMonthlyDailyRevenue(year: number, month: number): Promise<DailyRevenueData[]> {
+export async function getMonthlyDailyRevenue(year: number, month: number): Promise<StatsResult<DailyRevenueData[]>> {
+  const denied = await requireStatsAccess();
+  if (denied) return { error: denied };
+
   const supabase = await createClient();
   const { start, end } = monthRange(year, month);
 
@@ -213,17 +233,20 @@ export async function getMonthlyDailyRevenue(year: number, month: number): Promi
     dayMap[day] = (dayMap[day] ?? 0) + netRevenue(t);
   }
 
-  return Array.from({ length: daysInMonth }, (_, i) => ({
+  return { data: Array.from({ length: daysInMonth }, (_, i) => ({
     day: i + 1,
     label: `${i + 1}일`,
     revenue: dayMap[i + 1] ?? 0,
-  }));
+  })) };
 }
 
 /**
  * 선택 연/월 기준 기사별 매출 집계 — completed_at 기준
  */
-export async function getTechnicianMonthlyRevenue(year: number, month: number): Promise<TechnicianRevenueData[]> {
+export async function getTechnicianMonthlyRevenue(year: number, month: number): Promise<StatsResult<TechnicianRevenueData[]>> {
+  const denied = await requireStatsAccess();
+  if (denied) return { error: denied };
+
   const supabase = await createClient();
   const { start, end } = monthRange(year, month);
 
@@ -246,15 +269,18 @@ export async function getTechnicianMonthlyRevenue(year: number, month: number): 
     map[id].count += 1;
   }
 
-  return Object.entries(map)
+  return { data: Object.entries(map)
     .map(([technicianId, v]) => ({ technicianId, ...v }))
-    .sort((a, b) => b.revenue - a.revenue);
+    .sort((a, b) => b.revenue - a.revenue) };
 }
 
 /**
  * 선택 연/월 기준 기사별 최소견적 대비 성과 — completed_at 기준
  */
-export async function getTechnicianPerformance(year: number, month: number): Promise<TechnicianPerformanceData[]> {
+export async function getTechnicianPerformance(year: number, month: number): Promise<StatsResult<TechnicianPerformanceData[]>> {
+  const denied = await requireStatsAccess();
+  if (denied) return { error: denied };
+
   const supabase = await createClient();
   const { start, end } = monthRange(year, month);
 
@@ -291,15 +317,18 @@ export async function getTechnicianPerformance(year: number, month: number): Pro
     }
   }
 
-  return Object.entries(map)
+  return { data: Object.entries(map)
     .map(([technicianId, v]) => ({ technicianId, ...v }))
-    .sort((a, b) => b.upsellAmount - a.upsellAmount);
+    .sort((a, b) => b.upsellAmount - a.upsellAmount) };
 }
 
 /**
  * 선택 연/월 기준 브랜드별 접수 건수 Top 5 — created_at 기준
  */
-export async function getBrandBreakdown(): Promise<BrandBreakdownData[]> {
+export async function getBrandBreakdown(): Promise<StatsResult<BrandBreakdownData[]>> {
+  const denied = await requireStatsAccess();
+  if (denied) return { error: denied };
+
   const supabase = await createClient();
 
   const { data } = await supabase
@@ -315,16 +344,19 @@ export async function getBrandBreakdown(): Promise<BrandBreakdownData[]> {
     if (brand) map[brand] = (map[brand] ?? 0) + 1;
   }
 
-  return Object.entries(map)
+  return { data: Object.entries(map)
     .map(([brand, count]) => ({ brand, count }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+    .slice(0, 5) };
 }
 
 /**
  * 선택 연/월 기준 티켓 상태별 비율 — created_at 기준
  */
-export async function getStatusBreakdown(year: number, month: number): Promise<StatusBreakdownData[]> {
+export async function getStatusBreakdown(year: number, month: number): Promise<StatsResult<StatusBreakdownData[]>> {
+  const denied = await requireStatsAccess();
+  if (denied) return { error: denied };
+
   const supabase = await createClient();
   const { start, end } = monthRange(year, month);
 
@@ -340,18 +372,21 @@ export async function getStatusBreakdown(year: number, month: number): Promise<S
     map[t.status] = (map[t.status] ?? 0) + 1;
   }
 
-  return Object.entries(map).map(([status, count]) => ({
+  return { data: Object.entries(map).map(([status, count]) => ({
     status,
     label: STATUS_LABEL_MAP[status]?.label ?? status,
     count,
     color: STATUS_LABEL_MAP[status]?.color ?? "#6b7280",
-  }));
+  })) };
 }
 
 /**
  * 선택 연/월 기준 접수 방식별 접수 건수 — created_at 기준
  */
-export async function getReceiptTypeBreakdown(year: number, month: number): Promise<ReceiptTypeBreakdownData[]> {
+export async function getReceiptTypeBreakdown(year: number, month: number): Promise<StatsResult<ReceiptTypeBreakdownData[]>> {
+  const denied = await requireStatsAccess();
+  if (denied) return { error: denied };
+
   const supabase = await createClient();
   const { start, end } = monthRange(year, month);
 
@@ -370,17 +405,20 @@ export async function getReceiptTypeBreakdown(year: number, month: number): Prom
 
   const ORDER = ["WALK_IN", "VISIT", "QUICK", "PARCEL"];
 
-  return ORDER.filter((k) => map[k] !== undefined).map((k) => ({
+  return { data: ORDER.filter((k) => map[k] !== undefined).map((k) => ({
     receiptType: k,
     label: RECEIPT_LABEL_MAP[k] ?? k,
     count: map[k] ?? 0,
-  }));
+  })) };
 }
 
 /**
  * 선택 연/월 기준 취소율 통계 — 접수건/담당기사별
  */
-export async function getCancelStats(year: number, month: number): Promise<CancelStatsData> {
+export async function getCancelStats(year: number, month: number): Promise<StatsResult<CancelStatsData>> {
+  const denied = await requireStatsAccess();
+  if (denied) return { error: denied };
+
   const supabase = await createClient();
 
   const { start: monthStart, end: monthEnd } = monthRange(year, month);
@@ -481,7 +519,7 @@ export async function getCancelStats(year: number, month: number): Promise<Cance
     .filter((t) => t.totalCount > 0)
     .sort((a, b) => b.cancelRate - a.cancelRate);
 
-  return {
+  return { data: {
     totalCanceled,
     totalRate,
     monthlyCanceled,
@@ -492,7 +530,7 @@ export async function getCancelStats(year: number, month: number): Promise<Cance
     postReceiptRate,
     receivedCount,
     byTechnician,
-  };
+  } };
 }
 
 /**
@@ -501,7 +539,10 @@ export async function getCancelStats(year: number, month: number): Promise<Cance
  * 매출 집계와 같은 기준을 쓴다: 환불은 원 매출이 잡힌 월에서 차감되므로,
  * 그 달에 완료된 접수건의 누적 환불액을 그 달의 환불로 본다.
  */
-export async function getRefundStats(year: number, month: number): Promise<RefundStatsData> {
+export async function getRefundStats(year: number, month: number): Promise<StatsResult<RefundStatsData>> {
+  const denied = await requireStatsAccess();
+  if (denied) return { error: denied };
+
   const supabase = await createClient();
   const { start, end } = monthRange(year, month);
 
@@ -530,7 +571,7 @@ export async function getRefundStats(year: number, month: number): Promise<Refun
     byReason: [],
   };
 
-  if (refundedTicketIds.length === 0) return empty;
+  if (refundedTicketIds.length === 0) return { data: empty };
 
   // 사유별 분포는 환불이 실제로 있는 건만 조회한다
   const { data: refunds } = await supabase
@@ -552,5 +593,5 @@ export async function getRefundStats(year: number, month: number): Promise<Refun
     .map(([code, v]) => ({ code, label: REFUND_REASON_LABELS[code] ?? code, ...v }))
     .sort((a, b) => b.amount - a.amount);
 
-  return { ...empty, byReason };
+  return { data: { ...empty, byReason } };
 }

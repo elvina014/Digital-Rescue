@@ -208,6 +208,13 @@ export type DeviceModelLookupResult = {
   releaseYear?: number | null;
 };
 
+const LOOKUP_EVALUATED_VALUE_ROLES: EmployeeRole[] = [
+  EmployeeRole.ADMIN,
+  EmployeeRole.MANAGER,
+  EmployeeRole.TECHNICIAN,
+  EmployeeRole.EXPERT_REPAIR,
+];
+
 export async function lookupPastEvaluatedValue(
   deviceType: string,
   deviceBrand: string,
@@ -216,6 +223,8 @@ export async function lookupPastEvaluatedValue(
 ): Promise<{ data: DeviceModelLookupResult | null; multipleResults?: boolean }> {
   const employee = await getCurrentEmployee();
   if (!employee) return { data: null };
+  // 견적 산출 카드(EstimateCard)를 쓰는 역할만 — 접수처·CS는 조회하지 않는다 (Phase 0.6.1 D2)
+  if (!LOOKUP_EVALUATED_VALUE_ROLES.includes(employee.role)) return { data: null };
 
   const adminSupa = createAdminClient();
   const brand = deviceBrand?.trim() ?? "";

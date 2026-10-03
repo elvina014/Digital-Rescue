@@ -13,7 +13,7 @@ const CAN_MANAGE: EmployeeRole[] = [
 ];
 
 function requireAuth(employee: { role: EmployeeRole } | null) {
-  if (!employee) return { error: "로그인이 필요합니다." } as const;
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." } as const;
   return null;
 }
 
