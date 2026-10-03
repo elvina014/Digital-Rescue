@@ -205,7 +205,7 @@ creates a normal `inventory_items` row + INBOUND transaction.
 
 ---
 
-## Phase 5 — Search & intake pre-check
+## Phase 5 — Search & intake pre-check ✅ local (report: `phases/phase-5-report.md`; production deploy pending)
 
 **Scope**
 - RPCs `search_parts_for_device`, `search_devices_for_part`, `get_device_knowledge`; `model_notes`.

@@ -147,6 +147,9 @@ exist only in the generated types; the hand-written `InventoryItem` was not exte
 **Phase 4 (2026-10-03):** `donor_devices`, `donor_part_candidates`, `donor_photos`, view `donor_potential_stock` and the RPCs
 `donor_convert_from_ticket` / `donor_extract_part` exist only in the generated types.
 
+**Phase 5 (2026-10-03):** `model_notes` and the RPCs `search_parts_for_device` / `search_devices_for_part` / `get_device_knowledge`
+exist only in the generated types (the jsonb result of `get_device_knowledge` is typed by hand in `src/app/(admin)/lookup/actions.ts`).
+
 **Tables without a hand-written interface:** `inventory_transactions`, `news_items`, `page_contents`,
 `receipt_no_sequence`, `refund_no_sequence`.
 

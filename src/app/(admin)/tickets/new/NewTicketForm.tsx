@@ -11,6 +11,9 @@ import type { TicketImage } from "@/lib/imageUpload";
 import { EmployeeRole } from "@/types";
 import DeviceModelPicker from "@/components/catalog/DeviceModelPicker";
 import type { PickedModel } from "@/components/catalog/DeviceModelPicker";
+import IntakePrecheck from "@/components/knowledge/IntakePrecheck";
+import { NOTE_WRITER_ROLES } from "@/components/knowledge/labels";
+import { DONOR_STAFF_ROLES } from "../../donors/labels";
 
 const RECEIPT_TYPE_OPTIONS = [
   { value: "WALK_IN", label: "내방" },
@@ -234,6 +237,8 @@ export default function NewTicketForm({ currentEmployee }: { currentEmployee: { 
               modelInputName="catalogModelId"
               variantInputName="catalogVariantId"
             />
+            <IntakePrecheck model={catalogModel} canWriteNotes={NOTE_WRITER_ROLES.includes(currentEmployee.role)}
+              canOpenDonors={DONOR_STAFF_ROLES.includes(currentEmployee.role)} authorName={currentEmployee.name} />
           </div>
 
           <div className="sm:col-span-3">

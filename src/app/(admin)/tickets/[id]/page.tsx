@@ -8,6 +8,8 @@ import type { RefundMaterialAdjustment } from "@/types/database";
 import TicketDetailForm from "./TicketDetailForm";
 import { loadRepairRecord } from "./repair-record/loadRepairRecord";
 import { DONOR_STAFF_ROLES } from "@/app/(admin)/donors/labels";
+import DeviceKnowledgePanel from "@/components/knowledge/DeviceKnowledgePanel";
+import { NOTE_WRITER_ROLES } from "@/components/knowledge/labels";
 
 interface TicketDetailPageProps {
   params: Promise<{ id: string }>;
@@ -315,6 +317,25 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
           )}
           <span className="ml-2 text-xs text-amber-700">고객의 소유권 포기 동의를 확인하고 부품 공급원(Donor)으로 전환한 기기입니다.</span>
         </p>
+      )}
+
+      {(ticket.catalog_model_id || ticket.catalog_board_id) && (
+        <details className="mb-4 rounded-lg border border-gray-200 bg-white px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold text-gray-800">이 기기 지식 (메모 · 과거 사례 · Donor)</summary>
+          <div className="mt-3">
+            <DeviceKnowledgePanel
+              target={{
+                modelId: (ticket.catalog_model_id as string | null) ?? null,
+                variantId: (ticket.catalog_variant_id as string | null) ?? null,
+                boardId: (ticket.catalog_board_id as string | null) ?? null,
+              }}
+              excludeTicketId={id}
+              canWriteNotes={NOTE_WRITER_ROLES.includes(employee.role)}
+              canOpenDonors={DONOR_STAFF_ROLES.includes(employee.role)}
+              authorName={employee.name}
+            />
+          </div>
+        </details>
       )}
 
       <TicketDetailForm

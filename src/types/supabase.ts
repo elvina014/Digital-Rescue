@@ -610,6 +610,49 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"model_notes": {
+                  Row: {
+                    "board_id": string | null,"body": string,"created_at": string,"created_by": string | null,"id": string,"is_pinned": boolean,"model_id": string | null,"note_type": string,"updated_at": string,"updated_by": string | null,"variant_id": string | null
+                  }
+                  Insert: {
+                    "board_id"?: string | null,"body": string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"is_pinned"?: boolean,"model_id"?: string | null,"note_type"?: string,"updated_at"?: string,"updated_by"?: string | null,"variant_id"?: string | null
+                  }
+                  Update: {
+                    "board_id"?: string | null,"body"?: string,"created_at"?: string,"created_by"?: string | null,"id"?: string,"is_pinned"?: boolean,"model_id"?: string | null,"note_type"?: string,"updated_at"?: string,"updated_by"?: string | null,"variant_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "model_notes_board_id_fkey"
+      columns: ["board_id"]
+isOneToOne: false
+      referencedRelation: "catalog_boards"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "model_notes_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "model_notes_model_id_fkey"
+      columns: ["model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_models"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "model_notes_updated_by_fkey"
+      columns: ["updated_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "model_notes_variant_fk"
+      columns: ["variant_id","model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_variants"
+      referencedColumns: ["id","model_id"]
+    }
+                  ]
                 },"news_items": {
                   Row: {
                     "body": string,"created_at": string,"id": string,"news_date": string,"published_at": string | null,"source": string,"source_url": string | null,"status": string,"summary": string,"title": string,"updated_at": string,"updated_by": string | null
@@ -1244,6 +1287,9 @@ isOneToOne: false
 "donor_extract_part":
 { Args: { "p_candidate_id": string,"p_capacity"?: string,"p_category_id"?: string,"p_name"?: string,"p_spec"?: string }; Returns: Json
                            },
+"get_device_knowledge":
+{ Args: { "p_board_id"?: string,"p_exclude_ticket_id"?: string,"p_model_id"?: string,"p_variant_id"?: string }; Returns: Json
+                           },
 "get_my_role":
 { Args: Record<PropertyKey, never>; Returns: Database["public"]['Enums']["employee_role"]
                            },
@@ -1332,6 +1378,16 @@ isOneToOne: false
                            },
 "ri_recompute_compatibility":
 { Args: { "p_compatibility_id": string }; Returns: undefined
+                           },
+"search_devices_for_part":
+{ Args: { "p_part_spec_id": string }; Returns: {
+              "confidence": string,"document_count": number,"install_conditional": number,"install_incompatible": number,"install_ok": number,"is_candidate": boolean,"limitation_note": string,"linked_models": string,"rank": number,"status": string,"target_id": string,"target_label": string,"target_type": string
+            }[]
+                           },
+"search_parts_for_device":
+{ Args: { "p_board_id"?: string,"p_model_id"?: string,"p_variant_id"?: string }; Returns: {
+              "confidence": string,"document_count": number,"donor_qty": number,"install_conditional": number,"install_incompatible": number,"install_ok": number,"is_candidate": boolean,"limitation_note": string,"manufacturer": string,"part_name": string,"part_spec_id": string,"part_type": string,"rank": number,"status": string,"stock_qty": number,"target_id": string,"target_label": string,"target_type": string
+            }[]
                            },
 "transition_refund":
 { Args: { "p_action": string,"p_cash_receipt_canceled"?: boolean,"p_note"?: string,"p_refund_id": string }; Returns: {
