@@ -43,6 +43,15 @@ Do not guess, do not work around principles, do not silently widen scope.
 Never delete or modify existing business data. Backfills only through the confirmed tools
 defined in the approved plan.
 
+**R10. No EXECUTE withholding in exposed schemas (Phase 0.6).**
+노출된 스키마의 함수는 hint_roles 역할(anon/authenticated/service_role)에게서 EXECUTE를 빼앗는 방식으로
+막지 않는다. 함수 내부 확인으로 거부한다. (KI-8, supautils 크래시) 노출되지 않는 스키마(vector_api 등)는 예외.
+How (see `phases/phase-0.6-plan.md` §3):
+- first statement `PERFORM public.ri_api_guard_definer('{anon}');` in SECURITY DEFINER functions,
+  or `public.ri_api_guard_invoker(…)` in SECURITY INVOKER / SQL functions;
+- trigger functions need no guard (Postgres refuses direct calls);
+- the pgTAP invariant in `supabase/tests/api_guard.test.sql` fails if any exposed function lacks EXECUTE for a hint role.
+
 ## Project-specific notes (from Phase 0)
 
 - **Dev target = local Supabase on Docker** (decision Q9). Production (`wnddkgeohcgcidoklrps`) is
@@ -55,9 +64,12 @@ defined in the approved plan.
   Hand-written `src/types/database.ts` / `enums.ts` stay for existing code (differences: KI-5).
 - Checks: `npm run typecheck` (added in Phase 0.1), `npm run lint`, `npm run build`.
   No test framework yet — each plan states how its tests run (SQL/pgTAP against the local DB).
-- Every new function must `REVOKE ALL … FROM PUBLIC, anon, authenticated` and then GRANT only what
-  it needs: Supabase default privileges grant EXECUTE to `anon`/`authenticated` on creation
-  (see `phases/phase-0.1-report.md` → "function privileges").
+- Function privileges (since Phase 0.6, R10):
+  - `REVOKE ALL … FROM PUBLIC`, because Supabase default privileges grant EXECUTE on creation (see `phases/phase-0.1-report.md` → "function privileges").
+  - Then, in an exposed schema (`public`, `graphql_public`): `GRANT EXECUTE … TO anon, authenticated, service_role`.
+    Refuse unwanted callers inside the function: the `ri_api_guard_*` first statement, plus the function's own role check.
+  - Non-exposed schemas (e.g. `vector_api`) may grant to a dedicated role only.
+  - Tests must not *call* a function a hint role cannot execute in a `postgres` session (KI-8).
 - RI admin screens live on `login.` and are visible to ADMIN only.
 - Known issues and deferred work: `known-issues.md`.
 - Communicate with Brad in Korean. All UI labels in Korean.

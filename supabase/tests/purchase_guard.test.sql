@@ -270,13 +270,13 @@ SELECT throws_ok($$ SELECT count(*) FROM purchase_guard_logs $$, '42501', NULL, 
 RESET ROLE;
 
 -- ---------- 10. privileges / definitions ----------
-SELECT ok(NOT has_function_privilege('anon', 'public.purchase_guard_check(uuid)', 'EXECUTE'), 'anon: no purchase_guard_check');
-SELECT ok(NOT has_function_privilege('anon', 'public.request_purchase_material(uuid, text, text)', 'EXECUTE'), 'anon: no request_purchase_material');
+SELECT ok((has_function_privilege('anon', 'public.purchase_guard_check(uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.purchase_guard_check(uuid)'::regprocedure)), 'anon: no purchase_guard_check (R10: EXECUTE granted, refused by the in-function guard)');
+SELECT ok((has_function_privilege('anon', 'public.request_purchase_material(uuid, text, text)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.request_purchase_material(uuid, text, text)'::regprocedure)), 'anon: no request_purchase_material (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT ok(has_function_privilege('authenticated', 'public.purchase_guard_check(uuid)', 'EXECUTE'), 'authenticated: purchase_guard_check');
 SELECT ok(has_function_privilege('authenticated', 'public.request_purchase_material(uuid, text, text)', 'EXECUTE'), 'authenticated: request_purchase_material');
-SELECT ok(NOT has_function_privilege('authenticated', 'public.ri_purchase_resources(uuid)', 'EXECUTE'), 'helper not callable');
-SELECT ok(NOT has_function_privilege('authenticated', 'public.ri_purchase_material_info(uuid, boolean)', 'EXECUTE'), 'info helper not callable');
-SELECT ok(NOT has_function_privilege('authenticated', 'public.ri_purchase_guard_enforce()', 'EXECUTE'), 'trigger function not callable');
+SELECT ok((has_function_privilege('authenticated', 'public.ri_purchase_resources(uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*authenticated[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_purchase_resources(uuid)'::regprocedure)), 'helper not callable (R10: EXECUTE granted, refused by the in-function guard)');
+SELECT ok((has_function_privilege('authenticated', 'public.ri_purchase_material_info(uuid, boolean)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*authenticated[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_purchase_material_info(uuid, boolean)'::regprocedure)), 'info helper not callable (R10: EXECUTE granted, refused by the in-function guard)');
+SELECT ok((has_function_privilege('authenticated', 'public.ri_purchase_guard_enforce()', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*authenticated[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_purchase_guard_enforce()'::regprocedure)), 'trigger function not callable (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT ok((SELECT bool_and(prosecdef) FROM pg_proc WHERE proname IN ('purchase_guard_check', 'request_purchase_material')), 'public RPCs are SECURITY DEFINER');
 SELECT ok((SELECT bool_and(proconfig::text LIKE '%search_path=public%') FROM pg_proc
             WHERE proname IN ('purchase_guard_check', 'request_purchase_material', 'ri_purchase_resources',

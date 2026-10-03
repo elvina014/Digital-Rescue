@@ -333,11 +333,11 @@ SELECT is((SELECT (v->'cases'->>'skipped')::int FROM res WHERE k = 'broken'), 2,
 SELECT is((SELECT v->'cases'->>'total' FROM res WHERE k = 'broken'), '3', 'total still counts every case');
 
 -- ---------- 6. privileges / definitions ----------
-SELECT ok(NOT has_function_privilege('anon', 'public.search_parts_for_device(uuid, uuid, uuid)', 'EXECUTE'), 'anon: no search_parts_for_device');
-SELECT ok(NOT has_function_privilege('anon', 'public.search_devices_for_part(uuid)', 'EXECUTE'), 'anon: no search_devices_for_part');
-SELECT ok(NOT has_function_privilege('anon', 'public.get_device_knowledge(uuid, uuid, uuid, uuid)', 'EXECUTE'), 'anon: no get_device_knowledge');
+SELECT ok((has_function_privilege('anon', 'public.search_parts_for_device(uuid, uuid, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.search_parts_for_device(uuid, uuid, uuid)'::regprocedure)), 'anon: no search_parts_for_device (R10: EXECUTE granted, refused by the in-function guard)');
+SELECT ok((has_function_privilege('anon', 'public.search_devices_for_part(uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.search_devices_for_part(uuid)'::regprocedure)), 'anon: no search_devices_for_part (R10: EXECUTE granted, refused by the in-function guard)');
+SELECT ok((has_function_privilege('anon', 'public.get_device_knowledge(uuid, uuid, uuid, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.get_device_knowledge(uuid, uuid, uuid, uuid)'::regprocedure)), 'anon: no get_device_knowledge (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT ok(has_function_privilege('authenticated', 'public.get_device_knowledge(uuid, uuid, uuid, uuid)', 'EXECUTE'), 'authenticated: get_device_knowledge');
-SELECT ok(NOT has_function_privilege('authenticated', 'public.model_note_stamp()', 'EXECUTE'), 'trigger function not callable');
+SELECT ok((has_function_privilege('authenticated', 'public.model_note_stamp()', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*authenticated[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.model_note_stamp()'::regprocedure)), 'trigger function not callable (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT ok((SELECT prosecdef FROM pg_proc WHERE oid = 'public.get_device_knowledge(uuid, uuid, uuid, uuid)'::regprocedure), 'knowledge is SECURITY DEFINER');
 SELECT ok(NOT (SELECT prosecdef FROM pg_proc WHERE oid = 'public.search_parts_for_device(uuid, uuid, uuid)'::regprocedure), 'device search is INVOKER');
 SELECT ok(NOT (SELECT prosecdef FROM pg_proc WHERE oid = 'public.search_devices_for_part(uuid)'::regprocedure), 'part search is INVOKER');

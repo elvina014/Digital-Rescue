@@ -23,6 +23,7 @@ donors, part search, purchase guard, labels, VECTOR/AI integration), read
 - R7. Branch `feat/repair-intelligence`; commit locally per phase; never push, merge or deploy.
 - R8. Ambiguity, schema conflict, or a step failing twice → STOP and ask. No guessing, no scope widening.
 - R9. Never delete or modify existing business data; backfills only via tools in the approved plan.
+- R10. 노출된 스키마의 함수는 hint_roles 역할(anon/authenticated/service_role)에게서 EXECUTE를 빼앗는 방식으로 막지 않는다. 함수 내부 확인으로 거부한다. (KI-8, supautils 크래시) 노출되지 않는 스키마(vector_api 등)는 예외.
 
 # CLAUDE.md (Karpathy-Inspired Claude Code Guidelines)
 

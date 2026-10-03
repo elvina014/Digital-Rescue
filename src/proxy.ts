@@ -199,6 +199,10 @@ export async function proxy(request: NextRequest) {
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
   if (isProtected && !user) {
+    // 서버 액션(POST, next-action 헤더)은 리다이렉트하지 않는다: 리다이렉트된 로그인 페이지 응답을
+    // 액션 결과로 해석하지 못해 "This page couldn't load"가 뜬다. 각 액션이 직접 로그인을 확인하고
+    // "로그인이 필요합니다. 다시 로그인해 주세요."를 돌려준다 (Phase 0.6 결정 6).
+    if (request.headers.has("next-action")) return supabaseResponse;
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = LOGIN_PATH;
     loginUrl.searchParams.set("redirect", pathname);

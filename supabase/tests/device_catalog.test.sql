@@ -75,8 +75,8 @@ RESET ROLE;
 SET LOCAL ROLE anon;
 SELECT throws_ok($$ SELECT count(*) FROM catalog_models $$, '42501', NULL, 'anon has no table access');
 RESET ROLE;
--- Calling a function without EXECUTE crashes the local Postgres image (KI-8), so check the ACL instead.
-SELECT ok(NOT has_function_privilege('anon', 'public.catalog_search_models(text, integer)', 'EXECUTE'), 'anon cannot execute search');
+-- Calling a function without EXECUTE crashes the local Postgres image (KI-8); since Phase 0.6 (R10) the refusal is the in-function guard.
+SELECT ok((has_function_privilege('anon', 'public.catalog_search_models(text, integer)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.catalog_search_models(text, integer)'::regprocedure)), 'anon cannot execute search (R10: EXECUTE granted, refused by the in-function guard)');
 
 -- ---------- 4. catalog_create_model ----------
 SELECT pg_temp.jwt('00000000-0000-4000-a000-000000000003');
@@ -218,13 +218,14 @@ RESET ROLE;
 
 -- ---------- 9. privileges / definitions ----------
 SELECT is((SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-            WHERE n.nspname = 'public' AND p.proname LIKE 'catalog\_%' AND has_function_privilege('anon', p.oid, 'EXECUTE')),
-  0, 'anon executes no catalog function');
+            WHERE n.nspname = 'public' AND p.proname LIKE 'catalog\_%' AND p.prorettype <> 'trigger'::regtype AND p.proname <> 'catalog_normalize'
+              AND NOT (has_function_privilege('anon', p.oid, 'EXECUTE') AND p.prosrc ~ 'ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon')),
+  0, 'anon is refused by every catalog function (R10: EXECUTE granted, refused by the in-function guard; catalog_normalize is pure, decision 0.6-3)');
 SELECT is((SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
             WHERE n.nspname = 'public' AND p.proname LIKE 'catalog\_%' AND p.proconfig IS NULL),
   0, 'every catalog function sets search_path');
-SELECT ok(NOT has_function_privilege('authenticated', 'public.catalog_keep_ticket_updated_at()', 'EXECUTE'),
-  'trigger function not executable by authenticated');
+SELECT ok((has_function_privilege('authenticated', 'public.catalog_keep_ticket_updated_at()', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*authenticated[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.catalog_keep_ticket_updated_at()'::regprocedure)),
+  'trigger function not executable by authenticated (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT is((SELECT count(*)::int FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'catalog\_%' AND c.relrowsecurity),
   8, 'RLS enabled on all 8 catalog tables');

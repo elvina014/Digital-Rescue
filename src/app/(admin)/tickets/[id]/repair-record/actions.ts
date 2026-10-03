@@ -19,7 +19,7 @@ const NO_PERMISSION = "수정 권한이 없습니다. (승인·취소된 접수�
 
 async function session(ticketId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." } as const;
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." } as const;
   if (!toUuidOrNull(ticketId)) return { error: "접수건을 찾을 수 없습니다." } as const;
   return { supabase: await createClient() } as const;
 }
@@ -242,7 +242,7 @@ export async function removeRepairRowAction(ticketId: string, table: ListTable, 
 // ----- 적출 부품 입고 승인 (관리자/팀장 — 단일 트랜잭션 RPC) -----
 export async function approveRemovedPartInboundAction(removedPartId: string): Promise<Result> {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "입고 승인 권한이 없습니다." };
   }

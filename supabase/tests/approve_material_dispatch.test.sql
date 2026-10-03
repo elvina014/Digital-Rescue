@@ -191,10 +191,10 @@ SELECT is(pg_temp.run_case(false, 0, 1, 'approved', 'purchase', false) #>> '{res
           '출고 요청 상태가 아닙니다. (현재: approved)', '9b error text');
 
 -- ---------- privileges and definition unchanged ----------
-SELECT ok(NOT has_function_privilege('anon', 'public.approve_material_dispatch(uuid, uuid)', 'EXECUTE'),
-          '10a anon cannot execute');
-SELECT ok(NOT has_function_privilege('authenticated', 'public.approve_material_dispatch(uuid, uuid)', 'EXECUTE'),
-          '10b authenticated cannot execute');
+SELECT ok((has_function_privilege('anon', 'public.approve_material_dispatch(uuid, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.approve_material_dispatch(uuid, uuid)'::regprocedure)),
+          '10a anon cannot execute (R10: EXECUTE granted, refused by the in-function guard)');
+SELECT ok((has_function_privilege('authenticated', 'public.approve_material_dispatch(uuid, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*authenticated[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.approve_material_dispatch(uuid, uuid)'::regprocedure)),
+          '10b authenticated cannot execute (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT ok(has_function_privilege('service_role', 'public.approve_material_dispatch(uuid, uuid)', 'EXECUTE'),
           '10c service_role can execute');
 SELECT is((SELECT prosecdef::text || '|' || coalesce(array_to_string(proconfig, ','), '<null>')

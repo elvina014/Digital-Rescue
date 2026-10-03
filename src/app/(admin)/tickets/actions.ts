@@ -333,7 +333,7 @@ export async function lookupPastEvaluatedValue(
 // 접수처/팀장/관리자 또는 해당 건 배정 담당기사
 export async function markReceivedAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
@@ -386,7 +386,7 @@ export async function markReceivedAction(formData: FormData) {
 // ----- 수리 진행 시작 + 견적 산출 (TECHNICIAN / EXPERT_REPAIR) -----
 export async function startRepairAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const deviceType = formData.get("deviceType") as string;
@@ -520,7 +520,7 @@ export async function startRepairAction(formData: FormData) {
 // ----- 자재비 항목 추가 (TECHNICIAN / EXPERT_REPAIR) -----
 export async function addMaterialCostAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const description = (formData.get("description") as string)?.trim();
@@ -585,7 +585,7 @@ export async function updateMaterialCostAction(
   amount: number
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   if (!ticketId || !Number.isInteger(index) || index < 0) {
     return { error: "잘못된 요청입니다." };
@@ -664,7 +664,7 @@ export async function addTicketMaterialsAction(
   materials: { inventory_item_id: string; quantity: number; request_type?: string }[]
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
   if (!Array.isArray(materials) || materials.length === 0) {
@@ -723,7 +723,7 @@ export async function addTicketMaterialsAction(
 // ----- 견적 입력 및 승인 요청 (TECHNICIAN / EXPERT_REPAIR) -----
 export async function submitEstimateAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const finalPrice = parseInt(formData.get("finalPrice") as string, 10);
@@ -825,7 +825,7 @@ export async function submitEstimateAction(formData: FormData) {
 // ----- 상태 변경 (TECHNICIAN: IN_PROGRESS 등) -----
 export async function updateTicketStatusAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const newStatus = formData.get("status") as string;
@@ -922,7 +922,7 @@ async function checkRepairGate(
 // ----- 최종 승인 (MANAGER, ADMIN) -----
 export async function approveTicketAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   // MANAGER, ADMIN만 승인 가능
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
@@ -990,7 +990,7 @@ export async function approveTicketAction(formData: FormData) {
 // ----- 처리 현황 로그 추가 (인증된 직원 누구나) -----
 export async function addTicketLogAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const message = (formData.get("message") as string)?.trim();
@@ -1043,7 +1043,7 @@ export async function addTicketLogAction(formData: FormData) {
  */
 export async function dismissAdminMessageAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
@@ -1069,7 +1069,7 @@ export async function dismissAdminMessageAction(formData: FormData) {
  */
 export async function cancelTicketAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
@@ -1182,7 +1182,7 @@ export async function addTicketImagesAction(
   newImages: { path: string; url: string; description?: string; uploaded_by?: string; uploader_name?: string; uploaded_at?: string; is_customer?: boolean }[]
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   if (!ticketId || newImages.length === 0) {
     return { error: "업로드 데이터가 없습니다." };
@@ -1242,7 +1242,7 @@ export async function uploadTicketImageAction(
   error?: string;
 }> {
   const employee = await getCurrentEmployee();
-  if (!employee) return { uploaded: null, error: "인증이 필요합니다." };
+  if (!employee) return { uploaded: null, error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const file = formData.get("file") as File | null;
@@ -1338,7 +1338,7 @@ export async function removeTicketImageAction(
   imagePath: string
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const supabase = await createClient();
 
@@ -1372,7 +1372,7 @@ export async function removeTicketImageAction(
 // ----- 자재 출고 요청 (기사) -----
 export async function requestMaterialDispatchAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   // anon client로는 RLS에 의해 TECHNICIAN이 UPDATE 불가 → adminClient 사용
   const adminSupa = createAdminClient();
@@ -1439,7 +1439,7 @@ export async function requestMaterialDispatchAction(materialId: string) {
 // ----- 자재 출고 승인 (관리자/팀장) — DB RPC 호출 -----
 export async function approveMaterialDispatchAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "승인 권한이 없습니다." };
   }
@@ -1525,7 +1525,7 @@ export async function approveMaterialDispatchAction(materialId: string) {
 // ----- 자재 출고 요청 대기 목록 조회 (관리자/팀장) -----
 export async function getPendingMaterialRequests() {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다.", data: [] };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요.", data: [] };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "권한이 없습니다.", data: [] };
   }
@@ -1557,7 +1557,7 @@ export async function getPendingMaterialRequests() {
 // ----- 자재 출고/구매 거부 (관리자/팀장) -----
 export async function rejectMaterialDispatchAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "거부 권한이 없습니다." };
   }
@@ -1612,7 +1612,7 @@ export async function rejectMaterialDispatchAction(materialId: string) {
 // ----- 자재 출고 취소 요청 (기사 → 관리자 반환 확인 대기) -----
 export async function cancelMaterialDispatchAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const adminSupa = createAdminClient();
 
@@ -1668,7 +1668,7 @@ export async function cancelMaterialDispatchAction(materialId: string) {
 // ----- 자재 반환 대기 목록 조회 (관리자/팀장) -----
 export async function getCancelRequestedMaterials() {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다.", data: [] };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요.", data: [] };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "권한이 없습니다.", data: [] };
   }
@@ -1699,7 +1699,7 @@ export async function getCancelRequestedMaterials() {
 // ----- 자재 반환 확인 (관리자/팀장 — 재고 복구 + 자재비 차감) -----
 export async function confirmMaterialReturnAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "반환 확인 권한이 없습니다." };
   }
@@ -1728,7 +1728,7 @@ export async function registerReturnMaterialAction(
   returnCapacity: string | null = null
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   // 권한·상태 확인 + 등록 + 로그를 단일 트랜잭션 RPC로 처리
   const supabase = await createClient();
@@ -1753,7 +1753,7 @@ export async function registerReturnMaterialAction(
 // ----- 적출/반환 자재 입고 대기 목록 조회 (관리자/팀장) -----
 export async function getPendingReturnMaterials() {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다.", data: [] };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요.", data: [] };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "권한이 없습니다.", data: [] };
   }
@@ -1790,7 +1790,7 @@ export async function getPendingReturnMaterials() {
 // ----- 적출/반환 자재 입고 승인 (관리자/팀장 — 재고 등록) -----
 export async function approveReturnMaterialAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "입고 승인 권한이 없습니다." };
   }
@@ -1826,7 +1826,7 @@ export async function analyzeDeviceLabelAction(payload: {
   brand?: string;
 }): Promise<{ data?: DeviceLabelAnalysisResult; error?: string }> {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const webhookUrl = process.env.N8N_DEVICE_WEBHOOK_URL;
   if (!webhookUrl) return { error: "AI 분석 서비스가 설정되지 않았습니다." };
@@ -1921,7 +1921,7 @@ export async function getDisposalPendingTickets() {
  */
 export async function confirmDisposalAction(ticketId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "폐기 확인 권한이 없습니다." };
   }
@@ -1960,7 +1960,7 @@ const VALID_RECEIPT_TYPES = Object.keys(RECEIPT_TYPE_LABELS);
 
 export async function updateReceiptTypeAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const canUpdate = [EmployeeRole.ADMIN, EmployeeRole.MANAGER, EmployeeRole.RECEPTION, EmployeeRole.TECHNICIAN, EmployeeRole.EXPERT_REPAIR];
   if (!canUpdate.includes(employee.role)) {
@@ -2064,7 +2064,7 @@ export async function requestRefundAction(input: {
   )[];
 }) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const supabase = await createClient();
 
@@ -2121,7 +2121,7 @@ async function transitionRefund(
   cashReceiptCanceled?: boolean
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const supabase = await createClient();
 
@@ -2257,7 +2257,7 @@ export async function restoreCanceledTicketAction(
   note: string
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "취소 복원 권한이 없습니다. 관리자 또는 팀장만 가능합니다." };
   }

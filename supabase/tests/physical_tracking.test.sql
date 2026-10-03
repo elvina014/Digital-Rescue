@@ -233,16 +233,16 @@ SELECT is((SELECT count(*)::int FROM res WHERE k LIKE 'lk%' AND (v::text ~* '(ba
             OR v::text LIKE '%테스트고객%' OR v::text LIKE '%010-0000-%' OR v::text LIKE '%40000%')), 0, 'no price keys or values, no customer keys or values');
 
 -- ---------- 6. privileges / definitions ----------
-SELECT ok(NOT has_function_privilege('anon', 'public.label_lookup(text)', 'EXECUTE'), 'anon: no label_lookup');
-SELECT ok(NOT has_function_privilege('anon', 'public.set_storage_location(text, uuid, uuid)', 'EXECUTE'), 'anon: no set_storage_location');
-SELECT ok(NOT has_function_privilege('anon', 'public.ri_next_item_label()', 'EXECUTE'), 'anon: no ri_next_item_label');
+SELECT ok((has_function_privilege('anon', 'public.label_lookup(text)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.label_lookup(text)'::regprocedure)), 'anon: no label_lookup (R10: EXECUTE granted, refused by the in-function guard)');
+SELECT ok((has_function_privilege('anon', 'public.set_storage_location(text, uuid, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.set_storage_location(text, uuid, uuid)'::regprocedure)), 'anon: no set_storage_location (R10: EXECUTE granted, refused by the in-function guard)');
+SELECT ok((has_function_privilege('anon', 'public.ri_next_item_label()', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_next_item_label()'::regprocedure)), 'anon: no ri_next_item_label (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT ok(has_function_privilege('authenticated', 'public.label_lookup(text)', 'EXECUTE'), 'authenticated: label_lookup');
 SELECT ok(has_function_privilege('authenticated', 'public.set_storage_location(text, uuid, uuid)', 'EXECUTE'), 'authenticated: set_storage_location');
 SELECT ok(has_function_privilege('authenticated', 'public.ri_next_item_label()', 'EXECUTE')
           AND has_function_privilege('service_role', 'public.ri_next_item_label()', 'EXECUTE'), 'label default executable by authenticated + service_role');
-SELECT ok(NOT has_function_privilege('authenticated', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE')
-          AND NOT has_function_privilege('service_role', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE'),
-  'ri_inbound_extracted_part privileges unchanged (internal)');
+SELECT ok((has_function_privilege('authenticated', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*authenticated[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)'::regprocedure))
+          AND (has_function_privilege('service_role', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*service_role[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)'::regprocedure)),
+  'ri_inbound_extracted_part privileges unchanged (internal) (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT is((SELECT count(*)::int FROM pg_proc WHERE proname IN ('label_lookup', 'set_storage_location', 'ri_next_item_label')
             AND prosecdef AND proconfig @> ARRAY['search_path=public']), 3, 'definer functions set search_path');
 SELECT ok((SELECT prosrc FROM pg_proc WHERE proname = 'label_lookup') LIKE '%get_my_role()%'

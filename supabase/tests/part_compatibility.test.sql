@@ -351,17 +351,17 @@ SELECT is((SELECT count(*)::int FROM compatibility_evidence WHERE ticket_id = '0
   'evidence survives the material delete');
 
 -- ---------- 8. privileges / definitions ----------
-SELECT ok(NOT has_function_privilege('anon', 'public.record_compatibility_result(uuid, text, uuid, text, text, text, text, text)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.record_part_install_result(uuid, uuid, text, text, text, uuid)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.retract_compatibility_evidence(uuid, text)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.part_spec_create(text, text, text, text)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.part_spec_search(text, integer)', 'EXECUTE'), 'anon cannot execute Phase 3 functions');
+SELECT ok((has_function_privilege('anon', 'public.record_compatibility_result(uuid, text, uuid, text, text, text, text, text)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.record_compatibility_result(uuid, text, uuid, text, text, text, text, text)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.record_part_install_result(uuid, uuid, text, text, text, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.record_part_install_result(uuid, uuid, text, text, text, uuid)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.retract_compatibility_evidence(uuid, text)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.retract_compatibility_evidence(uuid, text)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.part_spec_create(text, text, text, text)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.part_spec_create(text, text, text, text)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.part_spec_search(text, integer)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.part_spec_search(text, integer)'::regprocedure)), 'anon cannot execute Phase 3 functions (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT ok(has_function_privilege('authenticated', 'public.record_part_install_result(uuid, uuid, text, text, text, uuid)', 'EXECUTE')
       AND has_function_privilege('authenticated', 'public.part_spec_search(text, integer)', 'EXECUTE'), 'authenticated can execute the public RPCs');
-SELECT ok(NOT has_function_privilege('authenticated', 'public.ri_recompute_compatibility(uuid)', 'EXECUTE')
-      AND NOT has_function_privilege('service_role', 'public.ri_recompute_compatibility(uuid)', 'EXECUTE')
-      AND NOT has_function_privilege('authenticated', 'public.ri_compatibility_row(uuid, text, uuid)', 'EXECUTE')
-      AND NOT has_function_privilege('service_role', 'public.ri_compatibility_row(uuid, text, uuid)', 'EXECUTE'), 'internal functions are not executable by API roles');
+SELECT ok((has_function_privilege('authenticated', 'public.ri_recompute_compatibility(uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*authenticated[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_recompute_compatibility(uuid)'::regprocedure))
+      AND (has_function_privilege('service_role', 'public.ri_recompute_compatibility(uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*service_role[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_recompute_compatibility(uuid)'::regprocedure))
+      AND (has_function_privilege('authenticated', 'public.ri_compatibility_row(uuid, text, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*authenticated[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_compatibility_row(uuid, text, uuid)'::regprocedure))
+      AND (has_function_privilege('service_role', 'public.ri_compatibility_row(uuid, text, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*service_role[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_compatibility_row(uuid, text, uuid)'::regprocedure)), 'internal functions are not executable by API roles (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT is((SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
             WHERE n.nspname = 'public' AND p.proconfig IS NULL
               AND p.proname IN ('part_set_updated_at', 'ri_recompute_compatibility', 'ri_compatibility_row', 'record_compatibility_result',

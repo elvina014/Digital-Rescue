@@ -35,7 +35,7 @@ export interface PurchaseGuardInfo {
 
 export async function getPurchaseGuardAction(materialId: string): Promise<{ data?: PurchaseGuardInfo; error?: string }> {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("purchase_guard_check", { p_material_id: materialId });
   if (error) return { error: catalogErrorMessage(error) };
@@ -48,7 +48,7 @@ export async function requestPurchaseWithGuardAction(
   reasonNote: string | null
 ): Promise<{ success?: boolean; error?: string; reload?: boolean }> {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (reasonCode && !(REASON_CODES as readonly string[]).includes(reasonCode)) return { error: "알 수 없는 구매 사유입니다." };
   const note = reasonNote?.trim() || null;
   if (reasonCode === "OTHER" && (!note || note.length < 2)) return { error: "기타 사유를 입력해 주세요." };

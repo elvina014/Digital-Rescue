@@ -35,7 +35,7 @@ function done(error: { code?: string; message?: string } | null, ...paths: strin
 // ----- 부품 규격 검색 (전 직원) -----
 export async function searchPartSpecsAction(query: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다.", data: [] as PartSpecHit[] };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요.", data: [] as PartSpecHit[] };
   if (!query.trim()) return { data: [] as PartSpecHit[] };
 
   const supabase = await createClient();
@@ -47,7 +47,7 @@ export async function searchPartSpecsAction(query: string) {
 // ----- 인라인 새 부품 규격 등록 (CS 제외 — DB 함수에서 권한 확인) -----
 export async function createPartSpecAction(input: { partType: string; name: string; manufacturer: string }) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (!input.partType) return { error: "부품 종류를 선택해 주세요." };
   if (!input.name.trim()) return { error: "품번(명칭)을 입력해 주세요." };
 

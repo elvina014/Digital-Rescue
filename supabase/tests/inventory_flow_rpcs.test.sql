@@ -209,14 +209,14 @@ SELECT is((SELECT count(*) FROM inventory_transactions) - (SELECT tx FROM before
 SELECT is((SELECT count(*)::int FROM inventory_items WHERE quantity < 0), 0, 'no negative stock');
 
 -- ---------- 6. privileges / definitions ----------
-SELECT ok(NOT has_function_privilege('anon', 'public.register_return_material(uuid, uuid, text, text, text, integer, text)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.approve_return_material(uuid)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.confirm_material_return(uuid)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.approve_removed_part_inbound(uuid)', 'EXECUTE'), 'anon cannot execute the flow RPCs');
-SELECT ok(NOT has_function_privilege('authenticated', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE')
-      AND NOT has_function_privilege('service_role', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE'),
-  'internal inbound function is not callable by API roles');
+SELECT ok((has_function_privilege('anon', 'public.register_return_material(uuid, uuid, text, text, text, integer, text)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.register_return_material(uuid, uuid, text, text, text, integer, text)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.approve_return_material(uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.approve_return_material(uuid)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.confirm_material_return(uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.confirm_material_return(uuid)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.approve_removed_part_inbound(uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.approve_removed_part_inbound(uuid)'::regprocedure)), 'anon cannot execute the flow RPCs (R10: EXECUTE granted, refused by the in-function guard)');
+SELECT ok((has_function_privilege('authenticated', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*authenticated[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)'::regprocedure))
+      AND (has_function_privilege('service_role', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*service_role[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)'::regprocedure)),
+  'internal inbound function is not callable by API roles (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT is((SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
             WHERE n.nspname = 'public'
               AND p.proname IN ('register_return_material', 'approve_return_material', 'confirm_material_return', 'approve_removed_part_inbound')

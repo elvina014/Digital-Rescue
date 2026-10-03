@@ -337,12 +337,12 @@ SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'storage'
           'existing storage policies still present');
 
 -- ---------- 7. privileges / definitions ----------
-SELECT ok(NOT has_function_privilege('anon', 'public.donor_convert_from_ticket(uuid, boolean, text, text, text, text, text)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.donor_extract_part(uuid, uuid, text, text, text)', 'EXECUTE'), 'anon cannot execute Phase 4 functions');
+SELECT ok((has_function_privilege('anon', 'public.donor_convert_from_ticket(uuid, boolean, text, text, text, text, text)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.donor_convert_from_ticket(uuid, boolean, text, text, text, text, text)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.donor_extract_part(uuid, uuid, text, text, text)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.donor_extract_part(uuid, uuid, text, text, text)'::regprocedure)), 'anon cannot execute Phase 4 functions (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT ok(has_function_privilege('authenticated', 'public.donor_convert_from_ticket(uuid, boolean, text, text, text, text, text)', 'EXECUTE')
       AND has_function_privilege('authenticated', 'public.donor_extract_part(uuid, uuid, text, text, text)', 'EXECUTE'), 'authenticated can execute the RPCs');
-SELECT ok(NOT has_function_privilege('authenticated', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE'),
-          'internal inbound function still not executable');
+SELECT ok((has_function_privilege('authenticated', 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*authenticated[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.ri_inbound_extracted_part(uuid, text, text, text, integer, uuid, uuid)'::regprocedure)),
+          'internal inbound function still not executable (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT ok(NOT has_sequence_privilege('authenticated', 'public.donor_no_seq', 'USAGE') AND NOT has_sequence_privilege('anon', 'public.donor_no_seq', 'USAGE'),
           'sequence not usable by API roles');
 SELECT is((SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace

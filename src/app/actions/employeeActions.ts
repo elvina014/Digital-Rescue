@@ -301,7 +301,7 @@ export async function updateMyProfileAction(
 ): Promise<EmployeeFormState> {
   const currentEmployee = await getCurrentEmployee();
   if (!currentEmployee) {
-    return { success: false, message: "인증이 필요합니다." };
+    return { success: false, message: "로그인이 필요합니다. 다시 로그인해 주세요." };
   }
 
   const raw = {

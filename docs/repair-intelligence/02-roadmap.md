@@ -9,7 +9,7 @@ tickets = `repair_tickets`; used parts = `ticket_materials`; stock = `inventory_
 (+ `inventory_categories/specs/products`); movements = `inventory_transactions`;
 settings = `global_settings` (single row); logs = `ticket_logs`; roles = `employee_role` via `get_my_role()`.
 
-Order: 0 → **0.1 → 0.5** → 1 → 2 → … → 10.
+Order: 0 → **0.1 → 0.5** → 1 → 2 → … → 7 → **0.6** → 8 → … → 10. Production: one release after Phase 10 (`04-final-release-plan.md`).
 
 ---
 
@@ -100,6 +100,24 @@ old function (same fixture, before/after comparison); purchase approval on a qty
 no stock change, no transaction; insufficient-stock dispatch still errors with the same message.
 
 **Dependencies:** Phase 0.1 (local DB). **Acceptance:** tests above pass; Brad applies to production.
+
+---
+
+## Phase 0.6 — Function permission guard (KI-8, R10) ✅ local (report: `phases/phase-0.6-report.md`; production with the final release)
+
+**Goal:** no exposed function refuses a `supautils.hint_roles` role (anon / authenticated / service_role) by withholding EXECUTE,
+because that error path segfaults Postgres in `postgres`-login sessions (KI-8). Refusals move into the function. Allowed behaviour is unchanged.
+
+**Scope** (detail: `phases/phase-0.6-plan.md`)
+- Two helpers `ri_api_guard_definer` / `ri_api_guard_invoker`.
+- 0.6a: 8 baseline functions. 0.6b: 42 Phase 1–7 functions.
+  Each gets one guard statement or a grant only (triggers, `catalog_normalize`).
+- Rule R10.
+- Server actions on protected paths are no longer redirected by the proxy when the session is gone. Staff see "로그인이 필요합니다. 다시 로그인해 주세요.".
+- Support report + reproduction kit for Supabase (`supabase-support-report.md`, `ki8-repro/`).
+
+**Acceptance:** R10 invariant test; crash reproduction no longer crashes; byte-exact bodies apart from the guard line; business flows identical.
+Production hotfix **cancelled** (KI-8 §8.3: REST path unaffected). Released with everything else, order 0.5 → 0.6a → …
 
 ---
 

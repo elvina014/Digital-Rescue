@@ -1447,6 +1447,12 @@ isOneToOne: false
 "retract_compatibility_evidence":
 { Args: { "p_evidence_id": string,"p_reason": string }; Returns: Json
                            },
+"ri_api_guard_definer":
+{ Args: { "p_denied": (string)[] }; Returns: undefined
+                           },
+"ri_api_guard_invoker":
+{ Args: { "p_denied": (string)[] }; Returns: undefined
+                           },
 "ri_compatibility_row":
 { Args: { "p_part_spec_id": string,"p_target_id": string,"p_target_type": string }; Returns: string
                            },

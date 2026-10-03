@@ -227,10 +227,10 @@ SELECT is((SELECT is_outsourced FROM repair_parts_used WHERE material_id = '0000
 SELECT is((SELECT product_name || '/' || capacity FROM repair_parts_used WHERE material_id = '00000000-0000-4000-e000-000000000005'), '삼성/512GB', 'view shows item names');
 
 -- ---------- 9. privileges / definitions ----------
-SELECT ok(NOT has_function_privilege('anon', 'public.repair_gate_check(uuid, text)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.repair_set_cancel_result(uuid, text)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.repair_gate_override(uuid, text, text)', 'EXECUTE')
-      AND NOT has_function_privilege('anon', 'public.repair_record_can_edit(uuid)', 'EXECUTE'), 'anon cannot execute repair functions');
+SELECT ok((has_function_privilege('anon', 'public.repair_gate_check(uuid, text)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.repair_gate_check(uuid, text)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.repair_set_cancel_result(uuid, text)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.repair_set_cancel_result(uuid, text)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.repair_gate_override(uuid, text, text)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.repair_gate_override(uuid, text, text)'::regprocedure))
+      AND (has_function_privilege('anon', 'public.repair_record_can_edit(uuid)', 'EXECUTE') AND (SELECT p.prorettype = 'trigger'::regtype OR p.prosrc ~ ('ri_api_guard_(definer|invoker)\(''\{[a-z_,]*anon[a-z_,]*\}''\)') FROM pg_proc p WHERE p.oid = 'public.repair_record_can_edit(uuid)'::regprocedure)), 'anon cannot execute repair functions (R10: EXECUTE granted, refused by the in-function guard)');
 SELECT ok(has_function_privilege('authenticated', 'public.repair_gate_check(uuid, text)', 'EXECUTE')
       AND has_function_privilege('authenticated', 'public.repair_gate_override(uuid, text, text)', 'EXECUTE'), 'authenticated can execute gate functions');
 SELECT is((SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace

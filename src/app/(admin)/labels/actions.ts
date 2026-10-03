@@ -15,7 +15,7 @@ type Result = { error?: string; success?: boolean };
 
 async function session() {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." } as const;
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." } as const;
   return { supabase: await createClient() } as const;
 }
 

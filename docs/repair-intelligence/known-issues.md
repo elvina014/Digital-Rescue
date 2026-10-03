@@ -12,9 +12,10 @@ Recorded only; nothing here is changed without an explicit decision from Brad.
 | KI-5 | Hand-written types vs generated types | Recorded (Phase 0.1) — no change to existing types |
 | KI-6 | Production migration history out of sync with files | Resolved by Brad running the repair commands from Phase 0.1 |
 | KI-7 | `ticket-images` storage: public access, extra dashboard policy, no size limit | Recorded only — Brad to decide |
-| KI-8 | Local Postgres crashes on "permission denied for function" | Recorded (Phase 1) — do NOT probe on production |
+| KI-8 | Postgres crashes on "permission denied for function" (`supautils` hint) | **Fixed locally in Phase 0.6** (R10 guards) — production with the final release. Until then: **no "Run as role" function calls in the production SQL Editor** (§8.4). Do NOT probe on production |
 | KI-9 | `protect_approved_ticket`: `current_role` variable is the SQL keyword → ADMIN/MANAGER branches never match | Recorded (Phase 1) — Brad to decide |
 | KI-10 | RECEPTION cannot cancel tickets (`tickets_update` has no WITH CHECK) | Recorded (Phase 2) — Brad to decide |
+| KI-11 | `approve_material_dispatch` has no role check of its own | Recorded (Phase 0.6) — Brad to decide |
 
 ---
 
@@ -157,6 +158,8 @@ exist only in the generated types (the jsonb result of `get_device_knowledge` is
 `label_lookup` / `set_storage_location` exist only in the generated types (the jsonb result of `label_lookup` is typed by hand in `src/app/(admin)/scan/[code]/types.ts`).
 The ticket picker rows got an optional `label_code` in the local interfaces of `TicketDetailForm` / `EstimateCard` / `AddMaterialCard`.
 
+**Phase 0.6 (2026-10-03):** the guard helpers `ri_api_guard_definer` / `ri_api_guard_invoker` appear only in the generated types (not called by the app).
+
 **Tables without a hand-written interface:** `inventory_transactions`, `news_items`, `page_contents`,
 `receipt_no_sequence`, `refund_no_sequence`.
 
@@ -251,6 +254,99 @@ Found 2026-09-28 (Phase 1 tests), local stack only (`supabase_db_digital-rescue`
   or on a disposable project.
 - Tests therefore verify function ACLs with `has_function_privilege()` instead of calling denied functions.
 
+### 8.1 Root cause (investigated 2026-10-03, Phase 8 precondition)
+
+All crash tests ran in a **disposable container** (`ki8-probe`, image `public.ecr.aws/supabase/postgres:17.6.1.104`, same as the dev
+stack), removed afterwards. Dev stack and production were not used for crash tests.
+
+| # | Setup | Result |
+| --- | --- | --- |
+| 1 | Default config, `SET ROLE anon; SELECT public.zz_probe()` (EXECUTE revoked) | **signal 11**, postmaster restarts all backends (log: `server process … was terminated by signal 11: Segmentation fault`, `Failed process was running: SELECT public.zz_probe()`) |
+| 2 | Each shared library removed in turn (`plpgsql_check`, `plan_filter`, `pg_tle`, `auto_explain`, `pg_stat_statements`) | still crashes |
+| 3 | `session_preload_libraries` empty (**no `supautils`**) | clean `ERROR: permission denied for function zz_probe` |
+| 4 | Same server as #3, `supautils` loaded for one connection (`PGOPTIONS=-c session_preload_libraries=supautils`) | **crash** → the only difference is `supautils` |
+| 5 | `supautils` loaded, role **not** in `supautils.hint_roles` (new role `zz_plain`) | clean error, no crash |
+| 6 | `supautils` loaded, `anon` / `authenticated` / `service_role` (= `hint_roles`) | **crash** for each |
+| 7 | `supautils` loaded, `anon`, **table** permission error | no crash; message has the hint "Grant the required privileges to the current role with: GRANT SELECT ON public.zz_t TO anon;" |
+| 8 | `supautils` loaded, `anon`, connection-level `-c supautils.hint_roles=` (refused with "cannot be changed now") | no crash |
+
+**Cause:** the `supautils` feature "enhanced permission hints" (`supautils.hint_roles`, function `hint_roles_check_hook` in
+`supautils.so`) segfaults while building the hint for a **function** privilege error. It happens only when the current role is
+listed in `supautils.hint_roles` (`anon, authenticated, service_role`). Table errors get a correct hint, so the crash is specific
+to the function/routine object type. This is a bug in the Supabase-managed extension, not in this project's schema.
+
+### 8.2 Production assessment (read-only, 2026-10-03)
+
+| Fact (production, SELECT / SHOW / log query only) | Value |
+| --- | --- |
+| Server | PostgreSQL 17.6, **aarch64** (local is x86_64) |
+| `shared_preload_libraries` | identical to local |
+| `session_preload_libraries` | `supautils` |
+| `supautils.hint_roles` | `anon, authenticated, service_role` — identical |
+| `public` functions callable over REST that **anon** cannot execute | `approve_material_dispatch`, `apply_refund_material_adjustments`, `recalc_ticket_material_cost`, `request_refund`, `transition_refund` (+ 3 trigger-only functions) |
+| … that **authenticated** cannot execute | `approve_material_dispatch`, `apply_refund_material_adjustments` (+ 3 trigger-only) |
+| Postgres log, last 24 h: `signal 11` / `terminated by signal` / `automatic recovery` / `permission denied for function` | none (only a 24 h window can be queried) |
+
+> **Correction 2026-10-03 (Phase 0.6 planning) — see §8.3.** The REST path is most likely **not** affected.
+> The judgement below was written before the `authenticator` role setting was checked.
+
+**Original judgement (superseded): production is very likely affected.** It runs the same extension with the same configuration, and the fault is a
+code-path bug (NULL / invalid access during hint building), not something tied to the CPU architecture. The exact `supautils`
+build in production cannot be read without OS access. If affected, anyone holding the public anon key could restart the
+production database with one `POST /rest/v1/rpc/approve_material_dispatch` (or any of the functions above), as long as PostgREST
+forwards the call to Postgres. Not verified on purpose: it must not be tested on production.
+
+**Phase 8 relevance:** `vector_agent` would **not** be in `hint_roles` (#5), so the agent path itself does not trigger the crash.
+The production exposure through anon / authenticated exists today, independent of Repair Intelligence.
+
+**Options for Brad (none implemented):**
+1. Report to Supabase support with the reproduction above (#1, #4–#6) and ask for a fixed `supautils` / Postgres image, or ask
+   them to clear `supautils.hint_roles` for the project. The setting is managed (SIGHUP, not changeable by `postgres`).
+2. Check whether "Upgrade project" in the dashboard offers a newer Postgres image. Reproduce first on a disposable project.
+3. Interim, needs a separate approved plan because it changes existing grants (R2): make the 5 REST-reachable functions
+   unreachable for anon. For example, move them to a non-exposed schema, or put a role check inside and GRANT EXECUTE.
+   `approve_material_dispatch` has no internal role check, so it must not simply be granted.
+
+### 8.3 Which sessions crash (2026-10-03, local stack + read-only production catalog)
+
+- **Production and local** both set `authenticator.rolconfig = {session_preload_libraries=safeupdate, statement_timeout=8s, lock_timeout=8s}`.
+  PostgREST logs in as `authenticator`. A role-level `session_preload_libraries` **replaces** the global value
+  `supautils`, so REST sessions do not load `supautils`.
+- **Local REST tests (`curl`, PostgREST v16.3):**
+
+  | Caller | Function | Result |
+  | --- | --- | --- |
+  | anon | `approve_material_dispatch`, `ri_recompute_compatibility`, `recalc_ticket_material_cost` | `401` `{"code":"42501","message":"permission denied for function …"}` |
+  | authenticated (seed TECHNICIAN JWT) | `apply_refund_material_adjustments`, `approve_material_dispatch` | `403` |
+  | service_role | `ri_compatibility_row` | `403` |
+  | anon | trigger function `protect_canceled_ticket` | `404` (PostgREST does not expose trigger functions) |
+
+  **No crash.** The DB log shows plain `ERROR: permission denied` lines from `authenticator@postgres`.
+- **Direct proof:** login as `authenticator` with `psql` → `SET ROLE anon` → call `approve_material_dispatch` → clean `permission denied`, no crash.
+- **Crashing sessions** = logins whose role has **no** `session_preload_libraries` override, so `supautils` loads, followed by
+  `SET ROLE anon | authenticated | service_role` and a call to a function without EXECUTE:
+  - `postgres` in the Studio SQL editor, including the "run as role" impersonation;
+  - Supavisor / direct connections as `postgres`;
+  - migrations and pgTAP;
+  - the Management API SQL endpoint;
+  - any new login role (e.g. the planned `vector_agent`, which is safe because it is not in `hint_roles` and cannot `SET ROLE`).
+- **Revised judgement:** production is affected **only through privileged operator sessions** (`postgres` / dashboard).
+  It is **not exploitable with the public anon key or an employee JWT**, provided Supabase keeps the `authenticator` override.
+  This is high confidence: the configuration is identical, and the mechanism was demonstrated locally. It remains untested on production by design.
+
+### 8.4 Fix — Phase 0.6 (local, 2026-10-03; production with the final release)
+
+- Migrations `20260928043332_api_guard_baseline.sql` (0.6a) and `20261003141631_api_guard_ri.sql` (0.6b), report `phases/phase-0.6-report.md`.
+- Every exposed function that withheld EXECUTE from a hint role now grants it and refuses inside:
+  - 39 functions get one guard statement;
+  - 10 trigger functions and `catalog_normalize` get the grant only.
+- Rule **R10** (`03-working-rules.md`).
+- Local: the crash reproduction no longer crashes (0 × signal 11). Business flows are byte-identical. pgTAP 881/881.
+- **Production is unchanged until the final release** (`04-final-release-plan.md`, order 0.5 → 0.6a → … ). No hotfix, no manual production application (Brad, 2026-10-03).
+
+> **운영 주의사항 (일괄 배포 전까지):** 운영 Supabase **SQL Editor에서 역할 전환(impersonation, "Run as role" anon/authenticated/service_role)으로 함수를 호출하지 마세요.**
+> 권한 없는 함수를 호출하면 DB 전체가 재시작됩니다(위 §8.1). `postgres`로 직접 실행하는 일반 SQL은 해당되지 않습니다.
+
 ## KI-9. `protect_approved_ticket`: `current_role` shadowed by the SQL keyword
 
 Found 2026-09-28 (Phase 1). The function declares a variable `current_role employee_role` and does
@@ -277,3 +373,23 @@ Found 2026-10-01 (Phase 2 E2E), local stack; the policy is identical in producti
   with "취소 처리에 실패했습니다: new row violates …". Reproduced with a plain SQL UPDATE as the seed RECEPTION user (rolled back).
 - Not caused by Phase 2 and not changed (R2). With the cancel gate ON, the chosen cancel type is saved before the failing update.
 - Options for Brad: add a WITH CHECK allowing RECEPTION `NEW → CANCELED`, or hide the button for RECEPTION.
+
+## KI-11. `approve_material_dispatch` has no role check of its own
+
+Found 2026-10-03 (Phase 0.6 planning). Recorded only — Brad to decide.
+
+- The function (baseline, purchase branch from Phase 0.5) checks stock and request state, but **not who calls it**.
+  It is SECURITY DEFINER without `search_path` (advisor `function_search_path_mutable`, pre-existing).
+- Today the only caller is `approveMaterialDispatchAction` (`src/app/(admin)/tickets/actions.ts`), which checks ADMIN / MANAGER and then
+  calls the RPC with the **service_role** admin client.
+- Phase 0.6 kept the access exactly as before:
+  - anon → "로그인이 필요합니다. 다시 로그인해 주세요.";
+  - authenticated → "직접 호출할 수 없는 함수입니다.";
+  - service_role → allowed.
+
+  Brad's earlier "로그인 필수만" request was withdrawn because it would let every logged-in employee approve dispatches over REST.
+- Consequence: anything holding the service_role key (server code, the n8n inventory webhook's environment) can approve any dispatch.
+- Possible hardening (separate plan, R2):
+  - check `p_user_id` against `employees.role IN ('ADMIN','MANAGER')` inside the function;
+  - set `search_path = public`;
+  - optionally switch the action to the session client, with an `authenticated` + role check.

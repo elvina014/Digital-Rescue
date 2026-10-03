@@ -64,7 +64,7 @@ function target(t: DeviceTarget) {
 // ----- 접수 사전 확인 / 기기 지식 패널 -----
 export async function getDeviceKnowledgeAction(t: DeviceTarget, excludeTicketId?: string | null): Promise<Result<DeviceKnowledge>> {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_device_knowledge", {
     ...target(t), p_exclude_ticket_id: toUuidOrNull(excludeTicketId) ?? undefined,
@@ -84,7 +84,7 @@ export async function getDeviceKnowledgeAction(t: DeviceTarget, excludeTicketId?
 // ----- 기기 → 부품 -----
 export async function searchPartsForDeviceAction(t: DeviceTarget): Promise<Result<PartForDevice[]>> {
   const supabase = await session();
-  if (!supabase) return { error: "인증이 필요합니다." };
+  if (!supabase) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   const { data, error } = await supabase.rpc("search_parts_for_device", target(t));
   if (error) return { error: catalogErrorMessage(error) };
   return { data: data ?? [] };
@@ -95,7 +95,7 @@ export async function searchDevicesForPartAction(
   partSpecId: string
 ): Promise<Result<{ devices: DeviceForPart[]; stock: SpecStockRow[]; donors: SpecDonorRow[] }>> {
   const supabase = await session();
-  if (!supabase) return { error: "인증이 필요합니다." };
+  if (!supabase) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   const id = toUuidOrNull(partSpecId);
   if (!id) return { error: "부품 규격을 선택해 주세요." };
 
@@ -139,7 +139,7 @@ function noteError(i: NoteInput): string | null {
 
 export async function addModelNoteAction(t: DeviceTarget, input: NoteInput): Promise<Result<{ id: string }>> {
   const supabase = await session();
-  if (!supabase) return { error: "인증이 필요합니다." };
+  if (!supabase) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   const invalid = noteError(input);
   if (invalid) return { error: invalid };
   const modelId = toUuidOrNull(t.modelId);
@@ -158,7 +158,7 @@ export async function addModelNoteAction(t: DeviceTarget, input: NoteInput): Pro
 
 export async function updateModelNoteAction(id: string, input: NoteInput): Promise<Result<true>> {
   const supabase = await session();
-  if (!supabase) return { error: "인증이 필요합니다." };
+  if (!supabase) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   const invalid = noteError(input);
   if (invalid) return { error: invalid };
   const { data, error } = await supabase
@@ -173,7 +173,7 @@ export async function updateModelNoteAction(id: string, input: NoteInput): Promi
 
 export async function deleteModelNoteAction(id: string): Promise<Result<true>> {
   const supabase = await session();
-  if (!supabase) return { error: "인증이 필요합니다." };
+  if (!supabase) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   const { data, error } = await supabase.from("model_notes").delete().eq("id", toUuidOrNull(id) ?? "").select("id");
   if (error) return { error: catalogErrorMessage(error) };
   if (!data?.length) return { error: "권한이 없거나 이미 삭제된 메모입니다." };
