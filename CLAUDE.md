@@ -24,6 +24,7 @@ donors, part search, purchase guard, labels, VECTOR/AI integration), read
 - R8. Ambiguity, schema conflict, or a step failing twice → STOP and ask. No guessing, no scope widening.
 - R9. Never delete or modify existing business data; backfills only via tools in the approved plan.
 - R10. 노출된 스키마의 함수는 hint_roles 역할(anon/authenticated/service_role)에게서 EXECUTE를 빼앗는 방식으로 막지 않는다. 함수 내부 확인으로 거부한다. (KI-8, supautils 크래시) 노출되지 않는 스키마(vector_api 등)는 예외.
+- R11. APPROVED 메시지에 포함된 결정·조건은 구현을 시작하기 전에 해당 phase-N-plan.md의 '승인 조건' 섹션에 원문 취지 그대로 기록하고 커밋한다. 대화에만 존재하는 조건은 없는 것으로 간주한다.
 
 # CLAUDE.md (Karpathy-Inspired Claude Code Guidelines)
 

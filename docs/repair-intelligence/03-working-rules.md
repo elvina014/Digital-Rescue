@@ -52,6 +52,10 @@ How (see `phases/phase-0.6-plan.md` §3):
 - trigger functions need no guard (Postgres refuses direct calls);
 - the pgTAP invariant in `supabase/tests/api_guard.test.sql` fails if any exposed function lacks EXECUTE for a hint role.
 
+**R11. Approval conditions are written down before implementation (2026-10-04).**
+APPROVED 메시지에 포함된 결정·조건은 구현을 시작하기 전에 해당 phase-N-plan.md의 '승인 조건' 섹션에
+원문 취지 그대로 기록하고 커밋한다. 대화에만 존재하는 조건은 없는 것으로 간주한다.
+
 ## Project-specific notes (from Phase 0)
 
 - **Dev target = local Supabase on Docker** (decision Q9). Production (`wnddkgeohcgcidoklrps`) is
