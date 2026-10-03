@@ -161,6 +161,9 @@ The ticket picker rows got an optional `label_code` in the local interfaces of `
 
 **Phase 0.6 (2026-10-03):** the guard helpers `ri_api_guard_definer` / `ri_api_guard_invoker` appear only in the generated types (not called by the app).
 
+**Phase 8 (2026-10-04):** `ai_candidates` and the RPCs `ai_candidate_approve` / `ai_candidate_reject` exist only in the generated types
+(the candidate row is mapped by hand in `src/app/(admin)/catalog/ai-candidates/page.tsx`). Schema `vector_api` is not an API schema and is not generated.
+
 **Tables without a hand-written interface:** `inventory_transactions`, `news_items`, `page_contents`,
 `receipt_no_sequence`, `refund_no_sequence`.
 

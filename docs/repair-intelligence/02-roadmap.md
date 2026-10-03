@@ -278,7 +278,7 @@ reason impossible when resources exist.
 
 ---
 
-## Phase 8 — VECTOR integration
+## Phase 8 — VECTOR integration ✅ local (report: `phases/phase-8-report.md`; production with the final release)
 
 **Scope**
 - Read-only RPCs in a dedicated schema/role via the self-hosted n8n webhook; **no customer PII** (Q7).

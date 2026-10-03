@@ -7,6 +7,7 @@ const TABS = [
   { href: "/catalog/symptoms", label: "증상 코드" },
   { href: "/catalog/parts", label: "부품 규격" },
   { href: "/catalog/parts/stock", label: "재고 연결" },
+  { href: "/catalog/ai-candidates", label: "AI 후보" },
 ] as const;
 
 /** 기기 마스터 화면 상단 탭 (ADMIN 전용 화면) */

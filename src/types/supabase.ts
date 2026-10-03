@@ -23,7 +23,62 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "catalog_board_aliases": {
+            "ai_candidates": {
+                  Row: {
+                    "alias": string | null,"alias_norm": string | null,"alias_type": string | null,"approved_as": string | null,"board_id": string | null,"candidate_type": string,"created_at": string,"id": string,"limitation_note": string | null,"model_id": string | null,"observed_status": string | null,"part_spec_id": string,"rationale": string | null,"reference": string | null,"result_alias_id": string | null,"result_evidence_id": string | null,"review_note": string | null,"reviewed_at": string | null,"reviewed_by": string | null,"source": string,"source_ref": string | null,"status": string,"target_type": string | null,"variant_id": string | null
+                  }
+                  Insert: {
+                    "alias"?: string | null,"alias_norm"?: never,"alias_type"?: string | null,"approved_as"?: string | null,"board_id"?: string | null,"candidate_type": string,"created_at"?: string,"id"?: string,"limitation_note"?: string | null,"model_id"?: string | null,"observed_status"?: string | null,"part_spec_id": string,"rationale"?: string | null,"reference"?: string | null,"result_alias_id"?: string | null,"result_evidence_id"?: string | null,"review_note"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"source"?: string,"source_ref"?: string | null,"status"?: string,"target_type"?: string | null,"variant_id"?: string | null
+                  }
+                  Update: {
+                    "alias"?: string | null,"alias_norm"?: never,"alias_type"?: string | null,"approved_as"?: string | null,"board_id"?: string | null,"candidate_type"?: string,"created_at"?: string,"id"?: string,"limitation_note"?: string | null,"model_id"?: string | null,"observed_status"?: string | null,"part_spec_id"?: string,"rationale"?: string | null,"reference"?: string | null,"result_alias_id"?: string | null,"result_evidence_id"?: string | null,"review_note"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"source"?: string,"source_ref"?: string | null,"status"?: string,"target_type"?: string | null,"variant_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ai_candidates_board_id_fkey"
+      columns: ["board_id"]
+isOneToOne: false
+      referencedRelation: "catalog_boards"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_candidates_model_id_fkey"
+      columns: ["model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_models"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_candidates_part_spec_id_fkey"
+      columns: ["part_spec_id"]
+isOneToOne: false
+      referencedRelation: "part_specs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_candidates_result_alias_id_fkey"
+      columns: ["result_alias_id"]
+isOneToOne: false
+      referencedRelation: "part_number_aliases"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_candidates_result_evidence_id_fkey"
+      columns: ["result_evidence_id"]
+isOneToOne: false
+      referencedRelation: "compatibility_evidence"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_candidates_reviewed_by_fkey"
+      columns: ["reviewed_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_candidates_variant_id_fkey"
+      columns: ["variant_id"]
+isOneToOne: false
+      referencedRelation: "catalog_variants"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"catalog_board_aliases": {
                   Row: {
                     "alias": string,"alias_norm": string | null,"board_id": string,"created_at": string,"created_by": string | null,"id": string
                   }
@@ -1307,7 +1362,13 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "apply_refund_material_adjustments":
+            "ai_candidate_approve":
+{ Args: { "p_approve_as"?: string,"p_candidate_id": string,"p_note"?: string,"p_reference"?: string }; Returns: Json
+                           },
+"ai_candidate_reject":
+{ Args: { "p_candidate_id": string,"p_reason": string }; Returns: Json
+                           },
+"apply_refund_material_adjustments":
 { Args: { "p_refund_id": string,"p_revert": boolean }; Returns: undefined
                            },
 "approve_material_dispatch":

@@ -1,6 +1,6 @@
 # Phase 8 — VECTOR integration (AI 읽기 전용 RPC · AI 후보 검토) — PLAN
 
-Status: **APPROVED 2026-10-03 with conditions; conditions recorded 2026-10-04 (R11); this revision APPROVED by Brad 2026-10-04.** Branch `feat/repair-intelligence`.
+Status: **APPROVED 2026-10-03 with conditions; conditions recorded 2026-10-04 (R11); this revision APPROVED by Brad 2026-10-04. Implemented locally 2026-10-04 — see `phase-8-report.md`.** Branch `feat/repair-intelligence`.
 Held at precondition 0 (KI-8) and resumed after Phase 0.6 (see `phase-0.6-report.md`, incl. "후속 점검").
 
 ## 승인 조건 (Brad, 2026-10-03 승인 시 전달 · 2026-10-04 기록, R11)

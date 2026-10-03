@@ -27,7 +27,8 @@ Production today = `20260927141005_baseline.sql` (Phase 0.1). To be applied, in 
 | 9 | `20261003064945_purchase_guard.sql` | 6 | |
 | 10 | `20261003121512_physical_tracking.sql` | 7 | existing items receive `P-` label codes |
 | 11 | `20261003141631_api_guard_ri.sql` | **0.6b** | guards / grants on the 42 Phase 1–7 functions → must run **after #3–#10** |
-| 12+ | Phase 8 – 10 migrations | 8–10 | to be added by those phases |
+| 12 | `20261004090000_vector_integration.sql` | 8 | role `vector_agent` (**NOLOGIN**), schema `vector_api`, `ai_candidates`, review RPCs. Uses the 0.6a guard helper → after #2. Then app, then the activation steps in `vector-integration.md` §1 (password, `temp_file_limit` via Supabase support, n8n) |
+| 13+ | Phase 9 – 10 migrations | 9–10 | to be added by those phases |
 
 **App:** deploy the app **after** the migrations (each report explains why the old app keeps working in between). Run `npm install` (e.g. `qrcode`, Phase 7).
 
@@ -64,6 +65,6 @@ A privilege error in such a session restarts the whole database. Plain SQL as `p
 
 ## 6. Open items to fill in before the release
 
-- Phase 8 – 10 rows in §2.
+- Phase 9 – 10 rows in §2. (Phase 8: row 12.)
 - Exposed schemas confirmed by Brad in the dashboard (Phase 0.6 decision 8 — implemented for `public, graphql_public`).
 - KI-9, KI-10, KI-11 decisions (not part of the release unless planned).
