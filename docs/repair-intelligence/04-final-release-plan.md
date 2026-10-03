@@ -28,8 +28,9 @@ Production today = `20260927141005_baseline.sql` (Phase 0.1). To be applied, in 
 | 10 | `20261003121512_physical_tracking.sql` | 7 | existing items receive `P-` label codes |
 | 11 | `20261003141631_api_guard_ri.sql` | **0.6b** | guards / grants on the 42 Phase 1–7 functions → must run **after #3–#10** |
 | 12 | `20261004090000_vector_integration.sql` | 8 | role `vector_agent` (**NOLOGIN**), schema `vector_api`, `ai_candidates`, review RPCs. Uses the 0.6a guard helper → after #2. Then app, then the activation steps in `vector-integration.md` §1 (password, `temp_file_limit` via Supabase support, n8n) |
-| 13 | `<ts>_ai_photo_recognition.sql` (name set at implementation) | 9 | **planned** (`phases/phase-9-plan.md`). Changes Phase 8 objects E1–E10 → after #12; guard helper → after #2. Creates private bucket `ai-photos`. Then app, then §7 |
-| 14+ | Phase 10 migrations | 10 | to be added by that phase |
+| 13 | `20261004100000_ki14_ai_candidates_result_delete.sql` | 9 (D5) | **KI-14** fix: `ai_candidates_protect` allows the FK `SET NULL` of `result_alias_id`. After #12 |
+| 14 | `<ts>_ai_photo_recognition.sql` (name set at implementation) | 9 | **planned** (`phases/phase-9-plan.md`). Changes Phase 8 objects E1–E10 → after #12 and #13; guard helper → after #2. Creates private bucket `ai-photos`. Then app, then §7 |
+| 15+ | Phase 10 migrations | 10 | to be added by that phase |
 
 **App:** deploy the app **after** the migrations (each report explains why the old app keeps working in between). Run `npm install` (e.g. `qrcode`, Phase 7).
 

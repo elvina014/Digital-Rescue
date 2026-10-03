@@ -18,6 +18,7 @@ Recorded only; nothing here is changed without an explicit decision from Brad.
 | KI-11 | `approve_material_dispatch` has no role check of its own | Recorded (Phase 0.6) — Brad to decide |
 | KI-12 | Server actions without their own login / role check (statistics) | **Fixed locally in Phase 0.6.1** (commit `b43eb58`, app only) — production with the final release, or cherry-pick to `main` (Brad) |
 | KI-13 | `ilike` / PostgREST filters: user input not escaped (`%`, `_`) | Recorded (Phase 0.6.1) — Brad to decide |
+| KI-14 | Deleting an alias created by an approved AI candidate fails (FK `SET NULL` vs `ai_candidates_protect`) | **Fixed locally (Phase 9 D5)** — migration `20261004100000_ki14_ai_candidates_result_delete.sql`, production with the final release |
 
 ---
 
@@ -454,3 +455,18 @@ No privilege change — each query still runs with the same client and filters a
 Not affected: the Repair Intelligence SQL functions (`catalog_*`, `part_spec_search`) compare with `LIKE` only after `catalog_normalize()`,
 which keeps only `[0-9A-Za-z가-힣]`, so `%` / `_` cannot reach the pattern. The label lookups use fixed patterns (`'P-%'`, `'D-%'`).
 Possible fix (separate plan): a small `escapeLike()` helper (`\`, `%`, `_` → escaped) used at the 4 locations.
+
+## KI-14. Deleting an alias created by an approved AI candidate fails
+
+Found 2026-10-04 (Phase 9 planning), local stack. Phase 8 object — not in production yet.
+
+- `ai_candidates.result_alias_id` references `part_number_aliases` **ON DELETE SET NULL**. The FK action is an UPDATE on `ai_candidates`,
+  so the BEFORE UPDATE trigger `ai_candidates_protect` runs. It refuses every update of a processed candidate ("이미 처리된 후보입니다.").
+- Effect: an ADMIN cannot delete a part alias that was created by approving an AI candidate (기기 마스터 → 부품 규격 → 별칭 삭제, `deletePartAliasAction`);
+  the delete fails with "이미 처리된 후보입니다.".
+- **Fix (Phase 9 decision D5, separate commit):** `20261004100000_ki14_ai_candidates_result_delete.sql` — `CREATE OR REPLACE ai_candidates_protect()`:
+  on a processed candidate, an UPDATE whose **only** change is `result_alias_id → NULL` is allowed (the generated `alias_norm` is ignored in that
+  comparison because it is not yet computed in `NEW` of a BEFORE trigger; it follows `alias`, which is compared). Everything else unchanged.
+- Tests: `supabase/tests/ki14_ai_candidate_result_delete.test.sql` (9). Before the fix: tests 2–4 fail (reproduction). After: 9/9.
+- Rollback: `supabase/test-fixtures/ki14/rollback.sql` (Phase 8 body, verbatim). Snapshot: only the function body differs; rollback → identical.
+- Phase 9 extends the same rule to its two new result columns (`result_model_alias_id`, `result_board_alias_id`).
