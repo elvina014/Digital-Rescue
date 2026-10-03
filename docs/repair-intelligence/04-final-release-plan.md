@@ -28,7 +28,8 @@ Production today = `20260927141005_baseline.sql` (Phase 0.1). To be applied, in 
 | 10 | `20261003121512_physical_tracking.sql` | 7 | existing items receive `P-` label codes |
 | 11 | `20261003141631_api_guard_ri.sql` | **0.6b** | guards / grants on the 42 Phase 1–7 functions → must run **after #3–#10** |
 | 12 | `20261004090000_vector_integration.sql` | 8 | role `vector_agent` (**NOLOGIN**), schema `vector_api`, `ai_candidates`, review RPCs. Uses the 0.6a guard helper → after #2. Then app, then the activation steps in `vector-integration.md` §1 (password, `temp_file_limit` via Supabase support, n8n) |
-| 13+ | Phase 9 – 10 migrations | 9–10 | to be added by those phases |
+| 13 | `<ts>_ai_photo_recognition.sql` (name set at implementation) | 9 | **planned** (`phases/phase-9-plan.md`). Changes Phase 8 objects E1–E10 → after #12; guard helper → after #2. Creates private bucket `ai-photos`. Then app, then §7 |
+| 14+ | Phase 10 migrations | 10 | to be added by that phase |
 
 **App:** deploy the app **after** the migrations (each report explains why the old app keeps working in between). Run `npm install` (e.g. `qrcode`, Phase 7).
 
@@ -65,6 +66,25 @@ A privilege error in such a session restarts the whole database. Plain SQL as `p
 
 ## 6. Open items to fill in before the release
 
-- Phase 9 – 10 rows in §2. (Phase 8: row 12.)
+- Phase 10 rows in §2; Phase 9 file name in row 13. (Phase 8: row 12.)
 - Exposed schemas confirmed by Brad in the dashboard (Phase 0.6 decision 8 — implemented for `public, graphql_public`).
 - KI-9, KI-10, KI-11 decisions (not part of the release unless planned).
+
+## 7. Post-release checks — Phase 9 (AI 사진 인식)
+
+Status: **planned** (`phases/phase-9-plan.md` §6 (b)); confirmed or adjusted by the Phase 9 report.
+These cannot be tested locally: the production n8n cannot reach the local stack, and the real OpenRouter call is made only here.
+The database side, the app and the workflow logic (against stubs) are tested locally in Phase 9.
+
+1. n8n: add `n8n/ri-photo-recognition.workflow.json` (to the device-label workflow or as its own workflow, plan D8). Map the **existing** OpenRouter credential. Create a Header Auth credential (`X-RI-Secret`, new random secret). Confirm the model (plan Q1). Do not change the existing device-label nodes.
+2. App environment (production): `N8N_RI_PHOTO_WEBHOOK_URL`, `N8N_RI_PHOTO_SECRET`. Deploy order: migration → app → these variables.
+3. Webhook without header / wrong header / correct header → note the status codes (refused / refused / 200).
+4. Three test photos **without customer data** (chip marking, board silkscreen, device label) in "AI 사진 인식":
+   - readings plausible;
+   - candidates PENDING with the photo in 기기 마스터 → AI 후보;
+   - one approval per type → alias registered on the part / board / model;
+   - after the last candidate of a photo is reviewed, the photo is gone.
+5. Time per request within the hosting function limit; note typical seconds.
+6. n8n: successful executions of this workflow are not saved, failed ones are. The existing device-label AI fill in the ticket screen (`EstimateCard`) still works.
+7. OpenRouter account: provider data retention / training settings reviewed (Brad).
+8. Storage: `select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'ai-photos'` → `f | 10485760 | {image/webp}`; an unsigned object URL is refused.
