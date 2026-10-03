@@ -79,6 +79,13 @@ It happens while it builds the hint for a **function** (routine) privilege error
 1. Please confirm the bug and the `supautils` version / image that fixes it.
 2. Until then: is it possible to clear `supautils.hint_roles` for a project? It is a managed SIGHUP setting that `postgres` cannot change.
 3. Please confirm that `authenticator`'s `session_preload_libraries` override is intended to stay. Our risk assessment depends on it.
+4. **Separate configuration request (not part of the bug):** please set a role-level `temp_file_limit` for our custom login role
+   `vector_agent` (a restricted read-only agent role):
+   ```sql
+   ALTER ROLE vector_agent SET temp_file_limit = '10MB';
+   ```
+   `temp_file_limit` is a superuser-only parameter, so `postgres` gets "permission denied to set parameter".
+   (The project ref is given in the ticket, not in this document. The role exists once our next release migration is applied.)
 
 ## Our workaround
 

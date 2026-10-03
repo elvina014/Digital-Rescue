@@ -299,6 +299,19 @@ INSERT INTO mask_cases VALUES
 SELECT is(vector_api.mask_text(m.input, m.name), m.expected, 'mask: ' || m.label) FROM mask_cases m;
 SELECT is(vector_api.mask_text(NULL, '홍길동'), NULL, 'mask: NULL stays NULL');
 
+-- false positives (masking also covers fault component / measurement label): board, part and rail names stay as they are
+SELECT is(vector_api.mask_text(v, '테스트고객1'), v, 'not masked: ' || v)
+  FROM unnest(ARRAY['BA92-12345A', 'NM-D561', 'LA-K201P', 'DA0X8CMB8E0',
+                    'LP156WFC-SPY1', 'NV156FHM-N48', 'B156HAN02.1', 'BQ24780S',
+                    '19V', '3VALW', '5VALW', 'PP3V3_S5',
+                    '123456789012', '012345678901',
+                    'PU8 (BA92-12345A) 3VALW 3.3V, 5VALW 0V, PP3V3_S5 쇼트 → BQ24780S 교체']) v;
+-- 16 digits only cannot be told apart from a card number: kept masked on purpose (phase-8-report.md, "Masking: 16-digit numbers")
+SELECT is(vector_api.mask_text('1234567890123456'), '[마스킹]', 'digits-only 16 characters stay masked (card form)');
+-- true positives
+SELECT is(vector_api.mask_text(v), '[마스킹]', 'masked: ' || v)
+  FROM unnest(ARRAY['010-1234-5678', '01012345678', 'test@example.com', '900101-1234567']) v;
+
 -- ---------- 7. read functions (as the agent) ----------
 SET LOCAL ROLE vector_agent;
 INSERT INTO res SELECT 'fd', vector_api.find_devices('15Z90T');

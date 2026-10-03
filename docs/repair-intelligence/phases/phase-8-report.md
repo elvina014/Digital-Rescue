@@ -12,14 +12,14 @@ Executed 2026-10-04 on branch `feat/repair-intelligence`.
 | **`vector_agent` cannot write anywhere except through `vector_api.propose_*` (C15)** | ✅ Actual attempts as `vector_agent` on **all 317 relations in every schema** (INSERT / UPDATE / DELETE / TRUNCATE) and **all 6 sequences** (`nextval` / `setval`). Every table and every sequence → 42501. Views / matviews: no attempt succeeds. Only exception: `UPDATE pg_catalog.pg_settings … WHERE false` (PostgreSQL default; equals a session `SET`, no data). `ai_candidates` itself is not writable directly. A `propose_*` call changes exactly one row in exactly one table (row counts of all `public` tables before / after) |
 | Real login, then back to NOLOGIN (C15) | ✅ Local password login (random value, scratchpad only, deleted). Reads, proposals, refusals, timeouts and connection limit as expected (B below). Then `NOLOGIN PASSWORD NULL` → login refused |
 | Role limits (C2, C7) | ✅ NOLOGIN, CONNECTION LIMIT 3 (4th connection refused), `statement_timeout` 5s (pg_sleep(6) cancelled), `idle_in_transaction_session_timeout` 10s, `search_path` vector_api. `temp_file_limit`: **cannot be set by the migration** (superuser-only, O1 (a)). Set locally by fixture to 10MB; a 3M-row sort fails with "temporary file size exceeds temp_file_limit". Production: via Supabase support (§ Production) |
-| Masking (C5) | ✅ 29 direct `mask_text` cases + end-to-end through `device_cases` / `parts_for_device` (diagnosis, faults, measurements, actions, model notes, limitation notes) |
+| Masking (C5) | ✅ 29 direct `mask_text` cases + 20 false-positive / true-positive cases (2026-10-04, see "Masking: false positives") + end-to-end through `device_cases` / `parts_for_device` (diagnosis, faults, measurements, actions, model notes, limitation notes) |
 | No customer / price / employee / label / location data (C6) | ✅ key + value scan over every read result (incl. fixture values such as the customer phone, address, employee names, prices 234567 / 53210, label `P-`, location `VX-01`, record notes, symptoms text) |
 | Ordering (C13) | ✅ `compatible` = verified → documented → inferred; `incompatible` separate; evidence counts present |
 | Never `verified` (C8, P4) | ✅ `INSTALL` / `OVERRIDE` / no mode refused; verified-row count unchanged; candidate evidence only DOCUMENT / INFERENCE |
 | Reviewer + time (C8) | ✅ `reviewed_by` / `reviewed_at` on approve and reject; shown on the card |
 | Content immutable (C8) | ✅ trigger refuses any change to the proposal columns, also together with a review |
 | R10 (C0) | ✅ `ai_candidate_*` and the trigger granted to the 3 hint roles, refused inside. `api_guard.test.sql` invariant passes. `vector_api` exception: no EXECUTE for anon / authenticated / service_role / PUBLIC |
-| pgTAP | ✅ **1047/1047** = 884 existing + **163** new (`vector_integration.test.sql`) |
+| pgTAP | ✅ **1067/1067** = 884 existing + **183** new (`vector_integration.test.sql`; 163 + 20 masking false-positive / true-positive cases added 2026-10-04) |
 | `db reset` ×2 | ✅ (incl. after the rollback, which dropped the role → fresh create, then the `IF NOT EXISTS` path) |
 | typecheck / lint / build | ✅ 0 errors / 0 errors (16 warnings, all pre-existing) / success (`/catalog/ai-candidates` built) |
 | Advisors (`--type all --level info`) | ✅ no new WARN (14 = pre-existing list). New: only INFO `unused_index` on the new table's FK indexes (empty table) |
@@ -35,9 +35,9 @@ Executed 2026-10-04 on branch `feat/repair-intelligence`.
 | C0 KI-8 / R10 | `vector_api` not exposed (config.toml unchanged), grants only to `vector_agent`; `ai_candidate_*` guard + ADMIN check, grants to hint roles | pgTAP §2, §9 (anon → login message), `api_guard` invariant |
 | C1 local | local Docker only | — |
 | C2 role | migration §1; `temp_file_limit` fixture `test-fixtures/phase8/temp_file_limit.sql` (O1) | pgTAP §1, B |
-| C3 n8n / webhook | `vector-integration.md` §2 (Session pooler 5432, credential only in n8n), §3 (IF node + Respond to Webhook **401**, O2) | doc (n8n is outside this repo) |
+| C3 n8n / webhook | `vector-integration.md` §2 (Session pooler 5432, credential only in n8n), §3 (**n8n Webhook node built-in Header Auth credential**, O2 revised 2026-10-04; in-workflow check = alternative only) | doc (n8n is outside this repo); rejection status to be checked once (see Known risks) |
 | C4 two types | table CHECK, two propose functions | pgTAP §8 |
-| C5 masking | `vector_api.mask_text` applied to every free-text value before it is returned | pgTAP §6 (29 cases), §7, B |
+| C5 masking | `vector_api.mask_text` applied to every free-text value before it is returned | pgTAP §6 (29 + 20 cases), §7, B |
 | C6 exclusions, `receipt_no`, stock | `part_stock` = `{stock:{NEW,USED}, donor_numbers}`; cases by `receipt_no` | pgTAP §7 key list + privacy scan |
 | C7 limits | 500 cap (advisory lock), dedup (lookup + partial unique indexes), 3 connections, 5 s | pgTAP §8, B |
 | C8 approval | `ai_candidate_approve` (DOCUMENT needs a reference; calls `record_compatibility_result`), `ai_candidate_reject` (reason), immutability trigger, `reviewed_by/at` | pgTAP §9, C |
@@ -85,7 +85,7 @@ Component sizes (card / list / page / actions): 137 / 95 / 92 / 68 lines.
   3. **actual write attempts**;
   4. no direct reads;
   5. caller check;
-  6. masking (29 cases);
+  6. masking (29 cases + 20 false-positive / true-positive cases);
   7. read functions incl. C13 ordering and the privacy scan;
   8. propose (all messages, dedup, 500 cap, one-row effect);
   9. review (all roles, modes, never verified, reviewer / time, immutability, atomicity);
@@ -124,9 +124,34 @@ Component sizes (card / list / page / actions): 137 / 95 / 92 / 68 lines.
 - Fix: the error is kept per candidate in `AiCandidateList` and passed to the card.
 - Re-tested: "이미 등록된 별칭입니다." shown, candidate still PENDING.
 
+## Masking: false positives and 16-digit numbers (2026-10-04)
+
+Because masking also covers `repair_faults.component` and `repair_measurements.label`, the following values were tested (pgTAP §6, +20 assertions).
+
+| Values | Result |
+| --- | --- |
+| board numbers `BA92-12345A`, `NM-D561`, `LA-K201P`, `DA0X8CMB8E0` | unchanged |
+| part / panel numbers `LP156WFC-SPY1`, `NV156FHM-N48`, `B156HAN02.1`, `BQ24780S` | unchanged |
+| measurement labels `19V`, `3VALW`, `5VALW`, `PP3V3_S5` | unchanged |
+| digits-only 12 characters `123456789012`, and `012345678901` (leading 0, like a phone prefix) | unchanged |
+| a full sentence with these values (`PU8 (BA92-12345A) 3VALW 3.3V, 5VALW 0V, PP3V3_S5 쇼트 → BQ24780S 교체`) | unchanged |
+| `010-1234-5678`, `01012345678`, `test@example.com`, `900101-1234567` | `[마스킹]` |
+| **digits-only 16 characters `1234567890123456`** | **`[마스킹]` — kept on purpose** |
+
+**No false positive was found, so no pattern was changed.**
+
+**16 digits only — kept masked.** A 16-digit number without separators has exactly the card-number form and cannot be told apart from a serial. Reasons for masking:
+1. Missing a card number would send payment data out of the company (possibly to an external LLM) — the harm is not reversible. Masking a serial only loses a detail VECTOR does not need for repair knowledge.
+2. Laptop / board serials are usually alphanumeric (e.g. `5CG1234XYZ`, `PF2ABCDE`) and stay unchanged. Digits-only 16-character serials are rare.
+3. A Luhn check would let about 1 in 10 random serials through as "cards" anyway, while letting typo'd card numbers through unmasked. Not adopted.
+
+Other number lengths:
+- 12 digits stays unchanged.
+- **13 digits only** is the resident-number form (6 + 7, 7th digit 1–8) and is masked for the same reason (documented in Known risks).
+
 ## Test results
 
-### A. pgTAP — 1047/1047 (`npx supabase test db`)
+### A. pgTAP — 1067/1067 (after the 2026-10-04 additions; 1047 at the Phase 8 commit) (`npx supabase test db`)
 
 ### B. Real login (local)
 
@@ -175,17 +200,18 @@ Nothing to do now. Phase 8 ships with the final release (`04-final-release-plan.
    SELECT setconfig FROM pg_db_role_setting WHERE setrole = 'vector_agent'::regrole;              -- search_path, 5s, 10s
    ```
 
-3. `temp_file_limit` (O1): ask Supabase support to run `ALTER ROLE vector_agent SET temp_file_limit = '10MB';` (superuser only).
+3. `temp_file_limit` (O1 (a), accepted by Brad 2026-10-04): requested from Supabase support with the KI-8 report (step 6).
 4. n8n credential (details: `vector-integration.md` §2):
    1. n8n → Credentials → **Postgres**;
    2. Host = dashboard → Connect → **Session pooler** host; Port **5432**; Database `postgres`;
    3. User `vector_agent.<project-ref>`; Password = the one from step 2; SSL require;
    4. at most 3 connections;
    5. save — the connection data lives only in this credential.
-5. Webhook: IF node on `X-Vector-Secret` → "Respond to Webhook" **401** on mismatch (`vector-integration.md` §3). Test without / wrong / correct header.
-6. n8n execution history retention (`vector-integration.md` §5) and `{{ $execution.id }}` as `p_source_ref`.
-7. Put `vector-agent-guide.md` (the part between `---`) into VECTOR's system prompt.
-8. Kill switch: `ALTER ROLE vector_agent NOLOGIN;`.
+5. Webhook: Webhook node → Authentication **Header Auth** with an n8n Header Auth credential (`X-Vector-Secret`) (`vector-integration.md` §3). Test without / wrong / correct header and note the status codes (401 required by C3; n8n may answer 403 — then decide, or use the alternative in §3).
+6. Supabase support: request `temp_file_limit` for `vector_agent` together with the KI-8 report (`supabase-support-report.md` Requests #4, KI-8 §8.5).
+7. n8n execution history retention (`vector-integration.md` §5) and `{{ $execution.id }}` as `p_source_ref`.
+8. Put `vector-agent-guide.md` (the part between `---`) into VECTOR's system prompt.
+9. Kill switch: `ALTER ROLE vector_agent NOLOGIN;`.
 
 ## How Brad verifies locally
 
@@ -194,7 +220,7 @@ Nothing to do now. Phase 8 ships with the final release (`04-final-release-plan.
    npx supabase db reset
    npx supabase test db
    ```
-   Expected: 1047 pass.
+   Expected: 1067 pass.
 2. Optional `temp_file_limit`:
    ```bash
    docker exec -i supabase_db_digital-rescue psql -h 127.0.0.1 -U supabase_admin -d postgres -X < supabase/test-fixtures/phase8/temp_file_limit.sql
@@ -214,7 +240,7 @@ Nothing to do now. Phase 8 ships with the final release (`04-final-release-plan.
 - **Masking is pattern-based.** It can miss PII in unusual forms (a number split by words, an address, another customer's name). It can over-mask number sequences that look like a phone / resident / card number (e.g. a 13-digit serial). Text still leaves the company if VECTOR uses an external LLM.
 - **Role defaults can be overridden by the session.** Anyone with the password and a raw SQL client can `SET statement_timeout = 0`. `temp_file_limit`, once set by a superuser, cannot be overridden. The n8n workflow uses fixed queries; keep the password only in n8n (C11, `vector-integration.md` §7).
 - **`temp_file_limit` is not active in production** until Supabase support sets it (O1).
-- **Webhook 401 depends on the n8n workflow** (O2); it is outside this repo. Test it once after setup.
+- **Webhook rejection status (O2, revised):** the built-in Header Auth refuses unauthenticated calls before the workflow runs, but the n8n docs do not state the status code (possibly 403, not 401 as C3 says). Check once after setup; if it is not 401, Brad decides (accept 403, or the in-workflow alternative in `vector-integration.md` §3).
 - **Audit = n8n execution history** (C12). If n8n prunes or loses it, the call history is gone.
 - **Approval quality:** an approved DOCUMENT / INFERENCE looks like other evidence. Provenance is the evidence note "AI 후보(VECTOR) 승인" and `ai_candidates.result_evidence_id`. The reviewer must check the reference.
 - **Production knowledge is sparse at first** (as in Phases 3 / 5): VECTOR will often answer "no data".

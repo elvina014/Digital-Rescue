@@ -348,6 +348,15 @@ The production exposure through anon / authenticated exists today, independent o
 - Local: the crash reproduction no longer crashes (0 × signal 11). Business flows are byte-identical. pgTAP 881/881.
 - **Production is unchanged until the final release** (`04-final-release-plan.md`, order 0.5 → 0.6a → … ). No hotfix, no manual production application (Brad, 2026-10-03).
 
+### 8.5 Supabase 신고 시 함께 요청할 것 (Phase 8, 2026-10-04)
+
+- `supabase-support-report.md`로 KI-8을 신고할 때 **`vector_agent`의 `temp_file_limit` 설정 요청을 같은 티켓에 포함**한다
+  (신고서 "Requests" #4에 추가됨).
+- 요청 SQL: `ALTER ROLE vector_agent SET temp_file_limit = '10MB';`
+- 이유: `temp_file_limit`은 슈퍼유저 전용 파라미터라 `postgres`(마이그레이션·SQL Editor)로는 설정할 수 없다 (Phase 8 결정 O1 (a), `phases/phase-8-report.md`).
+- 전제: Phase 8 마이그레이션이 운영에 적용되어 역할이 존재한 뒤에 요청한다. 프로젝트 ref는 신고서 문서가 아니라 티켓에만 적는다.
+- 설정 확인 (`postgres`, 읽기 전용): `SELECT setconfig FROM pg_db_role_setting WHERE setrole = 'vector_agent'::regrole;` → `temp_file_limit=10MB` 포함.
+
 > **운영 주의사항 (일괄 배포 전까지):** 운영 Supabase **SQL Editor에서 역할 전환(impersonation, "Run as role" anon/authenticated/service_role)으로 함수를 호출하지 마세요.**
 > 권한 없는 함수를 호출하면 DB 전체가 재시작됩니다(위 §8.1). `postgres`로 직접 실행하는 일반 SQL은 해당되지 않습니다.
 

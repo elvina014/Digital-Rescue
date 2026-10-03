@@ -41,6 +41,12 @@ Recorded as given by Brad. Where each condition is reflected: checklist in §13.
 - **APPROVED 2026-10-04 (최종).** Brad: "체크리스트 확인했습니다. APPROVED. phase-8-plan.md대로 구현 → 로컬 검증 → phase-8-report.md → 로컬 커밋 후 커밋 해시와 브랜치명을 알려주고 멈추세요."
   O1·O2는 별도 선택 없이 "계획서대로" 승인됨 → 계획서 권장안 적용: **O1 (a)** 마이그레이션에서 `temp_file_limit` 미설정, 문서화 + 로컬은 `supabase_admin` 픽스처, 값 **10MB**;
   **O2 (a)** n8n 워크플로가 헤더를 직접 비교해 "Respond to Webhook"으로 **401** 응답. Brad가 다른 선택을 원하면 보고서 검토 시 수정.
+- **보완 지시 2026-10-04 (Phase 8 결과 확인 후):** "O1은 (a) 그대로 수용합니다." /
+  ① 마스킹 오탐 테스트 추가(보드 번호 BA92-12345A·NM-D561·LA-K201P·DA0X8CMB8E0, 부품번호 LP156WFC-SPY1·NV156FHM-N48·B156HAN02.1·BQ24780S,
+  측정 항목 19V·3VALW·5VALW·PP3V3_S5, 숫자만 12자리·16자리 → 그대로; 010-1234-5678·01012345678·test@example.com·900101-1234567 → 마스킹),
+  오탐 시 패턴 조정, 카드번호와 구분 불가한 경우의 처리와 이유를 보고서에 기록 /
+  ② **O2 변경:** 웹훅 인증은 n8n Webhook 노드의 내장 Authentication(**Header Auth credential**) 방식으로, 워크플로 내부 비교는 대안으로만 /
+  ③ known-issues.md에 기록: Supabase 신고 시 `vector_agent`의 `temp_file_limit` 설정 요청을 함께 포함(KI-8 신고서에 항목 추가). 별도 커밋 후 멈춤.
 
 Earlier decisions of §11 (2026-10-03 plan) are superseded where a condition above says otherwise; otherwise the recommended option was approved.
 

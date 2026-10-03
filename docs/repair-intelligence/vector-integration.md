@@ -4,7 +4,7 @@ Phase 8 (`phases/phase-8-plan.md`, `phases/phase-8-report.md`). This document is
 The instructions for VECTOR itself (system prompt) are in `vector-agent-guide.md` (C14).
 
 ```
-VECTOR ──(HTTPS + secret header)──▶ n8n webhook ──(Postgres node, fixed parameterised queries)──▶ Supabase Postgres
+VECTOR ──(HTTPS + secret header, n8n Header Auth)──▶ n8n webhook ──(Postgres node, fixed parameterised queries)──▶ Supabase Postgres
                                                      login role vector_agent → vector_api.* functions only
 ```
 
@@ -64,25 +64,44 @@ Create a **Postgres** credential in n8n. The connection data is stored **only** 
 | SSL | require |
 | Max connections (if the node offers it) | ≤ 3 — the role allows 3 connections; a 4th is refused with "too many connections for role" |
 
-## 3. Webhook authentication: VECTOR → n8n (C3, decision O2)
+## 3. Webhook authentication: VECTOR → n8n (C3, decision O2 — revised 2026-10-04)
 
-A missing or wrong secret must get **HTTP 401**. The n8n docs do not state which status the built-in "Header Auth" returns (from n8n's source it may be 403), so the workflow checks the header itself:
+Use the **built-in authentication of the n8n Webhook node** with a **Header Auth** credential. n8n checks the header **before** the workflow runs, so an unauthenticated call never reaches a Postgres node.
 
-1. **Webhook** node:
+1. n8n → Credentials → **Header Auth**:
+   - Name: `X-Vector-Secret`;
+   - Value: a random secret, 32+ characters.
+
+   The secret is stored **only** in this n8n credential (not in the workflow, the repo or chat).
+2. **Webhook** node:
    - Method `POST`;
+   - Authentication **Header Auth**;
+   - Credential = the one from step 1.
+3. VECTOR sends `X-Vector-Secret: <secret>` on every call. Rotate it like the DB password (§6): new value in the credential and in VECTOR at the same time.
+4. Test once after setup and note the codes:
+   - without the header → refused;
+   - wrong value → refused;
+   - correct value → 200.
+
+**Status code (C3 requires 401):**
+- The n8n documentation lists Header Auth but does not state the rejection status.
+- From n8n's source it is likely **403** for a wrong value; the code for a missing header may differ. This is not verified here (no n8n in this repo).
+- Check it in the test above:
+  - if n8n answers 401 for both cases → done;
+  - if it answers 403 → the call is still refused and the workflow does not run. Brad decides whether 403 is acceptable, or uses the alternative below.
+
+**Alternative (only if exactly 401 is required):** check the header inside the workflow.
+1. Webhook node:
    - Authentication **None**;
    - Respond **"Using 'Respond to Webhook' Node"**.
-2. Store the secret (32+ random characters) in n8n, not in the workflow text. Use an n8n credential or variable, e.g. a variable `VECTOR_WEBHOOK_SECRET`.
-   - n8n Variables (`$vars`) depend on the n8n plan / version.
-   - Without them, use an environment variable of the n8n server: `{{ $env.VECTOR_WEBHOOK_SECRET }}`. This requires `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`.
-3. The **first** node after the webhook is an **IF** node: `{{ $json.headers['x-vector-secret'] }}` *is equal to* `{{ $vars.VECTOR_WEBHOOK_SECRET }}`.
-   - **false** → **Respond to Webhook**: Response Code **401**, body `{"error":"unauthorized"}`. Nothing else runs; no Postgres node is reached.
-   - **true** → the Postgres nodes below.
-4. VECTOR sends the header `X-Vector-Secret: <secret>` on every call. Rotate it like the DB password (§6).
-5. Test once after setup:
-   - without the header → 401;
-   - wrong value → 401;
-   - correct value → 200.
+2. The first node is an **IF** node: `{{ $json.headers['x-vector-secret'] }}` equals the secret. Read the secret from an n8n variable `{{ $vars.VECTOR_WEBHOOK_SECRET }}`, or from an environment variable `{{ $env.VECTOR_WEBHOOK_SECRET }}` (requires `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`).
+3. false → **Respond to Webhook**, code **401**, body `{"error":"unauthorized"}`. Nothing else runs.
+4. true → the Postgres nodes.
+
+Drawbacks of the alternative:
+- the workflow itself starts for unauthenticated calls, so they appear in the execution history;
+- the secret is outside a credential;
+- the comparison is in workflow logic that can be edited by mistake.
 
 ## 4. The functions (fixed, parameterised queries only)
 
@@ -157,8 +176,8 @@ EXECUTIONS_DATA_PRUNE_MAX_COUNT=0            # 0 = no count limit (age only)
 
 - **Rotate** (e.g. quarterly, or when someone with access leaves):
   1. `ALTER ROLE vector_agent PASSWORD '…'` (new value);
-  2. update the n8n credential;
-  3. rotate the webhook secret the same way.
+  2. update the n8n Postgres credential;
+  3. rotate the webhook secret in the n8n Header Auth credential and in VECTOR at the same time.
 - **Kill switch:**
   ```sql
   ALTER ROLE vector_agent NOLOGIN;
