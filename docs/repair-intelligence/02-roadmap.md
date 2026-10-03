@@ -189,7 +189,7 @@ override logged; with flags OFF existing flows unchanged; RPC equivalence tests 
 
 ---
 
-## Phase 4 — Donor devices
+## Phase 4 — Donor devices ✅ local (report: `phases/phase-4-report.md`; production deploy pending)
 
 **Scope**
 - `donor_devices`, `donor_part_candidates` (as in the original brief).

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { confirmDisposalAction } from "@/app/(admin)/tickets/actions";
+import DonorConvertForm from "./DonorConvertForm";
 
 interface DisposalTicket {
   id: string;
@@ -24,8 +25,20 @@ export default function DisposalConfirmWidget({ tickets: initialTickets }: Dispo
   const [tickets, setTickets] = useState(initialTickets);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [donorFormId, setDonorFormId] = useState<string | null>(null);
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
 
-  if (tickets.length === 0) return null;
+  const visible = tickets.filter((t) => !hidden.has(t.id));
+  if (visible.length === 0) return null;
+
+  function hideRow(ticketId: string, hide: boolean) {
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (hide) next.add(ticketId);
+      else next.delete(ticketId);
+      return next;
+    });
+  }
 
   function handleConfirm(ticketId: string) {
     startTransition(async () => {
@@ -43,7 +56,7 @@ export default function DisposalConfirmWidget({ tickets: initialTickets }: Dispo
     <section className="rounded-xl border-2 border-red-300 bg-red-50 p-5">
       <div className="mb-3 flex items-center gap-2">
         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
-          {tickets.length}
+          {visible.length}
         </span>
         <h2 className="text-base font-semibold text-gray-900">폐기 기기 확인 대기</h2>
         <span className="ml-auto rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
@@ -56,7 +69,7 @@ export default function DisposalConfirmWidget({ tickets: initialTickets }: Dispo
       )}
 
       <ul className="divide-y divide-red-200 text-sm">
-        {tickets.map((t) => {
+        {visible.map((t) => {
           const deviceLabel = [t.device_brand, t.device_model].filter(Boolean).join(" ");
           const cancelDate = new Date(t.created_at).toLocaleDateString("ko-KR");
           return (
@@ -79,15 +92,34 @@ export default function DisposalConfirmWidget({ tickets: initialTickets }: Dispo
                     <span>취소일: {cancelDate}</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  disabled={isPending}
-                  onClick={() => handleConfirm(t.id)}
-                  className="whitespace-nowrap rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-                >
-                  확인 완료
-                </button>
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => handleConfirm(t.id)}
+                    className="whitespace-nowrap rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    확인 완료
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDonorFormId(donorFormId === t.id ? null : t.id)}
+                    className="whitespace-nowrap rounded-lg border border-amber-500 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50"
+                  >
+                    Donor로 전환
+                  </button>
+                </div>
               </div>
+              {donorFormId === t.id && (
+                <DonorConvertForm
+                  ticketId={t.id}
+                  brand={t.device_brand}
+                  model={t.device_model}
+                  tagInfo={t.tag_info}
+                  onOptimistic={(hide) => hideRow(t.id, hide)}
+                  onCancel={() => setDonorFormId(null)}
+                />
+              )}
             </li>
           );
         })}

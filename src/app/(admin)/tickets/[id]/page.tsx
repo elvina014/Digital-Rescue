@@ -7,6 +7,7 @@ import { daysSince } from "@/lib/date";
 import type { RefundMaterialAdjustment } from "@/types/database";
 import TicketDetailForm from "./TicketDetailForm";
 import { loadRepairRecord } from "./repair-record/loadRepairRecord";
+import { DONOR_STAFF_ROLES } from "@/app/(admin)/donors/labels";
 
 interface TicketDetailPageProps {
   params: Promise<{ id: string }>;
@@ -50,6 +51,11 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
 
   // 수리 기록 (Phase 2)
   const repairRecord = await loadRepairRecord(id, ticket.status);
+
+  // Donor 전환 여부 (Phase 4) — 폐기로 취소된 접수건만 해당
+  const { data: donor } = ticket.status === "CANCELED"
+    ? await supabase.from("donor_devices").select("id, donor_no").eq("source_ticket_id", id).maybeSingle()
+    : { data: null };
 
   // 담당기사 배정용: TECHNICIAN + EXPERT_REPAIR 직급 중 배정 가능(is_assignable) 직원 목록 조회
   const { data: assignableTechnicians } = await supabase
@@ -298,6 +304,18 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       </div>
 
       <h1 className="mb-6 text-2xl font-bold text-gray-900">접수건 상세</h1>
+
+      {donor && (
+        <p className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          Donor 전환됨 ·{" "}
+          {DONOR_STAFF_ROLES.includes(employee.role) ? (
+            <Link href={`/donors/${donor.id}`} className="font-mono font-semibold underline">{donor.donor_no}</Link>
+          ) : (
+            <span className="font-mono font-semibold">{donor.donor_no}</span>
+          )}
+          <span className="ml-2 text-xs text-amber-700">고객의 소유권 포기 동의를 확인하고 부품 공급원(Donor)으로 전환한 기기입니다.</span>
+        </p>
+      )}
 
       <TicketDetailForm
         ticket={ticketData}

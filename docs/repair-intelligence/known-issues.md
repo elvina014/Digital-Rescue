@@ -144,6 +144,9 @@ changed outside the migration files. The baseline follows production.)
 (`part_specs`, `part_number_aliases`, `interchange_groups`, `part_compatibility`, `compatibility_evidence`, view `compatibility_summary`)
 exist only in the generated types; the hand-written `InventoryItem` was not extended.
 
+**Phase 4 (2026-10-03):** `donor_devices`, `donor_part_candidates`, `donor_photos`, view `donor_potential_stock` and the RPCs
+`donor_convert_from_ticket` / `donor_extract_part` exist only in the generated types.
+
 **Tables without a hand-written interface:** `inventory_transactions`, `news_items`, `page_contents`,
 `receipt_no_sequence`, `refund_no_sequence`.
 

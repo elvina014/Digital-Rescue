@@ -8,6 +8,7 @@ import MaterialDispatchWidget from "@/components/common/MaterialDispatchWidget";
 import MaterialReturnWidget from "@/components/common/MaterialReturnWidget";
 import ReturnMaterialInboundWidget from "@/components/common/ReturnMaterialInboundWidget";
 import RemovedPartInboundSection from "@/components/common/RemovedPartInboundSection";
+import DonorExtractRequestSection from "@/components/common/DonorExtractRequestSection";
 import DisposalConfirmWidget from "@/components/common/DisposalConfirmWidget";
 import RefundApprovalWidget from "@/components/common/RefundApprovalWidget";
 import {
@@ -367,6 +368,7 @@ export default async function DashboardPage() {
       {/* 적출/반환 자재 입고 대기 위젯 (ADMIN/MANAGER 전용) */}
       {isAdminManager && <ReturnMaterialInboundWidget items={inboundReturnWidgetData} />}
       {isAdminManager && <RemovedPartInboundSection />}
+      {isAdminManager && <DonorExtractRequestSection />}
 
       {/* 폐기 기기 확인 대기 위젯 (ADMIN/MANAGER 전용) */}
       {isAdminManager && <DisposalConfirmWidget tickets={disposalWidgetData} />}

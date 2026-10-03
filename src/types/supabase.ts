@@ -292,6 +292,147 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"donor_devices": {
+                  Row: {
+                    "brand": string,"catalog_board_id": string | null,"catalog_model_id": string | null,"catalog_variant_id": string | null,"condition_note": string | null,"consent_confirmed_at": string,"consent_confirmed_by": string,"created_at": string,"created_by": string | null,"device_type": Database["public"]['Enums']["device_type"],"donor_no": string,"id": string,"model_text": string | null,"source_ticket_id": string,"status": string,"storage_note": string | null,"tag_info": string | null,"updated_at": string
+                  }
+                  Insert: {
+                    "brand": string,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"condition_note"?: string | null,"consent_confirmed_at": string,"consent_confirmed_by": string,"created_at"?: string,"created_by"?: string | null,"device_type": Database["public"]['Enums']["device_type"],"donor_no"?: string,"id"?: string,"model_text"?: string | null,"source_ticket_id": string,"status"?: string,"storage_note"?: string | null,"tag_info"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "brand"?: string,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"condition_note"?: string | null,"consent_confirmed_at"?: string,"consent_confirmed_by"?: string,"created_at"?: string,"created_by"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"],"donor_no"?: string,"id"?: string,"model_text"?: string | null,"source_ticket_id"?: string,"status"?: string,"storage_note"?: string | null,"tag_info"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "donor_devices_catalog_board_id_fkey"
+      columns: ["catalog_board_id"]
+isOneToOne: false
+      referencedRelation: "catalog_boards"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_devices_catalog_model_id_fkey"
+      columns: ["catalog_model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_models"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_devices_consent_confirmed_by_fkey"
+      columns: ["consent_confirmed_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_devices_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_devices_source_ticket_id_fkey"
+      columns: ["source_ticket_id"]
+isOneToOne: true
+      referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_devices_variant_fk"
+      columns: ["catalog_variant_id","catalog_model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_variants"
+      referencedColumns: ["id","model_id"]
+    }
+                  ]
+                },"donor_part_candidates": {
+                  Row: {
+                    "category_id": string | null,"condition_estimate": string,"created_at": string,"created_by": string | null,"description": string,"donor_id": string,"extracted_at": string | null,"extracted_by": string | null,"id": string,"inventory_item_id": string | null,"note": string | null,"part_spec_id": string | null,"quantity": number,"return_capacity": string | null,"return_name": string | null,"return_spec": string | null,"source_removed_part_id": string | null,"status": string,"updated_at": string
+                  }
+                  Insert: {
+                    "category_id"?: string | null,"condition_estimate"?: string,"created_at"?: string,"created_by"?: string | null,"description": string,"donor_id": string,"extracted_at"?: string | null,"extracted_by"?: string | null,"id"?: string,"inventory_item_id"?: string | null,"note"?: string | null,"part_spec_id"?: string | null,"quantity"?: number,"return_capacity"?: string | null,"return_name"?: string | null,"return_spec"?: string | null,"source_removed_part_id"?: string | null,"status"?: string,"updated_at"?: string
+                  }
+                  Update: {
+                    "category_id"?: string | null,"condition_estimate"?: string,"created_at"?: string,"created_by"?: string | null,"description"?: string,"donor_id"?: string,"extracted_at"?: string | null,"extracted_by"?: string | null,"id"?: string,"inventory_item_id"?: string | null,"note"?: string | null,"part_spec_id"?: string | null,"quantity"?: number,"return_capacity"?: string | null,"return_name"?: string | null,"return_spec"?: string | null,"source_removed_part_id"?: string | null,"status"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "donor_part_candidates_category_id_fkey"
+      columns: ["category_id"]
+isOneToOne: false
+      referencedRelation: "inventory_categories"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_part_candidates_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_part_candidates_donor_id_fkey"
+      columns: ["donor_id"]
+isOneToOne: false
+      referencedRelation: "donor_devices"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_part_candidates_donor_id_fkey"
+      columns: ["donor_id"]
+isOneToOne: false
+      referencedRelation: "donor_potential_stock"
+      referencedColumns: ["donor_id"]
+    },{
+      foreignKeyName: "donor_part_candidates_extracted_by_fkey"
+      columns: ["extracted_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_part_candidates_inventory_item_id_fkey"
+      columns: ["inventory_item_id"]
+isOneToOne: false
+      referencedRelation: "inventory_items"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_part_candidates_part_spec_id_fkey"
+      columns: ["part_spec_id"]
+isOneToOne: false
+      referencedRelation: "part_specs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_part_candidates_source_removed_part_id_fkey"
+      columns: ["source_removed_part_id"]
+isOneToOne: false
+      referencedRelation: "ticket_removed_parts"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"donor_photos": {
+                  Row: {
+                    "created_at": string,"description": string | null,"donor_id": string,"id": string,"path": string,"uploaded_by": string | null
+                  }
+                  Insert: {
+                    "created_at"?: string,"description"?: string | null,"donor_id": string,"id"?: string,"path": string,"uploaded_by"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"description"?: string | null,"donor_id"?: string,"id"?: string,"path"?: string,"uploaded_by"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "donor_photos_donor_id_fkey"
+      columns: ["donor_id"]
+isOneToOne: false
+      referencedRelation: "donor_devices"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_photos_donor_id_fkey"
+      columns: ["donor_id"]
+isOneToOne: false
+      referencedRelation: "donor_potential_stock"
+      referencedColumns: ["donor_id"]
+    },{
+      foreignKeyName: "donor_photos_uploaded_by_fkey"
+      columns: ["uploaded_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"employees": {
                   Row: {
                     "created_at": string,"id": string,"is_assignable": boolean,"name": string,"phone": string | null,"role": Database["public"]['Enums']["employee_role"]
@@ -1026,6 +1167,19 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"donor_potential_stock": {
+                  Row: {
+                    "board_number": string | null,"brand": string | null,"candidate_id": string | null,"candidate_status": string | null,"catalog_model_label": string | null,"category_name": string | null,"condition_estimate": string | null,"created_at": string | null,"description": string | null,"device_type": Database["public"]['Enums']["device_type"] | null,"donor_id": string | null,"donor_no": string | null,"model_text": string | null,"note": string | null,"part_name": string | null,"part_spec_id": string | null,"part_type": string | null,"quantity": number | null,"storage_note": string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "donor_part_candidates_part_spec_id_fkey"
+      columns: ["part_spec_id"]
+isOneToOne: false
+      referencedRelation: "part_specs"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"repair_parts_used": {
                   Row: {
                     "capacity": string | null,"category_name": string | null,"condition": Database["public"]['Enums']["item_condition"] | null,"is_outsourced": boolean | null,"material_id": string | null,"product_name": string | null,"quantity": number | null,"request_type": string | null,"spec_name": string | null,"ticket_id": string | null
@@ -1083,6 +1237,12 @@ isOneToOne: false
                            },
 "confirm_material_return":
 { Args: { "p_material_id": string }; Returns: Json
+                           },
+"donor_convert_from_ticket":
+{ Args: { "p_brand": string,"p_condition_note"?: string,"p_consent": boolean,"p_model_text": string,"p_storage_note"?: string,"p_tag_info"?: string,"p_ticket_id": string }; Returns: Json
+                           },
+"donor_extract_part":
+{ Args: { "p_candidate_id": string,"p_capacity"?: string,"p_category_id"?: string,"p_name"?: string,"p_spec"?: string }; Returns: Json
                            },
 "get_my_role":
 { Args: Record<PropertyKey, never>; Returns: Database["public"]['Enums']["employee_role"]
