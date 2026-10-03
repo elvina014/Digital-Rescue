@@ -180,7 +180,7 @@ All 16 `"use server"` files (file-level directive; no inline actions), 151 expor
 
 | File | Actions | Own login check | How (helper) | Role check |
 | --- | --- | --- | --- | --- |
-| **`actions/statisticsActions.ts`** | `getAnnualRevenue`, `getMonthlyDailyRevenue`, `getTechnicianMonthlyRevenue`, `getTechnicianPerformance`, `getBrandBreakdown`, `getStatusBreakdown`, `getReceiptTypeBreakdown`, `getCancelStats`, `getRefundStats` (9) | ❌ **none** | session client + RLS only | ❌ → **KI-12 / Phase 0.6.1** |
+| **`actions/statisticsActions.ts`** | `getAnnualRevenue`, `getMonthlyDailyRevenue`, `getTechnicianMonthlyRevenue`, `getTechnicianPerformance`, `getBrandBreakdown`, `getStatusBreakdown`, `getReceiptTypeBreakdown`, `getCancelStats`, `getRefundStats` (9) | ❌ **none** → ✅ **Phase 0.6.1** | `requireStatsAccess()` → `getCurrentEmployee` | ✅ ADMIN / MANAGER (Phase 0.6.1) |
 | `actions/ticketActions.ts` | `submitTicketAction` | — (public by design) | customer receipt form, Zod validation, service_role | — |
 | `(admin)/login/actions.ts` | `loginAction`, `logoutAction` | — (public by design) | login / logout itself | — |
 | `(admin)/catalog/actions.ts` | `searchCatalogModelsAction`, `getCatalogVariantsAction`, `searchCatalogBoardsAction`, `createCatalogModelAction` | ✅ | `requireEmployee()` → `getCurrentEmployee` | creation: in the DB function |
@@ -191,12 +191,12 @@ All 16 `"use server"` files (file-level directive; no inline actions), 151 expor
 | `(admin)/donors/actions.ts` | 9 | ✅ | `session()` | RLS / DB function |
 | `(admin)/labels/actions.ts` | 3 | ✅ | `session()` | RLS / DB function |
 | `(admin)/lookup/actions.ts` | 6 | ✅ | `getCurrentEmployee` / `session()` | `TICKET_LINK_ROLES`, RLS |
-| `(admin)/tickets/actions.ts` | 39 | ✅ | `getCurrentEmployee` (refund approve / reject / complete / void via `transitionRefund()`) | mostly in code; refunds inside `transition_refund`; `lookupPastEvaluatedValue`: login only + service_role (KI-12) |
+| `(admin)/tickets/actions.ts` | 39 | ✅ | `getCurrentEmployee` (refund approve / reject / complete / void via `transitionRefund()`) | mostly in code; refunds inside `transition_refund`; `lookupPastEvaluatedValue`: login + ADMIN / MANAGER / TECHNICIAN / EXPERT_REPAIR since Phase 0.6.1, service_role read unchanged |
 | `(admin)/tickets/purchaseGuardActions.ts` | 2 | ✅ | `getCurrentEmployee` | DB function |
 | `(admin)/tickets/[id]/repair-record/actions.ts` | 10 + `approveRemovedPartInboundAction` | ✅ | `session(ticketId)` / `getCurrentEmployee` | RLS / ADMIN·MANAGER |
 | `(cms)/editor/actions.ts`, `(cms)/editor/news/news-actions.ts` | 1 + 6 | ✅ | `requireCmsAccess()` (redirect when logged out) | ADMIN·MANAGER |
 | `actions/employeeActions.ts` | 4 | ✅ | `getCurrentEmployee` | ADMIN (own profile: self) |
-| `actions/inventoryActions.ts` | 23 | ✅ | `getCurrentEmployee` + `requireAuth()` (old text "로그인이 필요합니다." — KI-12) | ADMIN / MANAGER per action |
+| `actions/inventoryActions.ts` | 23 | ✅ | `getCurrentEmployee` + `requireAuth()` (message unified in Phase 0.6.1) | ADMIN / MANAGER per action |
 
 Correction to "Known risks" above: "Every `(admin)` action checks `getCurrentEmployee()`" did not cover `src/app/actions/statisticsActions.ts`.
 anon still gets 0 rows (RLS), but RECEPTION / CS / TECHNICIAN can call the statistics actions directly and get what RLS allows them.

@@ -16,7 +16,8 @@ Recorded only; nothing here is changed without an explicit decision from Brad.
 | KI-9 | `protect_approved_ticket`: `current_role` variable is the SQL keyword → ADMIN/MANAGER branches never match | Recorded (Phase 1) — Brad to decide |
 | KI-10 | RECEPTION cannot cancel tickets (`tickets_update` has no WITH CHECK) | Recorded (Phase 2) — Brad to decide |
 | KI-11 | `approve_material_dispatch` has no role check of its own | Recorded (Phase 0.6) — Brad to decide |
-| KI-12 | Server actions without their own login / role check (statistics) | Recorded (Phase 0.6 follow-up) — fix planned as **Phase 0.6.1**, after Phase 8 |
+| KI-12 | Server actions without their own login / role check (statistics) | **Fixed locally in Phase 0.6.1** (commit `b43eb58`, app only) — production with the final release, or cherry-pick to `main` (Brad) |
+| KI-13 | `ilike` / PostgREST filters: user input not escaped (`%`, `_`) | Recorded (Phase 0.6.1) — Brad to decide |
 
 ---
 
@@ -428,3 +429,28 @@ The audit of all 151 exported actions in 16 `"use server"` files found:
 
 Phase 0.6.1 scope (Brad, 2026-10-04): login + ADMIN/MANAGER check in the 9 statistics actions; unify the `requireAuth` message to
 "로그인이 필요합니다. 다시 로그인해 주세요."; investigate `lookupPastEvaluatedValue` and include a decision in the plan.
+
+**Fixed in Phase 0.6.1 (2026-10-04, `phases/phase-0.6.1-report.md`, commit `b43eb58`):**
+- the 9 statistics actions check login + ADMIN / MANAGER and return `{ data } | { error }`;
+- `requireAuth()` returns "로그인이 필요합니다. 다시 로그인해 주세요.";
+- `lookupPastEvaluatedValue`: ADMIN, MANAGER, TECHNICIAN, EXPERT_REPAIR only (= the roles that see `EstimateCard`); RECEPTION / CS get `{ data: null }`.
+  The service_role read stays (technicians value a device from **other** tickets; it returns device-value numbers only, no PII).
+
+## KI-13. `ilike` / PostgREST filters: user input not escaped
+
+Found 2026-10-04 (Phase 0.6.1 planning). **Recorded only — not changed** (Phase 0.6.1 approval condition 2). Brad to decide.
+
+User input is put into `ilike` patterns as `%${input}%` without escaping the LIKE wildcards `%` and `_` (and, in `.or()` filter strings,
+PostgREST syntax characters other than `,`). Effect: the input matches more than typed (`_` = any one character, `%` = anything).
+No privilege change — each query still runs with the same client and filters as before.
+
+| Location | Input | Client | Effect |
+| --- | --- | --- | --- |
+| `src/app/(admin)/tickets/actions.ts` `lookupPastEvaluatedValue` — `.ilike("brand" / "tag_info")` on `device_models`, `.ilike("device_brand" / "tag_info")` on `repair_tickets` (tag branch) | `EstimateCard` brand / tag info | service_role | broader match; usually ends in `multipleResults` (one value is returned only for a unique match) |
+| same function — `.ilike("brand" / "model_name")`, `.ilike("device_brand" / "device_model")` (model branch) | brand / model | service_role | same |
+| `src/app/(admin)/tickets/page.tsx` — `.or("name.ilike.%…%,phone.ilike.%…%", { referencedTable: "customers" })` | ticket list search box | session (RLS) | `,` is stripped; `%` / `_` act as wildcards; other filter-syntax characters (e.g. `(`, `)`) may make the filter fail → no results |
+| `src/app/actions/inventoryActions.ts` `getInventoryItems` — `.ilike("capacity", …)` | inventory search | session (RLS) | broader match |
+
+Not affected: the Repair Intelligence SQL functions (`catalog_*`, `part_spec_search`) compare with `LIKE` only after `catalog_normalize()`,
+which keeps only `[0-9A-Za-z가-힣]`, so `%` / `_` cannot reach the pattern. The label lookups use fixed patterns (`'P-%'`, `'D-%'`).
+Possible fix (separate plan): a small `escapeLike()` helper (`\`, `%`, `_` → escaped) used at the 4 locations.

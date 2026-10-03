@@ -9,7 +9,7 @@ tickets = `repair_tickets`; used parts = `ticket_materials`; stock = `inventory_
 (+ `inventory_categories/specs/products`); movements = `inventory_transactions`;
 settings = `global_settings` (single row); logs = `ticket_logs`; roles = `employee_role` via `get_my_role()`.
 
-Order: 0 → **0.1 → 0.5** → 1 → 2 → … → 7 → **0.6** → 8 → … → 10. Production: one release after Phase 10 (`04-final-release-plan.md`).
+Order: 0 → **0.1 → 0.5** → 1 → 2 → … → 7 → **0.6** → 8 → **0.6.1** → 9 → 10. Production: one release after Phase 10 (`04-final-release-plan.md`).
 
 ---
 
@@ -121,7 +121,7 @@ Production hotfix **cancelled** (KI-8 §8.3: REST path unaffected). Released wit
 
 ---
 
-## Phase 0.6.1 — Server action login / role checks (KI-12) — planned, after Phase 8
+## Phase 0.6.1 — Server action login / role checks (KI-12) ✅ local (report: `phases/phase-0.6.1-report.md`; app only, cherry-pickable to `main`)
 
 **Goal:** every server action checks login itself (needed since Phase 0.6, when the proxy stopped redirecting action requests).
 Found by the Phase 0.6 follow-up audit (`phases/phase-0.6-report.md` → "후속 점검").

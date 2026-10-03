@@ -1,6 +1,6 @@
 # Phase 0.6.1 — Server action login / role checks (KI-12) — PLAN
 
-Status: **APPROVED 2026-10-04** (conditions in §10, R11). Branch `feat/repair-intelligence`. Dev target: local Docker Supabase (no DB change expected).
+Status: **APPROVED 2026-10-04 — EXECUTED 2026-10-04** (conditions in §10, R11; see `phase-0.6.1-report.md`). Branch `feat/repair-intelligence`. Dev target: local Docker Supabase (no DB change expected).
 
 ## 0. Preconditions (checked 2026-10-04)
 
