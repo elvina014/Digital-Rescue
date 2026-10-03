@@ -294,13 +294,13 @@ isOneToOne: false
                   ]
                 },"donor_devices": {
                   Row: {
-                    "brand": string,"catalog_board_id": string | null,"catalog_model_id": string | null,"catalog_variant_id": string | null,"condition_note": string | null,"consent_confirmed_at": string,"consent_confirmed_by": string,"created_at": string,"created_by": string | null,"device_type": Database["public"]['Enums']["device_type"],"donor_no": string,"id": string,"model_text": string | null,"source_ticket_id": string,"status": string,"storage_note": string | null,"tag_info": string | null,"updated_at": string
+                    "brand": string,"catalog_board_id": string | null,"catalog_model_id": string | null,"catalog_variant_id": string | null,"condition_note": string | null,"consent_confirmed_at": string,"consent_confirmed_by": string,"created_at": string,"created_by": string | null,"device_type": Database["public"]['Enums']["device_type"],"donor_no": string,"id": string,"model_text": string | null,"source_ticket_id": string,"status": string,"storage_location_id": string | null,"storage_note": string | null,"tag_info": string | null,"updated_at": string
                   }
                   Insert: {
-                    "brand": string,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"condition_note"?: string | null,"consent_confirmed_at": string,"consent_confirmed_by": string,"created_at"?: string,"created_by"?: string | null,"device_type": Database["public"]['Enums']["device_type"],"donor_no"?: string,"id"?: string,"model_text"?: string | null,"source_ticket_id": string,"status"?: string,"storage_note"?: string | null,"tag_info"?: string | null,"updated_at"?: string
+                    "brand": string,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"condition_note"?: string | null,"consent_confirmed_at": string,"consent_confirmed_by": string,"created_at"?: string,"created_by"?: string | null,"device_type": Database["public"]['Enums']["device_type"],"donor_no"?: string,"id"?: string,"model_text"?: string | null,"source_ticket_id": string,"status"?: string,"storage_location_id"?: string | null,"storage_note"?: string | null,"tag_info"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "brand"?: string,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"condition_note"?: string | null,"consent_confirmed_at"?: string,"consent_confirmed_by"?: string,"created_at"?: string,"created_by"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"],"donor_no"?: string,"id"?: string,"model_text"?: string | null,"source_ticket_id"?: string,"status"?: string,"storage_note"?: string | null,"tag_info"?: string | null,"updated_at"?: string
+                    "brand"?: string,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"condition_note"?: string | null,"consent_confirmed_at"?: string,"consent_confirmed_by"?: string,"created_at"?: string,"created_by"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"],"donor_no"?: string,"id"?: string,"model_text"?: string | null,"source_ticket_id"?: string,"status"?: string,"storage_location_id"?: string | null,"storage_note"?: string | null,"tag_info"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -332,6 +332,12 @@ isOneToOne: false
       columns: ["source_ticket_id"]
 isOneToOne: true
       referencedRelation: "repair_tickets"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "donor_devices_storage_location_id_fkey"
+      columns: ["storage_location_id"]
+isOneToOne: false
+      referencedRelation: "storage_locations"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "donor_devices_variant_fk"
@@ -506,13 +512,13 @@ isOneToOne: false
                   ]
                 },"inventory_items": {
                   Row: {
-                    "base_estimate": number,"capacity": string | null,"category_id": string,"condition": Database["public"]['Enums']["item_condition"],"created_at": string,"id": string,"part_spec_id": string | null,"product_id": string,"quantity": number,"spec_id": string,"updated_at": string
+                    "base_estimate": number,"capacity": string | null,"category_id": string,"condition": Database["public"]['Enums']["item_condition"],"created_at": string,"id": string,"label_code": string,"part_spec_id": string | null,"product_id": string,"quantity": number,"spec_id": string,"storage_location_id": string | null,"updated_at": string
                   }
                   Insert: {
-                    "base_estimate"?: number,"capacity"?: string | null,"category_id": string,"condition"?: Database["public"]['Enums']["item_condition"],"created_at"?: string,"id"?: string,"part_spec_id"?: string | null,"product_id": string,"quantity"?: number,"spec_id": string,"updated_at"?: string
+                    "base_estimate"?: number,"capacity"?: string | null,"category_id": string,"condition"?: Database["public"]['Enums']["item_condition"],"created_at"?: string,"id"?: string,"label_code"?: string,"part_spec_id"?: string | null,"product_id": string,"quantity"?: number,"spec_id": string,"storage_location_id"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "base_estimate"?: number,"capacity"?: string | null,"category_id"?: string,"condition"?: Database["public"]['Enums']["item_condition"],"created_at"?: string,"id"?: string,"part_spec_id"?: string | null,"product_id"?: string,"quantity"?: number,"spec_id"?: string,"updated_at"?: string
+                    "base_estimate"?: number,"capacity"?: string | null,"category_id"?: string,"condition"?: Database["public"]['Enums']["item_condition"],"created_at"?: string,"id"?: string,"label_code"?: string,"part_spec_id"?: string | null,"product_id"?: string,"quantity"?: number,"spec_id"?: string,"storage_location_id"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -538,6 +544,12 @@ isOneToOne: false
       columns: ["spec_id"]
 isOneToOne: false
       referencedRelation: "inventory_specs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "inventory_items_storage_location_id_fkey"
+      columns: ["storage_location_id"]
+isOneToOne: false
+      referencedRelation: "storage_locations"
       referencedColumns: ["id"]
     }
                   ]
@@ -996,6 +1008,25 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"storage_locations": {
+                  Row: {
+                    "code": string,"created_at": string,"created_by": string | null,"description": string | null,"id": string,"is_active": boolean,"updated_at": string
+                  }
+                  Insert: {
+                    "code": string,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"is_active"?: boolean,"updated_at"?: string
+                  }
+                  Update: {
+                    "code"?: string,"created_at"?: string,"created_by"?: string | null,"description"?: string | null,"id"?: string,"is_active"?: boolean,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "storage_locations_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"symptom_codes": {
                   Row: {
                     "code": string,"created_at": string,"id": string,"is_active": boolean,"name": string,"parent_id": string | null,"sort_order": number
@@ -1330,6 +1361,9 @@ isOneToOne: false
 "get_my_role":
 { Args: Record<PropertyKey, never>; Returns: Database["public"]['Enums']["employee_role"]
                            },
+"label_lookup":
+{ Args: { "p_code": string }; Returns: Json
+                           },
 "part_spec_create":
 { Args: { "p_compat_target"?: string,"p_manufacturer"?: string,"p_name": string,"p_part_type": string }; Returns: Json
                            },
@@ -1419,6 +1453,9 @@ isOneToOne: false
 "ri_inbound_extracted_part":
 { Args: { "p_capacity": string,"p_category_id": string,"p_name": string,"p_quantity": number,"p_spec": string,"p_ticket_id": string,"p_tx_user_id": string }; Returns: string
                            },
+"ri_next_item_label":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
 "ri_purchase_material_info":
 { Args: { "p_lock"?: boolean,"p_material_id": string }; Returns: {
               "item_label": string,"material_id": string,"outsourced": boolean,"quantity": number,"request_status": string,"request_type": string,"ticket_id": string
@@ -1439,6 +1476,9 @@ isOneToOne: false
 { Args: { "p_board_id"?: string,"p_model_id"?: string,"p_variant_id"?: string }; Returns: {
               "confidence": string,"document_count": number,"donor_qty": number,"install_conditional": number,"install_incompatible": number,"install_ok": number,"is_candidate": boolean,"limitation_note": string,"manufacturer": string,"part_name": string,"part_spec_id": string,"part_type": string,"rank": number,"status": string,"stock_qty": number,"target_id": string,"target_label": string,"target_type": string
             }[]
+                           },
+"set_storage_location":
+{ Args: { "p_id": string,"p_kind": string,"p_location_id": string }; Returns: Json
                            },
 "transition_refund":
 { Args: { "p_action": string,"p_cash_receipt_canceled"?: boolean,"p_note"?: string,"p_refund_id": string }; Returns: {

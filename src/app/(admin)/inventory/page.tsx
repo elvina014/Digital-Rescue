@@ -28,7 +28,8 @@ export default async function InventoryPage() {
       *,
       inventory_categories(name),
       inventory_specs(name),
-      inventory_products(name)
+      inventory_products(name),
+      storage_locations(code)
     `
       )
       .order("updated_at", { ascending: false }),

@@ -17,7 +17,7 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
 
   const { data: donor } = await supabase
     .from("donor_devices")
-    .select(`*, catalog_models ( name, catalog_brands ( name ) ), catalog_variants ( name ), catalog_boards ( board_number ),
+    .select(`*, catalog_models ( name, catalog_brands ( name ) ), catalog_variants ( name ), catalog_boards ( board_number ), storage_locations ( code ),
              consent:employees!donor_devices_consent_confirmed_by_fkey ( name )`)
     .eq("id", id)
     .maybeSingle();
@@ -56,6 +56,7 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
   const variant = donor.catalog_variants as unknown as { name: string } | null;
   const board = donor.catalog_boards as unknown as { board_number: string } | null;
   const canEdit = DONOR_EDIT_ROLES.includes(employee.role);
+  const location = (donor.storage_locations as unknown as { code: string } | null)?.code ?? null;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -71,6 +72,15 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
             <>
               {" "}· 원 접수건{" "}
               <Link href={`/tickets/${donor.source_ticket_id}`} className="font-mono text-blue-700 hover:underline">{ticketRes.data.receipt_no}</Link>
+            </>
+          )}
+        </p>
+        <p className="mt-1 text-xs text-gray-500">
+          라벨 <Link href={`/scan/${donor.donor_no}`} className="font-mono text-blue-700 hover:underline">{donor.donor_no}</Link>
+          {" "}· 보관 위치 <span className="font-mono">{location ?? "미지정"}</span>
+          {canEdit && (
+            <>
+              {" "}· <Link href={`/labels/print?c=${donor.donor_no}`} className="text-blue-700 hover:underline">라벨 인쇄</Link>
             </>
           )}
         </p>

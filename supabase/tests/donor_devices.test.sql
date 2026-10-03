@@ -228,19 +228,19 @@ SELECT is((SELECT count(*)::int FROM inventory_specs WHERE name = '원자성스�
 SELECT is((SELECT row(count(*), (SELECT count(*) FROM inventory_transactions), sum(quantity))::text FROM inventory_items),
           (SELECT row(items, txs, qty)::text FROM stock_before), 'atomic: stock unchanged');
 
--- success into an existing USED row (same category/spec/product/capacity as seed item i1 8GB, qty 3)
+-- Phase 7 (Q8): same category/spec/product/capacity as seed item i1 8GB (qty 3) → NOT merged, new qty-1 row
 SELECT pg_temp.jwt('2');
 SET LOCAL ROLE authenticated;
 SELECT lives_ok($$ INSERT INTO res SELECT 'ex1', donor_extract_part((SELECT id FROM donor_part_candidates WHERE description = 'RAM 8GB')) $$, 'MANAGER books the requested candidate');
 RESET ROLE;
-SELECT is((SELECT v->>'item_id' FROM res WHERE k = 'ex1'), '00000000-0000-4000-b400-000000000001', 'merged into the matching USED item (decision 8a)');
-SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000001'), 4, 'quantity incremented');
+SELECT isnt((SELECT v->>'item_id' FROM res WHERE k = 'ex1'), '00000000-0000-4000-b400-000000000001', 'not merged into the matching USED item (Phase 7)');
+SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000001'), 3, 'existing item quantity unchanged');
 SELECT is((SELECT row(user_id, transaction_type::text, quantity_changed, ticket_id, notes)::text FROM inventory_transactions
-            WHERE item_id = '00000000-0000-4000-b400-000000000001' ORDER BY created_at DESC LIMIT 1),
+            WHERE item_id = (SELECT (v->>'item_id')::uuid FROM res WHERE k = 'ex1') ORDER BY created_at DESC LIMIT 1),
           row('00000000-0000-4000-a000-000000000002'::uuid, 'INBOUND', 1, '00000000-0000-4000-d000-000000000007'::uuid, '적출품 반환 입고')::text,
           'INBOUND by the caller, linked to the source ticket');
 SELECT is((SELECT row(status, extracted_by::text, inventory_item_id::text)::text FROM donor_part_candidates WHERE description = 'RAM 8GB'),
-          row('EXTRACTED', '00000000-0000-4000-a000-000000000002', '00000000-0000-4000-b400-000000000001')::text, 'candidate marked extracted');
+          row('EXTRACTED', '00000000-0000-4000-a000-000000000002', (SELECT v->>'item_id' FROM res WHERE k = 'ex1'))::text, 'candidate marked extracted');
 
 -- success with new values → new USED item, capacity stored
 SELECT pg_temp.jwt('1');
@@ -272,8 +272,8 @@ SET LOCAL ROLE authenticated;
 SELECT lives_ok($$ INSERT INTO res SELECT 'ex3', donor_extract_part((SELECT id FROM donor_part_candidates WHERE description = '원래 SSD')) $$,
   'stored inbound fields are used when no parameters are given');
 RESET ROLE;
-SELECT is((SELECT v->>'item_id' FROM res WHERE k = 'ex3'), '00000000-0000-4000-b400-000000000004', 'merged into the USED 256GB WD item');
-SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000004'), 2, 'WD 256GB quantity 1 → 2');
+SELECT isnt((SELECT v->>'item_id' FROM res WHERE k = 'ex3'), '00000000-0000-4000-b400-000000000004', 'new unit row, not the USED 256GB WD item (Phase 7)');
+SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000004'), 1, 'WD 256GB quantity unchanged (1)');
 
 -- scrapped donor: candidates leave the potential stock and cannot be booked
 SELECT pg_temp.jwt('4');

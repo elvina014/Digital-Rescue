@@ -103,9 +103,12 @@ RESET ROLE;
 SELECT is((SELECT return_status FROM ticket_materials WHERE id = '00000000-0000-4000-e000-000000000026'), 'pending', 'atomic: status unchanged after failure');
 SELECT is((SELECT count(*)::int FROM inventory_specs WHERE name = '원자성스펙'), 0, 'atomic: no spec left behind');
 
--- (c) existing USED item, same capacity → incremented
-SELECT is((SELECT v->>'item_id' FROM res WHERE k = 'a22'), '00000000-0000-4000-b400-000000000001', 'same capacity → existing item');
-SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000001'), 5, 'existing item quantity + 2');
+-- (c) Phase 7 (Q8): existing USED item with the same capacity is NOT incremented; qty 2 → two qty-1 rows
+SELECT isnt((SELECT v->>'item_id' FROM res WHERE k = 'a22'), '00000000-0000-4000-b400-000000000001', 'same capacity → new unit row, not the existing item');
+SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000001'), 3, 'existing item quantity unchanged');
+SELECT is((SELECT count(*)::int || '|' || sum(quantity) FROM inventory_items WHERE id <> '00000000-0000-4000-b400-000000000001'
+            AND product_id = (SELECT product_id FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000001')
+            AND capacity = '8GB' AND condition = 'USED'), '2|2', 'return qty 2 → two USED rows of quantity 1');
 -- (d)(f) new spec + product, 불량품 still booked as USED, base_estimate 0, capacity NULL
 SELECT is((SELECT i.condition || '|' || i.quantity || '|' || i.base_estimate || '|' || coalesce(i.capacity, 'NULL') || '|' || s.name || '|' || p.name
              FROM inventory_items i JOIN inventory_specs s ON s.id = i.spec_id JOIN inventory_products p ON p.id = i.product_id
@@ -115,20 +118,23 @@ SELECT is((SELECT i.condition || '|' || i.quantity || '|' || i.base_estimate || 
 SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000006'), 0, 'D1: item with another capacity not incremented');
 SELECT is((SELECT capacity FROM inventory_items WHERE id = (SELECT (v->>'item_id')::uuid FROM res WHERE k = 'a24')), NULL, 'D1: new item without capacity');
 -- legacy row without return_category_id → original item category
-SELECT is((SELECT v->>'item_id' FROM res WHERE k = 'a25'), '00000000-0000-4000-b400-000000000004', 'fallback category → existing WD 256GB item');
+SELECT is((SELECT row(product_id, capacity, quantity)::text FROM inventory_items WHERE id = (SELECT (v->>'item_id')::uuid FROM res WHERE k = 'a25')),
+          row('00000000-0000-4000-b300-000000000004'::uuid, '256GB', 1)::text, 'fallback category → new WD 256GB unit row');
+SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000004'), 1, 'fallback: existing WD 256GB item unchanged');
 -- D1: capacity stored on a new item
 SELECT is((SELECT capacity FROM inventory_items WHERE id = (SELECT (v->>'item_id')::uuid FROM res WHERE k = 'a05')), '256GB', 'D1: capacity stored on the new item');
 -- INBOUND rows: user = ticket assignee, notes identical
 SELECT is((SELECT count(*)::int FROM inventory_transactions WHERE notes = '적출품 반환 입고' AND transaction_type = 'INBOUND'
-            AND user_id = '00000000-0000-4000-a000-000000000004' AND ticket_id = '00000000-0000-4000-d000-000000000005'), 5,
-  'one INBOUND per approval, booked to the assigned technician');
-SELECT is((SELECT quantity_changed FROM inventory_transactions WHERE notes = '적출품 반환 입고' AND item_id = '00000000-0000-4000-b400-000000000001'), 2, 'INBOUND quantity = return quantity');
+            AND user_id = '00000000-0000-4000-a000-000000000004' AND ticket_id = '00000000-0000-4000-d000-000000000005'), 6,
+  'one INBOUND per unit (qty 2 → 2), booked to the assigned technician');
+SELECT is((SELECT count(*)::int FROM inventory_transactions WHERE notes = '적출품 반환 입고' AND ticket_id = '00000000-0000-4000-d000-000000000005'
+            AND quantity_changed <> 1), 0, 'every extracted INBOUND has quantity 1');
 SELECT is((SELECT count(*)::int FROM ticket_logs WHERE employee_id = '00000000-0000-4000-a000-000000000002'
             AND message IN ('시스템: 적출 자재 입고 승인 완료 (RAM / 노트북용 DDR4 / 삼성 DDR4-3200 / 8GB / 중고품)',
                             '시스템: 적출 자재 입고 승인 완료 (RAM / 신규스펙 / 신규제품 / 불량품)',
                             '시스템: 적출 자재 입고 승인 완료 (저장장치 / M.2 NVMe / WD / 256GB / 중고품)')), 3, 'approve: log lines identical to the old flow');
 
--- D2: two matching items → the oldest is incremented, no duplicate
+-- D2 (Phase 7): two matching items → neither is touched, a new unit row is created
 INSERT INTO inventory_items (id, category_id, spec_id, product_id, capacity, condition, quantity, base_estimate, created_at)
 VALUES ('00000000-0000-4000-b400-0000000000d2', '00000000-0000-4000-b100-000000000002', '00000000-0000-4000-b200-000000000002',
         '00000000-0000-4000-b300-000000000004', '256GB', 'USED', 7, 0, now() + interval '1 hour');
@@ -136,9 +142,9 @@ SELECT pg_temp.jwt('1');
 SET LOCAL ROLE authenticated;
 INSERT INTO res SELECT 'a02', approve_return_material('00000000-0000-4000-e000-000000000002');
 RESET ROLE;
-SELECT is((SELECT v->>'item_id' FROM res WHERE k = 'a02'), '00000000-0000-4000-b400-000000000004', 'D2: oldest matching item chosen');
+SELECT ok((SELECT v->>'item_id' FROM res WHERE k = 'a02') NOT IN ('00000000-0000-4000-b400-000000000004', '00000000-0000-4000-b400-0000000000d2'), 'D2: new unit row');
 SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-0000000000d2'), 7, 'D2: the other matching item untouched');
-SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000004'), 3, 'WD 256GB: 1 + 1 + 1');
+SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000004'), 1, 'WD 256GB: oldest item unchanged (1)');
 
 -- ---------- 3. confirm_material_return ----------
 SELECT pg_temp.jwt('4');
@@ -196,10 +202,10 @@ SELECT is((SELECT count(*)::int FROM ticket_removed_parts WHERE description = '�
 -- internal function: no ticket (Phase 4 donor path), callable only by the owner
 SELECT lives_ok($$ SELECT ri_inbound_extracted_part('00000000-0000-4000-b100-000000000001', '노트북용 DDR4', '삼성 DDR4-3200', '8GB', 1, NULL, '00000000-0000-4000-a000-000000000001') $$,
   'internal inbound works without a ticket');
-SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000001'), 6, 'internal inbound incremented the item');
+SELECT is((SELECT quantity FROM inventory_items WHERE id = '00000000-0000-4000-b400-000000000001'), 3, 'internal inbound did not touch the existing item');
 
 -- ---------- 5. consistency ----------
-SELECT is((SELECT count(*) FROM inventory_transactions) - (SELECT tx FROM before), 9::bigint, '9 new transactions in total (6 extracted + 1 rollback + 1 removed part + 1 internal)');
+SELECT is((SELECT count(*) FROM inventory_transactions) - (SELECT tx FROM before), 10::bigint, '10 new transactions in total (7 extracted units + 1 rollback + 1 removed part + 1 internal)');
 SELECT is((SELECT count(*)::int FROM inventory_items WHERE quantity < 0), 0, 'no negative stock');
 
 -- ---------- 6. privileges / definitions ----------

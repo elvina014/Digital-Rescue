@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { deleteInventoryItem, adminInlineUpdateInventoryItem } from "@/app/actions/inventoryActions";
 import { ItemCondition, EmployeeRole } from "@/types";
@@ -36,6 +37,8 @@ interface InventoryItemRow {
   inventory_categories: { name: string } | null;
   inventory_specs: { name: string } | null;
   inventory_products: { name: string } | null;
+  label_code: string;
+  storage_locations: { code: string } | null;
 }
 
 interface TransactionRow {
@@ -170,6 +173,7 @@ export default function InventoryClient({ items: initialItems, transactions, cur
         const prodName = item.inventory_products?.name ?? "";
         const capacity = item.capacity ?? "";
         if (
+          !item.label_code.toLowerCase().includes(q) &&
           !catName.toLowerCase().includes(q) &&
           !specName.toLowerCase().includes(q) &&
           !prodName.toLowerCase().includes(q) &&
@@ -399,6 +403,10 @@ export default function InventoryClient({ items: initialItems, transactions, cur
                     </td>
                     <td className="px-4 py-3 font-medium text-gray-900">
                       {item.inventory_products?.name ?? "-"}
+                      <div className="font-mono text-xs font-normal text-gray-400">
+                        <Link href={`/scan/${item.label_code}`} className="hover:text-blue-700 hover:underline">{item.label_code}</Link>
+                        {item.storage_locations && ` · ${item.storage_locations.code}`}
+                      </div>
                     </td>
 
                     {/* 용량 — Admin 인라인 편집 */}

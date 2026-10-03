@@ -58,6 +58,11 @@ const NAV_ITEMS: NavItem[] = [
     roles: ["ADMIN"] as EmployeeRole[],
   },
   {
+    label: "보관 위치 관리",
+    href: "/inventory/locations",
+    roles: ["ADMIN"] as EmployeeRole[],
+  },
+  {
     label: "부품·기기 검색",
     href: "/lookup",
     roles: [],
@@ -66,6 +71,16 @@ const NAV_ITEMS: NavItem[] = [
     label: "Donor 기기",
     href: "/donors",
     roles: ["ADMIN", "MANAGER", "TECHNICIAN", "EXPERT_REPAIR"] as EmployeeRole[],
+  },
+  {
+    label: "라벨 조회",
+    href: "/scan",
+    roles: [],
+  },
+  {
+    label: "라벨 인쇄",
+    href: "/labels",
+    roles: ["ADMIN", "MANAGER"] as EmployeeRole[],
   },
   {
     label: "기기 마스터",

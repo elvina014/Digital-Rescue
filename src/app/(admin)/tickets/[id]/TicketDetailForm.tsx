@@ -92,6 +92,7 @@ interface InventoryItemRow {
   category_name: string;
   spec_name: string;
   product_name: string;
+  label_code?: string;
 }
 
 interface CategoryOption {

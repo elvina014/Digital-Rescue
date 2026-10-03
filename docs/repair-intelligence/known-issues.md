@@ -153,6 +153,10 @@ exist only in the generated types (the jsonb result of `get_device_knowledge` is
 **Phase 6 (2026-10-03):** `global_settings.ri_purchase_guard_enabled`, `purchase_guard_logs` and the RPCs `purchase_guard_check` /
 `request_purchase_material` exist only in the generated types (the jsonb results are typed by hand in `src/app/(admin)/tickets/purchaseGuardActions.ts`).
 
+**Phase 7 (2026-10-03):** `inventory_items.label_code` / `storage_location_id`, `donor_devices.storage_location_id`, `storage_locations` and the RPCs
+`label_lookup` / `set_storage_location` exist only in the generated types (the jsonb result of `label_lookup` is typed by hand in `src/app/(admin)/scan/[code]/types.ts`).
+The ticket picker rows got an optional `label_code` in the local interfaces of `TicketDetailForm` / `EstimateCard` / `AddMaterialCard`.
+
 **Tables without a hand-written interface:** `inventory_transactions`, `news_items`, `page_contents`,
 `receipt_no_sequence`, `refund_no_sequence`.
 

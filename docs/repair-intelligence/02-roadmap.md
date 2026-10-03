@@ -234,7 +234,7 @@ reason impossible when resources exist.
 
 ---
 
-## Phase 7 — Physical tracking
+## Phase 7 — Physical tracking ✅ local (report: `phases/phase-7-report.md`; production deploy pending)
 
 **Scope**
 - `label_code` (unique, short) + storage location structure (e.g. `A-01-04`, `DONOR-C07`).

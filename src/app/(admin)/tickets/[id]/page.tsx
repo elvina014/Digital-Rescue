@@ -93,7 +93,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     .from("inventory_items")
     .select(`
       id, category_id, spec_id, product_id,
-      capacity, condition, quantity, base_estimate,
+      capacity, condition, quantity, base_estimate, label_code,
       inventory_categories ( name ),
       inventory_specs ( name ),
       inventory_products ( name )
@@ -195,6 +195,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     category_name: (item.inventory_categories as unknown as { name: string })?.name ?? "",
     spec_name: (item.inventory_specs as unknown as { name: string })?.name ?? "",
     product_name: (item.inventory_products as unknown as { name: string })?.name ?? "",
+    label_code: item.label_code,
   }));
 
   const globalSettingsData = globalSettings ?? {

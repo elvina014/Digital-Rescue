@@ -24,6 +24,7 @@ interface InventoryItemRow {
   category_name: string;
   spec_name: string;
   product_name: string;
+  label_code?: string;
 }
 
 interface CategoryOption {
@@ -285,6 +286,7 @@ export default function EstimateCard({
     } else {
       parts.push(`[재고: ${item.quantity}]`);
     }
+    if (item.label_code) parts.push(`· ${item.label_code}`);
     return parts.join(" ");
   }
 
