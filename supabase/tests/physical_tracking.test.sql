@@ -193,11 +193,15 @@ SELECT is((SELECT jsonb_array_length(v->'history') FROM res WHERE k = 'lk_m'),
           (SELECT count(*)::int FROM inventory_transactions WHERE item_id = '00000000-0000-4000-b400-000000000001'), 'MANAGER gets the full history');
 SELECT is((SELECT (v->'history'->0->>'created_at')::timestamptz FROM res WHERE k = 'lk_m'),
           (SELECT max(created_at) FROM inventory_transactions WHERE item_id = '00000000-0000-4000-b400-000000000001'), 'history newest first');
-SELECT is((SELECT v->'history'->0->>'receipt_no' FROM res WHERE k = 'lk_rp'), '20260927-001', 'history shows the receipt no.');
+SELECT is((SELECT v->'history'->0->>'receipt_no' FROM res WHERE k = 'lk_rp'),
+          (SELECT t.receipt_no::text FROM ticket_removed_parts rp JOIN repair_tickets t ON t.id = rp.ticket_id WHERE rp.description = '램 3개'),
+          'history shows the receipt no.');
 SELECT is((SELECT v->'history'->0->>'employee' FROM res WHERE k = 'lk_rp'), (SELECT name::text FROM employees WHERE id = '00000000-0000-4000-a000-000000000004'), 'history shows the employee');
 
 SELECT is((SELECT v->>'kind' FROM res WHERE k = 'lk_d'), 'DONOR', 'lower-case donor code resolves');
-SELECT is((SELECT v #>> '{donor,location}' || '|' || (v #>> '{donor,source_receipt_no}') FROM res WHERE k = 'lk_d'), 'DONOR-C07|20260925-001', 'donor location + source receipt no.');
+SELECT is((SELECT v #>> '{donor,location}' || '|' || (v #>> '{donor,source_receipt_no}') FROM res WHERE k = 'lk_d'),
+          'DONOR-C07|' || (SELECT receipt_no::text FROM repair_tickets WHERE id = '00000000-0000-4000-d000-000000000007'),
+          'donor location + source receipt no.');
 SELECT is((SELECT jsonb_array_length(v->'candidates') FROM res WHERE k = 'lk_d'), 2, 'donor candidates listed');
 SELECT ok(EXISTS (SELECT 1 FROM res, jsonb_array_elements(v->'candidates') c WHERE k = 'lk_d' AND c->>'status' = 'EXTRACTED'
                    AND c->>'item_label_code' ~ '^P-'), 'extracted candidate shows its item label');
