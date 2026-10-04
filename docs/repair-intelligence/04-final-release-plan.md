@@ -3,7 +3,9 @@
 Status: **release-ready draft** — 2026-10-04 (release preparation session). The release covers **Phases 0.5 – 9**.
 Phase 10 is **after** the release, with its own per-phase deployment once real repair data exists (`02-roadmap.md`).
 Claude never applies anything to production (R3, R7); this document is Brad's plan. The executable, step-by-step version is
-`release/release-runbook.md`; the manual test list is `release/regression-checklist.md`.
+`release/release-runbook.md`; the manual test list is `release/regression-checklist.md`; rehearsal results: `release/rehearsal-report.md`.
+Updated 2026-10-04 (second pass): principle "backup first, instant rollback", stage-0 backups, rollback levels L1 / L2 / L3,
+mandatory rehearsal items (a)–(d) with a first local run, public homepage in scope, Preview domain and cookie notes, staff notice.
 
 ## 0. Preconditions checked (2026-10-04, production SELECT only)
 
@@ -15,9 +17,17 @@ Claude never applies anything to production (R3, R7); this document is Brad's pl
 | `ticket_materials` purchase rows | only `purchase / cancelled` × 1 → **no purchase request is waiting for approval** (relevant to §2.2 A) |
 | `main` vs `feat/repair-intelligence` | `main` = `7d237f6` = merge base → the PR has no conflicts. Brad confirms in Vercel that production runs `7d237f6` (runbook stage 0) |
 | Branch | every phase report 0.1 – 9 (incl. 0.5, 0.6, 0.6.1) and every migration file is committed on `feat/repair-intelligence` |
+| Supabase plan (Management API, read-only) | organisation plan **free** → **no dashboard backups, no PITR**. The stage-0 `db dump` files are the only database backup (runbook 0.2-3 / 0.2-4) |
+| Vercel environment variables (Brad, 2026-10-04) | Supabase variables are set for **All Environments** → the Preview uses the **production** database |
+| Same Vercel project serves the public site | yes — `src/proxy.ts` routes by host: apex → `(main)` (home `/`, 14 brand landing pages `/[brand]`, intake form), `login.` → admin, `edit.` → CMS. The merge redeploys the public site too (§3.5) |
 
 ## 1. Principle
 
+- **Backup first, instant rollback (decision 2026-10-04).** Nothing is applied to production before the stage-0 backups exist and are verified
+  (Git tag `pre-ri-release`, recorded Vercel production deployment, three `db dump` files outside the repository with row counts checked against production,
+  Vercel variable names, n8n workflow exports, Cloudflare DNS export — runbook 0.2). Every stage has a way back, in three levels (§5.3):
+  **L1** app only (Vercel Instant Rollback, seconds), **L2** schema (`supabase/rollback/ri-full-rollback.sql`, RI data exported first),
+  **L3** restore from the stage-0 dumps (loses all production data written after the dump — last resort).
 - One release for Phases 0.5 – 9. No per-phase hotfixes (the Phase 0.6 standalone application was cancelled, KI-8 §8.3).
 - Migrations are applied **in file (timestamp) order** from `supabase/migrations/`; that order *is* the release order.
 - **Order of the release (decision 2026-10-04): migrations first → PR → Preview tested against production data → merge to `main`.**
@@ -77,9 +87,15 @@ old flows on identical fixtures (Phase 2 report "Equivalence"). Preview write te
 
 **General rules for the window**
 1. Keep it short: stages 3 → 6 of the runbook on **one day**, starting after business hours.
-2. Announce to staff: no "구매 승인", no new inventory registration while `db push` runs, report anything unusual.
+2. Announce to staff (text: runbook 3.1): **no "구매 승인" from `db push` until the merged app is live**, no inventory registration while `db push` runs,
+   report anything unusual. Reproduced in rehearsal (b): the old app's purchase approval on the new DB writes one fake OUTBOUND row.
 3. All flags stay OFF (`ri_approval_gate_enabled`, `ri_cancel_gate_enabled`, `ri_purchase_guard_enabled`).
-4. If the old app misbehaves in the window: stop testing, do **not** merge; decide between fixing forward and the DB rollback (§5.3).
+4. If the old app misbehaves in the window: stop testing, do **not** merge; decide between fixing forward and L2 (§5.3).
+
+**Old code + new DB, verified (rehearsal (b), `release/rehearsal-report.md`):** `main` @ `7d237f6` was run against baseline + all 14 migrations.
+Dispatch approval, return confirmation, extracted-part inbound, disposal confirmation, final approval, refund request → approve → complete → void,
+statistics, new inventory item, n8n inventory webhook, ticket create / cancel / restore: same results as before. Two expected deviations, both covered above:
+A (fake OUTBOUND on purchase approval) and F (purchase request refused only if the guard flag were ON). The second run repeats this on the production dump.
 
 ## 3. Release strategy — Vercel Preview against production
 
@@ -99,7 +115,7 @@ Vercel → Project → **Settings → Environment Variables**, filter **Preview*
 
 | Variable | Expected for this test | Note |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://wnddkgeohcgcidoklrps.supabase.co` (production) | If it points elsewhere, the Preview does **not** test against production — stop and decide |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://wnddkgeohcgcidoklrps.supabase.co` (production) | **Confirmed by Brad 2026-10-04: All Environments.** If it ever points elsewhere, the Preview does not test against production |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | the production project's keys | must belong to the same project as the URL |
 | `NEXT_PUBLIC_SITE_DOMAIN` | as Production (`digital-rescue.com`) | cookie domain, see §3.2 |
 | `N8N_NEW_TICKET_WEBHOOK_URL` | Brad decides | if set, a `[테스트]` intake from the public form sends the usual new-ticket notification |
@@ -115,10 +131,12 @@ Do not copy any value into the repository or a chat. Changing a Preview variable
 `src/proxy.ts` serves the admin portal only on hosts that start with **`login.`** and the CMS only on **`edit.`**.
 On the default `*.vercel.app` Preview URL every admin path (`/dashboard`, `/tickets`, …) is redirected to `/`; only the public site works there.
 
-- Vercel → Settings → **Domains** → add e.g. `login.preview.digital-rescue.com` (and optionally `edit.preview.digital-rescue.com`),
-  assign it to the Git branch **`feat/repair-intelligence`**, add the CNAME shown by Vercel at the DNS provider.
-- With `NEXT_PUBLIC_SITE_DOMAIN=digital-rescue.com` the login cookie domain becomes `.digital-rescue.com`, i.e. shared with production
-  `login.digital-rescue.com`. Same Supabase project and users → harmless, but logging out on one logs out on the other.
+- Vercel → Settings → **Domains** → add `login.preview.digital-rescue.com` (and optionally `edit.preview.digital-rescue.com`), attached to **Preview, Git branch
+  `feat/repair-intelligence`**; Cloudflare → DNS → CNAME `login.preview` → the target Vercel shows, **DNS only** (grey cloud). Exact steps: runbook 4.3.
+- **Shared login cookie.** With `NEXT_PUBLIC_SITE_DOMAIN=digital-rescue.com` the cookie domain becomes `.digital-rescue.com` on the Preview as well, i.e. the same
+  `sb-…-auth-token` and `dr_last_activity` cookies as production `login.digital-rescue.com`, same Supabase project. Logging in or switching the test account on
+  the Preview changes the production session in the same browser; logging out ends both; activity on one keeps the other alive. Use a **dedicated browser
+  profile** for the Preview only (runbook 4.4).
 - QR labels encode the host of the printing page: **do not print real labels from the Preview** (Phase 7 report → Deployment 4).
 - Remove the branch domain after the release (or keep it for Phase 10).
 
@@ -150,9 +168,27 @@ Cleanup (Brad, after the Preview test, before the merge) — **first through the
 8. Then the read-only leftover query in runbook stage 5.4. Anything left is listed for Brad; **hard deletes in SQL are Brad's decision**, run as `postgres` in the SQL Editor
    (plain SQL, **never "Run as role"**), inside `BEGIN … ROLLBACK` first. Claude does not write production data (R3, R9).
 
+### 3.5 Public homepage and landing pages are part of this release
+
+The same Next.js app and Vercel project serve the public site (apex `digital-rescue.com`: home `/`, brand landing pages `/[brand]` for 14 slugs with
+lower-case redirects, the intake form, news / CMS content). The merge to `main` therefore redeploys the public site. Code changes on the branch that touch it:
+`src/proxy.ts` only (new admin paths blocked on the apex, server actions no longer redirected) — the `(main)` routes and the intake action are unchanged.
+Regression: checklist 1-0 (Preview) and 4-0 (deployment day), first. Gap found: `/ai-photo` is not in the proxy's `ADMIN_PATHS` (KI-16).
+
 ## 4. Rehearsal (before production — local, never on production)
 
-Details and commands: runbook stages 1–2.
+Details and commands: runbook stages 1–2. **Mandatory items (a)–(d)** — all four must pass before stage 3:
+- **(a)** a local database built from the new production dump gets all 14 migrations;
+- **(b)** the current `main` code runs against (a) → "old code + new DB" compatibility table, with the effect of 0.5 / 0.6a / 1 / 6 / 7 stated;
+- **(c)** after `supabase/rollback/ri-full-rollback.sql` the schema dump equals the baseline dump;
+- **(d)** the data dump restored into an empty local database gives the same row count for every table.
+
+First run (2026-10-04, committed baseline + seed, no production data): **all four passed** — (a) 1168/1168; (b) table in `release/rehearsal-report.md`,
+deviations A and F reproduced as predicted; (c) **0 lines** of schema difference, only the two empty buckets remain (dashboard delete); (d) 83/83 tables equal after
+the restore, once the dump excludes `storage.buckets_vectors` / `storage.vector_indexes` (Supabase doc). The second run repeats (a)–(d) on Brad's production dump
+(it puts production data into the local Docker database — Brad confirms first, reset afterwards).
+
+Also:
 
 1. **Drift check.** Brad dumps the production schema (schema only, no password in any file or chat). Claude checks the dump for secrets and data,
    compares it with `supabase/baseline_raw/schema.sql` (the dump the baseline was built from), and re-runs the Phase 0.1 parity catalog query
@@ -170,7 +206,7 @@ Details and commands: runbook stages 1–2.
         or not has_function_privilege('service_role', p.oid, 'EXECUTE'));   -- expect 0 rows
    ```
 5. pgTAP suite (`npx supabase test db`, expect 1168 pass), `node supabase/test-fixtures/phase9/workflow-check.mjs` (20/20), typecheck / lint / build.
-6. Rollback rehearsal in **reverse** order (§5.3), snapshot equal to the baseline state, then re-apply.
+6. Rollback rehearsal = item (c), with `supabase/rollback/ri-full-rollback.sql` (PART A export → PART B → PART C).
 
 ## 5. Production release (Brad)
 
@@ -187,17 +223,21 @@ Preview test → cleanup → merge → production smoke test → post-release it
   `count(*) = count(distinct label_code)` on `inventory_items`; buckets `donor-photos` / `ai-photos` private with 10 MB limit; `vector_agent` `rolcanlogin = false`.
   Exact queries: runbook stage 3.4.
 
-### 5.3 Rollback
+### 5.3 Rollback — levels L1 / L2 / L3 (commands: runbook "롤백 L1 / L2 / L3")
 
-- **Preferred: app only.** Because the old app works on the new database (§2.2), an app problem after the merge is solved by Vercel → Deployments → previous production deployment → **Instant Rollback**
-  (or revert the merge commit). The database stays.
-- **Database rollback** only if the database itself breaks the old app. It loses all data written into RI tables since the release. Reverse order, each file in the SQL Editor as `postgres` (not "Run as role"),
-  then `npx supabase migration repair --status reverted <version>` for the rolled-back versions:
-  9 (`test-fixtures/phase9/rollback.sql`, then empty and delete bucket `ai-photos` in the dashboard) → KI-14 (`test-fixtures/ki14/rollback.sql`) → 8 (`test-fixtures/phase8/rollback.sql`) →
-  **0.6b + 0.6a together** (`test-fixtures/phase0.6/rollback.sql`; must run **before** the Phase 1–7 rollbacks because it restores Phase 1–7 function bodies) →
-  7 → 6 → 5 → 4 (bucket `donor-photos` stays empty, harmless) → 3 (`test-fixtures/phaseN/rollback.sql`) → 2 (`test-fixtures/phase2_flow/rollback.sql`, both files) →
-  1 (SQL in `phases/phase-1-report.md` → Rollback) → 0.5 (SQL in `phases/phase-0.5-plan.md` → Rollback).
-  Rows that the rollbacks keep on purpose (R9): qty-1 stock rows, aliases / evidence created by approvals, stock booked through the RPCs.
+| Level | What | When | Data loss | Time |
+| --- | --- | --- | --- | --- |
+| **L1** | Vercel **Instant Rollback** to the production deployment recorded in stage 0 (dashboard or `vercel rollback`). DB unchanged | any problem in the new app | none | seconds |
+| **L2** | L1, then `supabase/rollback/ri-full-rollback.sql`: PART A exports every RI table / column into schema `ri_rollback_backup` (+ a `db dump --data-only -s public` file), PART B removes all 14 migrations in **one transaction**, PART C drops `vector_agent`, buckets via dashboard, `migration repair --status reverted` | the new database breaks the old app, or the release is cancelled | RI data (kept in the export only); rows RI wrote into existing tables stay (R9) | minutes |
+| **L3** | restore the stage-0 dumps (roles → schema → replica mode → data) into a **new** Supabase project and point Vercel at it | the database itself is damaged and L1 / L2 do not help | **everything written to production after the dump**; storage files are not in the dump | hours |
+
+Notes
+- L1 is enough in most cases: rehearsal (b) showed the old app works on the new database. After L1 the "no purchase approval" notice applies again (§2.2 A).
+- Vercel Hobby can roll back only to the **immediately previous** production deployment; after a rollback Vercel stops auto-assigning production domains until
+  "Undo Rollback" / promote (runbook L1). Brad records the plan in stage 0.
+- L2 order inside the script: 9 → KI-14 → 8 → 0.6b+0.6a (before the Phase 1–7 parts, it restores their bodies) → 7 → 6 → 5 → 4 → 3 → 2 → 1 → 0.5.
+  Generated verbatim from the per-phase rollbacks; rehearsed as item (c).
+- The Supabase project is on the Free plan: no dashboard restore, no PITR — L3 relies on the stage-0 dumps (and the post-release dump, runbook 6.4).
 
 ## 6. Operator caution until 0.6a is in production (KI-8)
 
@@ -305,7 +345,7 @@ Training happens while all flags are OFF (P10).
 
 ## 9. Open items (not part of the release unless planned)
 
-- KI-7 (`ticket-images` public), KI-9, KI-10, KI-11, KI-13, KI-15 — Brad to decide.
+- KI-7 (`ticket-images` public), KI-9, KI-10, KI-11, KI-13, KI-15, **KI-16** (`/ai-photo` missing from the proxy's `ADMIN_PATHS`) — Brad to decide.
 - Phase 2 decision 6 (all EXPERT_REPAIR regardless of assignment?).
 - Phase 7 decision 8 (`.limit(1)` in `addInventoryItem` and the n8n webhook once identical USED rows exist) — becomes relevant after the first qty-1 inbound on production.
 - Exposed schemas confirmed by Brad in the dashboard (Phase 0.6 decision 8 — implemented for `public, graphql_public`).

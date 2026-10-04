@@ -20,6 +20,7 @@ Recorded only; nothing here is changed without an explicit decision from Brad.
 | KI-13 | `ilike` / PostgREST filters: user input not escaped (`%`, `_`) | Recorded (Phase 0.6.1) — Brad to decide |
 | KI-14 | Deleting an alias created by an approved AI candidate fails (FK `SET NULL` vs `ai_candidates_protect`) | **Fixed locally (Phase 9 D5)** — migration `20261004100000_ki14_ai_candidates_result_delete.sql`, production with the final release |
 | KI-15 | Device-label n8n webhook (`N8N_DEVICE_WEBHOOK_URL`) has no authentication | Recorded (Phase 9, D9) — optional at deployment (`04-final-release-plan.md` §7) |
+| KI-16 | `/ai-photo` is not in `ADMIN_PATHS` of `src/proxy.ts` → reachable on the public apex domain for a logged-in employee | Recorded (release preparation) — Brad to decide |
 
 ---
 
@@ -486,3 +487,16 @@ Found 2026-10-04 (Phase 9 planning, §2.1). **Recorded only** (Phase 9 decision 
 - The Phase 9 photo-recognition workflow is separate and uses Header Auth (`X-RI-Secret`).
 - Option at deployment (`04-final-release-plan.md` §7 "Optional at deployment"): the app sends a header + Header Auth on that webhook,
   app first. Needs its own approved plan (changes an existing action).
+
+## KI-16. `/ai-photo` missing from the proxy's admin path list
+
+Found 2026-10-04 (release preparation, homepage check). **Recorded only — not changed.** Brad to decide.
+
+- `src/proxy.ts` blocks admin paths on the public apex domain (`digital-rescue.com`) with `ADMIN_PATHS`. Phases 1–7 added `/catalog`, `/donors`, `/lookup`, `/labels`, `/scan`;
+  Phase 9 did **not** add `/ai-photo`.
+- Logged out: `digital-rescue.com/ai-photo` → the page redirects to `/login` → the proxy sends `/login` on the apex to `/` (no exposure).
+- Logged in: the login cookie is shared across `.digital-rescue.com` (`NEXT_PUBLIC_SITE_DOMAIN`), so an employee who opens `digital-rescue.com/ai-photo` sees the
+  AI photo page on the public domain. Role checks and data access are the same as on `login.` (page: ADMIN / MANAGER / TECHNICIAN / EXPERT_REPAIR); only the host differs.
+- On `login.` a logged-out request to `/ai-photo` is not redirected by the proxy but by the page itself (`redirect("/login")`) — same result.
+- Possible fix (separate approved change): add `"/ai-photo"` to `ADMIN_PATHS`.
+- Regression checklist 1-0-6 / 4-0 record the current behaviour.
