@@ -103,7 +103,7 @@ Filter by the same rule (`inventory_specs.name = '외주'`) until the separate c
   OUTBOUND row for purchases once the RPC stops doing it.
 - Also: no role check and no `search_path` in the function (mitigated — EXECUTE is granted to
   service_role only).
-- **Fixed in Phase 0.5** (purchase branch only; dispatch path unchanged; app fallback skipped for purchases) — see `phases/phase-0.5-report.md`. Production deploy pending (app first, then migration).
+- **Fixed in Phase 0.5** (purchase branch only; dispatch path unchanged; app fallback skipped for purchases) — see `phases/phase-0.5-report.md`. Production deploy pending — with the release, migrations first (`04-final-release-plan.md` §1; window risk of the old app's OUTBOUND fallback: §2.2 A).
 
 ## KI-5. Hand-written types vs generated types
 

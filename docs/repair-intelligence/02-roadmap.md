@@ -9,7 +9,9 @@ tickets = `repair_tickets`; used parts = `ticket_materials`; stock = `inventory_
 (+ `inventory_categories/specs/products`); movements = `inventory_transactions`;
 settings = `global_settings` (single row); logs = `ticket_logs`; roles = `employee_role` via `get_my_role()`.
 
-Order: 0 → **0.1 → 0.5** → 1 → 2 → … → 7 → **0.6** → 8 → **0.6.1** → 9 → 10. Production: one release after Phase 10 (`04-final-release-plan.md`).
+Order: 0 → **0.1 → 0.5** → 1 → 2 → … → 7 → **0.6** → 8 → **0.6.1** → 9 → **release** → 10.
+Production: one release of Phases 0.5–9 (`04-final-release-plan.md`, decision 2026-10-04). Phase 10 comes **after** the release,
+with its own per-phase deployment, once real repair data exists.
 
 ---
 
@@ -298,8 +300,16 @@ reason impossible when resources exist.
 
 ---
 
-## Phase 10 — Repair knowledge engine
+## Phase 10 — Repair knowledge engine ⏸ after the release (decision 2026-10-04)
 
-- Similar-case search by board + symptom codes + measurements + faults (relational first;
+**Moved after the release.** Phase 10 is not part of the Phase 0.5–9 release. It starts only when production holds
+real repair data (repair records, symptom codes, measurements, faults, model / board links) entered through the
+released Phases 1–9 — similar-case search cannot be designed or judged on empty tables or seed data.
+
+- Deployment: **per phase** (its own plan, migrations, rehearsal and deployment), not part of a bundled release.
+  The release order of `04-final-release-plan.md` §2 ends at Phase 9; Phase 10 migrations follow later on top of it.
+- Before planning: Brad decides when there is enough real data (e.g. number of tickets with a repair record and a
+  표준 모델 / board link), and the plan states the data it was evaluated against (read-only queries).
+- Scope (unchanged): similar-case search by board + symptom codes + measurements + faults (relational first;
   `pgvector` later only if needed). No customer PII in results.
-- Acceptance: returns relevant past cases for a new ticket.
+- Acceptance (unchanged): returns relevant past cases for a new ticket — checked against real production cases.
