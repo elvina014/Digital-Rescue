@@ -73,6 +73,11 @@ const NAV_ITEMS: NavItem[] = [
     roles: ["ADMIN", "MANAGER", "TECHNICIAN", "EXPERT_REPAIR"] as EmployeeRole[],
   },
   {
+    label: "AI 사진 인식",
+    href: "/ai-photo",
+    roles: ["ADMIN", "MANAGER", "TECHNICIAN", "EXPERT_REPAIR"] as EmployeeRole[],
+  },
+  {
     label: "라벨 조회",
     href: "/scan",
     roles: [],

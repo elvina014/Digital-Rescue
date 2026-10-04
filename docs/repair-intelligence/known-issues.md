@@ -19,6 +19,7 @@ Recorded only; nothing here is changed without an explicit decision from Brad.
 | KI-12 | Server actions without their own login / role check (statistics) | **Fixed locally in Phase 0.6.1** (commit `b43eb58`, app only) — production with the final release, or cherry-pick to `main` (Brad) |
 | KI-13 | `ilike` / PostgREST filters: user input not escaped (`%`, `_`) | Recorded (Phase 0.6.1) — Brad to decide |
 | KI-14 | Deleting an alias created by an approved AI candidate fails (FK `SET NULL` vs `ai_candidates_protect`) | **Fixed locally (Phase 9 D5)** — migration `20261004100000_ki14_ai_candidates_result_delete.sql`, production with the final release |
+| KI-15 | Device-label n8n webhook (`N8N_DEVICE_WEBHOOK_URL`) has no authentication | Recorded (Phase 9, D9) — optional at deployment (`04-final-release-plan.md` §7) |
 
 ---
 
@@ -165,6 +166,9 @@ The ticket picker rows got an optional `label_code` in the local interfaces of `
 
 **Phase 8 (2026-10-04):** `ai_candidates` and the RPCs `ai_candidate_approve` / `ai_candidate_reject` exist only in the generated types
 (the candidate row is mapped by hand in `src/app/(admin)/catalog/ai-candidates/page.tsx`). Schema `vector_api` is not an API schema and is not generated.
+
+**Phase 9 (2026-10-04):** `ai_photo_requests`, the new `ai_candidates` columns (`photo_request_id`, `result_model_alias_id`, `result_board_alias_id`, nullable `part_spec_id`) and the RPC `ai_photo_propose`
+exist only in the generated types (the jsonb result of `ai_photo_propose` is typed by hand in `src/app/(admin)/ai-photo/actions.ts`).
 
 **Tables without a hand-written interface:** `inventory_transactions`, `news_items`, `page_contents`,
 `receipt_no_sequence`, `refund_no_sequence`.
@@ -470,3 +474,15 @@ Found 2026-10-04 (Phase 9 planning), local stack. Phase 8 object — not in prod
 - Tests: `supabase/tests/ki14_ai_candidate_result_delete.test.sql` (9). Before the fix: tests 2–4 fail (reproduction). After: 9/9.
 - Rollback: `supabase/test-fixtures/ki14/rollback.sql` (Phase 8 body, verbatim). Snapshot: only the function body differs; rollback → identical.
 - Phase 9 extends the same rule to its two new result columns (`result_model_alias_id`, `result_board_alias_id`).
+
+## KI-15. Device-label n8n webhook has no authentication
+
+Found 2026-10-04 (Phase 9 planning, §2.1). **Recorded only** (Phase 9 decision D9).
+
+- `analyzeDeviceLabelAction` (`src/app/(admin)/tickets/actions.ts`) posts the label photo (base64) to `process.env.N8N_DEVICE_WEBHOOK_URL`
+  with only `Content-Type` — no secret header. The action itself checks login.
+- Anyone who learns the webhook URL can call that n8n workflow directly and use the OpenRouter credit behind it
+  (and receive AI value estimates). It does not reach the database (the workflow only answers JSON; the app writes the cache).
+- The Phase 9 photo-recognition workflow is separate and uses Header Auth (`X-RI-Secret`).
+- Option at deployment (`04-final-release-plan.md` §7 "Optional at deployment"): the app sends a header + Header Auth on that webhook,
+  app first. Needs its own approved plan (changes an existing action).

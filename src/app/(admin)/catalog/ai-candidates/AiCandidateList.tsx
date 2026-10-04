@@ -9,7 +9,10 @@ export type CandidateStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface CandidateRow {
   id: string;
-  type: "COMPATIBILITY" | "PART_ALIAS";
+  type: "COMPATIBILITY" | "PART_ALIAS" | "MODEL_ALIAS" | "BOARD_ALIAS";
+  source: "VECTOR" | "PHOTO";
+  photoRequestId: string | null;
+  photoUrl: string | null;
   specName: string;
   partType: string | null;
   targetType: string | null;
@@ -64,7 +67,7 @@ export default function AiCandidateList({
   return (
     <div>
       <p className="mb-3 text-sm text-gray-500">
-        VECTOR(AI)가 제안한 호환성·부품 별칭입니다. 승인해야 지식으로 등록되며, 승인해도 &lsquo;검증됨&rsquo;이 되지는 않습니다.
+        VECTOR(AI)가 제안한 호환성·부품 별칭과 AI 사진 인식이 읽은 별칭 후보입니다. 승인해야 지식으로 등록되며, 승인해도 &lsquo;검증됨&rsquo;이 되지는 않습니다.
       </p>
       <nav className="mb-4 flex gap-2">
         {TABS.map((t) => (

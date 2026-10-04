@@ -197,3 +197,23 @@ Anyone holding the `vector_agent` password and a raw SQL client (not the n8n wor
 - change **its own session settings**, including `SET statement_timeout = 0`. The 5 s / 10 s values are role defaults and a session can override them. `temp_file_limit`, once set by a superuser, can **not** be overridden (superuser-only parameter).
 
 It cannot read or write any business table or sequence (verified by actual attempts, `vector_integration.test.sql` §3 and the real-login test in the report). Keep the password only in the n8n credential.
+
+## 8. AI 사진 인식 (Phase 9) — VECTOR와의 관계, 자리 표시자 채우는 방법
+
+- 사진 인식 후보(`ai_candidates.source = 'PHOTO'`)는 **VECTOR 경로와 무관**하다. 앱 서버 액션 → n8n 사진 인식 워크플로(별도의 새 워크플로) → OpenRouter → 앱 → `ai_photo_propose` 순서이며, n8n은 DB에 접속하지 않는다.
+- **이미지·이미지 URL·사진 경로는 `vector_api`로 노출되지 않는다.**
+  - `vector_api` 함수는 하나도 바뀌지 않았고, `ai_photo_requests`·`storage.*`를 읽지 않는다;
+  - `vector_agent`는 `ai_photo_requests`, `storage` 스키마, 버킷 `ai-photos`에 권한이 없다 (실제 조회 → 42501, `ai_photo_recognition.test.sql` §9).
+- 사진 인식 워크플로는 **성공 실행을 저장하지 않는다** (워크플로 단위 설정, D7). 이 문서 §5의 n8n 전체 설정(실행 이력 보존)은 바꾸지 않으며, VECTOR 워크플로의 실행 이력은 그대로 감사 기록이다 (C12).
+
+### 자리 표시자 채우는 방법 (Phase 9 승인 조건 Q1)
+
+`n8n/ri-photo-recognition.workflow.json`에는 추측값 대신 자리 표시자가 있다. **가져오기(import) 후 n8n 화면에서** 채우고, 실제 값은 저장소에 넣지 않는다.
+
+| 자리 표시자 | 위치 | 채울 값 |
+| --- | --- | --- |
+| `<<OPENROUTER_MODEL_ID>>` | Code 노드 "요청 구성" 첫 줄 `const MODEL = '…'` | 기존 기기 라벨 워크플로(`N8N_DEVICE_WEBHOOK_URL`)의 OpenRouter 노드에 있는 `model` 값 그대로 |
+| `<<OPENROUTER_CREDENTIAL_ID>>`, `<<OPENROUTER_CREDENTIAL_NAME>>` | HTTP Request 노드 "OpenRouter" → Credential | 기존 기기 라벨 워크플로가 쓰는 **같은** OpenRouter credential 선택 |
+| `<<RI_PHOTO_HEADER_AUTH_CREDENTIAL_ID>>`, `<<RI_PHOTO_HEADER_AUTH_CREDENTIAL_NAME>>` | Webhook 노드 → Header Auth credential | 새 Header Auth credential (`X-RI-Secret`, 32자 이상 임의 값) |
+
+절차 상세·응답 형식: `n8n/README.md`. 출시 후 점검: `04-final-release-plan.md` §7 ("모델 ID·credential 채우기 → 실제 사진 1장으로 인식 확인").

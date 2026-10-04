@@ -291,7 +291,7 @@ reason impossible when resources exist.
 
 ---
 
-## Phase 9 — AI-assisted registration
+## Phase 9 — AI-assisted registration ✅ local (report: `phases/phase-9-report.md`; production with the final release + post-release checks `04-final-release-plan.md` §7)
 
 - Extend the n8n + OpenRouter vision flow: label/board/chip-marking photo → `ai_candidates`.
 - Acceptance: photo produces a candidate; nothing is registered without approval.

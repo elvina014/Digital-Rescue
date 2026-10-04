@@ -18,7 +18,7 @@ function formatTime(iso: string | null) {
   return new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "short", timeStyle: "short" });
 }
 
-/** 기기 마스터 → AI 후보 (Phase 8): VECTOR가 제안한 호환성·부품 별칭을 관리자가 검토한다. */
+/** 기기 마스터 → AI 후보 (Phase 8·9): VECTOR가 제안한 호환성·부품 별칭과 AI 사진 인식의 별칭 후보를 관리자가 검토한다. */
 export default async function AiCandidatesPage({
   searchParams,
 }: {
@@ -33,11 +33,12 @@ export default async function AiCandidatesPage({
     supabase
       .from("ai_candidates")
       .select(
-        `id, candidate_type, target_type, observed_status, limitation_note, reference, alias, alias_type, rationale, source_ref,
-         status, approved_as, review_note, reviewed_at, created_at,
+        `id, candidate_type, source, target_type, observed_status, limitation_note, reference, alias, alias_type, rationale, source_ref,
+         status, approved_as, review_note, reviewed_at, created_at, photo_request_id,
          part_specs ( name, part_type ),
          catalog_models ( name, catalog_brands ( name ) ),
-         catalog_variants ( name, catalog_models ( name, catalog_brands ( name ) ) ),
+         catalog_variants!ai_candidates_variant_id_fkey ( name, catalog_models ( name, catalog_brands ( name ) ) ),
+         ai_photo_requests ( storage_path ),
          catalog_boards ( board_number ),
          employees!ai_candidates_reviewed_by_fkey ( name )`
       )
@@ -47,17 +48,31 @@ export default async function AiCandidatesPage({
     ...STATUSES.map((s) => supabase.from("ai_candidates").select("id", { count: "exact", head: true }).eq("status", s)),
   ]);
 
+  // 사진 인식 후보의 사진: 비공개 버킷, 10분 서명 URL (검토가 끝난 사진은 삭제되어 URL이 없다, D3)
+  const photoPaths = [
+    ...new Set((list.data ?? []).map((c) => (c.ai_photo_requests as unknown as { storage_path: string } | null)?.storage_path).filter(Boolean)),
+  ] as string[];
+  const signed = photoPaths.length ? (await supabase.storage.from("ai-photos").createSignedUrls(photoPaths, 600)).data ?? [] : [];
+  const photoUrl = new Map(signed.filter((s) => s.signedUrl && !s.error).map((s) => [s.path, s.signedUrl]));
+
   const candidates: CandidateRow[] = (list.data ?? []).map((c) => {
     const variant = c.catalog_variants as unknown as { name: string; catalog_models: ModelRef } | null;
+    const board = (c.catalog_boards as unknown as { board_number: string } | null)?.board_number ?? null;
     const target =
-      c.target_type === "MODEL" ? modelLabel(c.catalog_models as unknown as ModelRef)
+      c.candidate_type === "MODEL_ALIAS" ? modelLabel(c.catalog_models as unknown as ModelRef, variant?.name)
+      : c.candidate_type === "BOARD_ALIAS" ? board
+      : c.target_type === "MODEL" ? modelLabel(c.catalog_models as unknown as ModelRef)
       : c.target_type === "VARIANT" ? modelLabel(variant?.catalog_models ?? null, variant?.name)
-      : c.target_type === "BOARD" ? (c.catalog_boards as unknown as { board_number: string } | null)?.board_number ?? null
+      : c.target_type === "BOARD" ? board
       : null;
     const spec = c.part_specs as unknown as { name: string; part_type: string } | null;
+    const path = (c.ai_photo_requests as unknown as { storage_path: string } | null)?.storage_path ?? null;
     return {
       id: c.id,
       type: c.candidate_type as CandidateRow["type"],
+      source: c.source as CandidateRow["source"],
+      photoRequestId: c.photo_request_id,
+      photoUrl: path ? photoUrl.get(path) ?? null : null,
       specName: spec?.name ?? "(삭제된 규격)",
       partType: spec?.part_type ?? null,
       targetType: c.target_type,

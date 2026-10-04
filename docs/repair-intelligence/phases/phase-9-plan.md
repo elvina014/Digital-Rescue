@@ -1,6 +1,6 @@
 # Phase 9 — AI-assisted registration (사진 인식 → AI 후보) — PLAN
 
-Status: **APPROVED by Brad 2026-10-04 with the conditions below (recorded per R11 before implementation).** Branch `feat/repair-intelligence`.
+Status: **APPROVED by Brad 2026-10-04 with the conditions below (recorded per R11 before implementation). Implemented locally 2026-10-04 — see `phase-9-report.md`.** Branch `feat/repair-intelligence`.
 Dev target: **local Docker Supabase only** (Brad, 2026-10-04). Production: no queries, nothing applied (R3).
 
 ## 승인 조건 (Brad, 2026-10-04, R11)

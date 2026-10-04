@@ -4,13 +4,20 @@ import { useState } from "react";
 import { ALIAS_TYPE_LABEL, COMPAT_STATUS_CLASS, COMPAT_STATUS_LABEL, PART_TYPE_LABEL } from "@/components/catalog/partLabels";
 import { approveAiCandidateAction, rejectAiCandidateAction } from "./actions";
 import type { CandidateRow } from "./AiCandidateList";
+import CandidatePhoto from "./CandidatePhoto";
 
+const TYPE_LABEL: Record<CandidateRow["type"], string> = {
+  COMPATIBILITY: "호환성",
+  PART_ALIAS: "부품 별칭",
+  MODEL_ALIAS: "모델 별칭",
+  BOARD_ALIAS: "보드 별칭",
+};
 const APPROVED_AS_LABEL: Record<string, string> = { DOCUMENT: "문서 근거로 승인", INFERENCE: "추정으로 승인" };
 const isUrl = (v: string) => /^https?:\/\//i.test(v);
 
 type Mode = null | "document" | "reject";
 
-/** AI 후보 카드 한 장. 내용은 수정할 수 없고 승인(문서 근거 / 추정) 또는 반려(사유 필수)만 한다. */
+/** AI 후보 카드 한 장. 내용은 수정할 수 없고 승인(호환성: 문서 근거 / 추정, 별칭: 승인) 또는 반려(사유 필수)만 한다. */
 export default function AiCandidateCard({
   candidate: c,
   serverError,
@@ -50,12 +57,19 @@ export default function AiCandidateCard({
   return (
     <li className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-800">
-          {c.type === "COMPATIBILITY" ? "호환성" : "부품 별칭"}
+        <span className="rounded bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-800">{TYPE_LABEL[c.type]}</span>
+        <span className={`rounded px-2 py-0.5 text-xs ${c.source === "PHOTO" ? "bg-sky-100 text-sky-800" : "bg-gray-100 text-gray-600"}`}>
+          {c.source === "PHOTO" ? "사진 인식" : "VECTOR"}
         </span>
         <span className="font-semibold text-gray-900">
-          {c.partType && <span className="mr-1 text-gray-500">[{PART_TYPE_LABEL[c.partType] ?? c.partType}]</span>}
-          {c.specName}
+          {c.type === "MODEL_ALIAS" || c.type === "BOARD_ALIAS" ? (
+            c.targetLabel ?? "(삭제된 대상)"
+          ) : (
+            <>
+              {c.partType && <span className="mr-1 text-gray-500">[{PART_TYPE_LABEL[c.partType] ?? c.partType}]</span>}
+              {c.specName}
+            </>
+          )}
         </span>
         {c.type === "COMPATIBILITY" ? (
           <>
@@ -69,7 +83,8 @@ export default function AiCandidateCard({
           </>
         ) : (
           <span className="text-gray-800">
-            별칭 <strong>{c.alias}</strong> ({ALIAS_TYPE_LABEL[c.aliasType ?? ""] ?? c.aliasType})
+            별칭 <strong>{c.alias}</strong>
+            {c.aliasType && <> ({ALIAS_TYPE_LABEL[c.aliasType] ?? c.aliasType})</>}
           </span>
         )}
         <span className="ml-auto text-xs text-gray-400">제안 {c.createdAt}</span>
@@ -87,6 +102,7 @@ export default function AiCandidateCard({
         )}
         {c.sourceRef && <div className="text-xs text-gray-400">실행 ID: {c.sourceRef}</div>}
       </dl>
+      {c.photoRequestId && <CandidatePhoto photoRequestId={c.photoRequestId} photoUrl={c.photoUrl} reviewed={!pending} />}
       {c.rationale && (
         <details className="mt-2 rounded bg-amber-50 px-3 py-2 text-sm text-amber-900">
           <summary className="cursor-pointer text-xs font-semibold">AI 설명 — 사실 확인 필요</summary>

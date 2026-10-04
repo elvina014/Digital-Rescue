@@ -25,13 +25,13 @@ export type Database = {
           Tables: {
             "ai_candidates": {
                   Row: {
-                    "alias": string | null,"alias_norm": string | null,"alias_type": string | null,"approved_as": string | null,"board_id": string | null,"candidate_type": string,"created_at": string,"id": string,"limitation_note": string | null,"model_id": string | null,"observed_status": string | null,"part_spec_id": string,"rationale": string | null,"reference": string | null,"result_alias_id": string | null,"result_evidence_id": string | null,"review_note": string | null,"reviewed_at": string | null,"reviewed_by": string | null,"source": string,"source_ref": string | null,"status": string,"target_type": string | null,"variant_id": string | null
+                    "alias": string | null,"alias_norm": string | null,"alias_type": string | null,"approved_as": string | null,"board_id": string | null,"candidate_type": string,"created_at": string,"id": string,"limitation_note": string | null,"model_id": string | null,"observed_status": string | null,"part_spec_id": string | null,"photo_request_id": string | null,"rationale": string | null,"reference": string | null,"result_alias_id": string | null,"result_board_alias_id": string | null,"result_evidence_id": string | null,"result_model_alias_id": string | null,"review_note": string | null,"reviewed_at": string | null,"reviewed_by": string | null,"source": string,"source_ref": string | null,"status": string,"target_type": string | null,"variant_id": string | null
                   }
                   Insert: {
-                    "alias"?: string | null,"alias_norm"?: never,"alias_type"?: string | null,"approved_as"?: string | null,"board_id"?: string | null,"candidate_type": string,"created_at"?: string,"id"?: string,"limitation_note"?: string | null,"model_id"?: string | null,"observed_status"?: string | null,"part_spec_id": string,"rationale"?: string | null,"reference"?: string | null,"result_alias_id"?: string | null,"result_evidence_id"?: string | null,"review_note"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"source"?: string,"source_ref"?: string | null,"status"?: string,"target_type"?: string | null,"variant_id"?: string | null
+                    "alias"?: string | null,"alias_norm"?: never,"alias_type"?: string | null,"approved_as"?: string | null,"board_id"?: string | null,"candidate_type": string,"created_at"?: string,"id"?: string,"limitation_note"?: string | null,"model_id"?: string | null,"observed_status"?: string | null,"part_spec_id"?: string | null,"photo_request_id"?: string | null,"rationale"?: string | null,"reference"?: string | null,"result_alias_id"?: string | null,"result_board_alias_id"?: string | null,"result_evidence_id"?: string | null,"result_model_alias_id"?: string | null,"review_note"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"source"?: string,"source_ref"?: string | null,"status"?: string,"target_type"?: string | null,"variant_id"?: string | null
                   }
                   Update: {
-                    "alias"?: string | null,"alias_norm"?: never,"alias_type"?: string | null,"approved_as"?: string | null,"board_id"?: string | null,"candidate_type"?: string,"created_at"?: string,"id"?: string,"limitation_note"?: string | null,"model_id"?: string | null,"observed_status"?: string | null,"part_spec_id"?: string,"rationale"?: string | null,"reference"?: string | null,"result_alias_id"?: string | null,"result_evidence_id"?: string | null,"review_note"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"source"?: string,"source_ref"?: string | null,"status"?: string,"target_type"?: string | null,"variant_id"?: string | null
+                    "alias"?: string | null,"alias_norm"?: never,"alias_type"?: string | null,"approved_as"?: string | null,"board_id"?: string | null,"candidate_type"?: string,"created_at"?: string,"id"?: string,"limitation_note"?: string | null,"model_id"?: string | null,"observed_status"?: string | null,"part_spec_id"?: string | null,"photo_request_id"?: string | null,"rationale"?: string | null,"reference"?: string | null,"result_alias_id"?: string | null,"result_board_alias_id"?: string | null,"result_evidence_id"?: string | null,"result_model_alias_id"?: string | null,"review_note"?: string | null,"reviewed_at"?: string | null,"reviewed_by"?: string | null,"source"?: string,"source_ref"?: string | null,"status"?: string,"target_type"?: string | null,"variant_id"?: string | null
                   }
                   Relationships: [
                     {
@@ -53,16 +53,34 @@ isOneToOne: false
       referencedRelation: "part_specs"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "ai_candidates_photo_request_id_fkey"
+      columns: ["photo_request_id"]
+isOneToOne: false
+      referencedRelation: "ai_photo_requests"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "ai_candidates_result_alias_id_fkey"
       columns: ["result_alias_id"]
 isOneToOne: false
       referencedRelation: "part_number_aliases"
       referencedColumns: ["id"]
     },{
+      foreignKeyName: "ai_candidates_result_board_alias_id_fkey"
+      columns: ["result_board_alias_id"]
+isOneToOne: false
+      referencedRelation: "catalog_board_aliases"
+      referencedColumns: ["id"]
+    },{
       foreignKeyName: "ai_candidates_result_evidence_id_fkey"
       columns: ["result_evidence_id"]
 isOneToOne: false
       referencedRelation: "compatibility_evidence"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_candidates_result_model_alias_id_fkey"
+      columns: ["result_model_alias_id"]
+isOneToOne: false
+      referencedRelation: "catalog_model_aliases"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "ai_candidates_reviewed_by_fkey"
@@ -76,6 +94,55 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "catalog_variants"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_candidates_variant_model_fk"
+      columns: ["variant_id","model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_variants"
+      referencedColumns: ["id","model_id"]
+    }
+                  ]
+                },"ai_photo_requests": {
+                  Row: {
+                    "ai_model": string | null,"board_id": string | null,"candidate_count": number,"created_at": string,"id": string,"model_id": string | null,"part_spec_id": string | null,"photo_kind": string,"reading_count": number,"requested_by": string | null,"source_ref": string | null,"storage_path": string,"variant_id": string | null
+                  }
+                  Insert: {
+                    "ai_model"?: string | null,"board_id"?: string | null,"candidate_count": number,"created_at"?: string,"id": string,"model_id"?: string | null,"part_spec_id"?: string | null,"photo_kind": string,"reading_count": number,"requested_by"?: string | null,"source_ref"?: string | null,"storage_path": string,"variant_id"?: string | null
+                  }
+                  Update: {
+                    "ai_model"?: string | null,"board_id"?: string | null,"candidate_count"?: number,"created_at"?: string,"id"?: string,"model_id"?: string | null,"part_spec_id"?: string | null,"photo_kind"?: string,"reading_count"?: number,"requested_by"?: string | null,"source_ref"?: string | null,"storage_path"?: string,"variant_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ai_photo_requests_board_id_fkey"
+      columns: ["board_id"]
+isOneToOne: false
+      referencedRelation: "catalog_boards"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_photo_requests_model_id_fkey"
+      columns: ["model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_models"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_photo_requests_part_spec_id_fkey"
+      columns: ["part_spec_id"]
+isOneToOne: false
+      referencedRelation: "part_specs"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_photo_requests_requested_by_fkey"
+      columns: ["requested_by"]
+isOneToOne: false
+      referencedRelation: "employees"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ai_photo_requests_variant_fk"
+      columns: ["variant_id","model_id"]
+isOneToOne: false
+      referencedRelation: "catalog_variants"
+      referencedColumns: ["id","model_id"]
     }
                   ]
                 },"catalog_board_aliases": {
@@ -1367,6 +1434,9 @@ isOneToOne: false
                            },
 "ai_candidate_reject":
 { Args: { "p_candidate_id": string,"p_reason": string }; Returns: Json
+                           },
+"ai_photo_propose":
+{ Args: { "p_ai_model"?: string,"p_photo_kind": string,"p_readings"?: Json,"p_request_id": string,"p_source_ref"?: string,"p_target_id": string,"p_variant_id"?: string }; Returns: Json
                            },
 "apply_refund_material_adjustments":
 { Args: { "p_refund_id": string,"p_revert": boolean }; Returns: undefined
