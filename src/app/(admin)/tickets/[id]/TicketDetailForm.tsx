@@ -32,6 +32,11 @@ import AddMaterialCard, { type InsertedMaterial } from "./AddMaterialCard";
 import { formatDateTime } from "@/lib/date";
 import RefundCard, { type RefundRow } from "./RefundCard";
 import RestoreCancelCard from "./RestoreCancelCard";
+import type { PickedModel } from "@/components/catalog/DeviceModelPicker";
+import type { PickedBoard } from "@/components/catalog/BoardPicker";
+import RepairRecordSection from "./repair-record/RepairRecordSection";
+import PurchaseGuardDialog from "./PurchaseGuardDialog";
+import { CANCEL_RESULTS, RESULT_LABEL, type RepairRecordData } from "./repair-record/labels";
 
 interface TicketData {
   id: string;
@@ -68,6 +73,9 @@ interface TicketData {
   dispose_confirmed_at: string | null;
   created_at: string;
   updated_at: string;
+  /** 기기 마스터 표준 모델 / 메인보드 (Phase 1, 없으면 null) */
+  catalog_model: PickedModel | null;
+  catalog_board: PickedBoard | null;
   customer: { name: string; phone: string; address: string | null } | null;
   assignee: { id: string; name: string } | null;
 }
@@ -84,6 +92,7 @@ interface InventoryItemRow {
   category_name: string;
   spec_name: string;
   product_name: string;
+  label_code?: string;
 }
 
 interface CategoryOption {
@@ -145,6 +154,9 @@ interface TicketDetailFormProps {
   ticketMaterials: TicketMaterialRow[];
   refunds: RefundRow[];
   daysSinceCompleted: number;
+  repairRecord: RepairRecordData;
+  /** 구매 요청 시 내부 자원 확인 (Phase 6) */
+  purchaseGuardEnabled: boolean;
 }
 
 const RECEIPT_LABEL: Record<string, string> = {
@@ -166,8 +178,11 @@ export default function TicketDetailForm({
   ticketMaterials: initialMaterials,
   refunds,
   daysSinceCompleted,
+  repairRecord,
+  purchaseGuardEnabled,
 }: TicketDetailFormProps) {
   const [error, setError] = useState<string | null>(null);
+  const [guardMaterialId, setGuardMaterialId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [materials, setMaterials] = useState(initialMaterials);
   const [manualCosts, setManualCosts] = useState(ticket.material_cost_details);
@@ -175,6 +190,10 @@ export default function TicketDetailForm({
   const [deviceDisposal, setDeviceDisposal] = useState<"RETURN" | "DISPOSE" | "">("");
   const [currentReceiptType, setCurrentReceiptType] = useState(ticket.receipt_type);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
+  // 수리 기록 필수 확인(게이트) — 설정이 켜져 있을 때만 사용
+  const [approvalOverrideReason, setApprovalOverrideReason] = useState("");
+  const [cancelResult, setCancelResult] = useState("");
+  const [cancelOverrideReason, setCancelOverrideReason] = useState("");
 
   // 서버 데이터 재검증 시 props 변경을 동기화
   useEffect(() => {
@@ -402,6 +421,13 @@ export default function TicketDetailForm({
             <dd className="mt-0.5 text-sm text-gray-900">{ticket.device_model ?? "-"}</dd>
           </div>
           <div>
+            <dt className="text-xs font-medium text-gray-500">표준 모델 / 보드</dt>
+            <dd className="mt-0.5 text-sm text-gray-900">
+              {ticket.catalog_model?.label ?? "미연결"}
+              {ticket.catalog_board && <span className="ml-1 text-xs text-purple-700">[{ticket.catalog_board.label}]</span>}
+            </dd>
+          </div>
+          <div>
             <dt className="text-xs font-medium text-gray-500">상태</dt>
             <dd className="mt-0.5"><TicketStatusBadge status={ticket.status} cancelDisposal={ticket.cancel_device_disposal} /></dd>
           </div>
@@ -530,6 +556,8 @@ export default function TicketDetailForm({
           currentDeviceModel={ticket.device_model}
           currentTagInfo={ticket.tag_info}
           currentReleaseYear={ticket.release_year}
+          currentCatalogModel={ticket.catalog_model}
+          currentCatalogBoard={ticket.catalog_board}
           categories={inventoryCategories}
           inventoryItems={inventoryItems}
           globalSettings={globalSettings}
@@ -591,6 +619,23 @@ export default function TicketDetailForm({
         <section className="rounded-xl border border-gray-200 bg-white p-5">
           <h2 className="mb-4 text-base font-semibold text-gray-800">자재비 관리</h2>
 
+          {guardMaterialId && (
+            <PurchaseGuardDialog
+              materialId={guardMaterialId}
+              onSubmitting={() =>
+                setMaterials((prev) =>
+                  prev.map((x) => (x.id === guardMaterialId ? { ...x, request_status: "requested" } : x))
+                )
+              }
+              onFailed={() =>
+                setMaterials((prev) =>
+                  prev.map((x) => (x.id === guardMaterialId ? { ...x, request_status: "pending" } : x))
+                )
+              }
+              onClose={() => setGuardMaterialId(null)}
+            />
+          )}
+
           {/* ticket_materials 목록 (재고 자재) */}
           {materials.length > 0 && (
             <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
@@ -625,6 +670,12 @@ export default function TicketDetailForm({
                             type="button"
                             disabled={isPending}
                             onClick={() => {
+                              // 구매 요청 확인이 켜져 있으면 내부 자원 확인 창에서 요청한다
+                              if (isPurchase && purchaseGuardEnabled) {
+                                setError(null);
+                                setGuardMaterialId(m.id);
+                                return;
+                              }
                               // Optimistic UI: 즉시 상태 변경
                               setMaterials((prev) =>
                                 prev.map((x) => (x.id === m.id ? { ...x, request_status: "requested" } : x))
@@ -1093,6 +1144,26 @@ export default function TicketDetailForm({
         materials={materials}
       />
 
+      {/* 수리 기록 (입고 이후 또는 기록이 있는 경우) */}
+      {(!isPreReceiptCancel || repairRecord.record) && (
+        <RepairRecordSection
+          ticketId={ticket.id}
+          data={repairRecord}
+          ticketModel={ticket.catalog_model}
+          ticketBoard={ticket.catalog_board}
+          categories={inventoryCategories}
+          materialReturns={materials
+            .filter((m) => m.is_return_registered)
+            .map((m) => ({
+              id: m.id,
+              label: [m.return_spec, m.return_name, m.return_capacity].filter(Boolean).join(" / "),
+              condition: m.return_condition,
+              quantity: m.return_quantity ?? 1,
+              status: m.return_status,
+            }))}
+        />
+      )}
+
       {/* 최종 승인 버튼 (MANAGER / ADMIN) */}
       {canApprove && (() => {
         const physicalMaterials = materials.filter(
@@ -1104,6 +1175,9 @@ export default function TicketDetailForm({
         const hasMaterials = physicalMaterials.length > 0;
         const allReturnsRegistered = hasMaterials && physicalMaterials.every((m) => m.is_return_registered);
         const hasUnregisteredReturns = hasMaterials && physicalMaterials.some((m) => !m.is_return_registered);
+        const gateBlocked = repairRecord.gates.approvalEnabled && repairRecord.gates.approvalMissing.length > 0;
+        const compatParts = Object.values(repairRecord.partCompat).filter((c) => !c.excluded);
+        const compatAnswered = compatParts.filter((c) => c.answer).length;
 
         return (
         <section className="rounded-xl border border-blue-200 bg-blue-50 p-5">
@@ -1129,11 +1203,32 @@ export default function TicketDetailForm({
             최종 견적 <span className="font-semibold">{ticket.final_price.toLocaleString()}원</span>을 승인하시겠습니까?
             승인 후에는 ADMIN 외 수정이 불가합니다.
           </p>
+          {compatParts.length > 0 && (
+            <p className="mb-4 text-xs text-blue-700">
+              사용 부품 호환 확인: {compatAnswered} / {compatParts.length}건 응답
+              {compatAnswered < compatParts.length && " — 위 수리 기록의 “사용 부품”에서 장착 결과를 남길 수 있습니다. (선택 사항)"}
+            </p>
+          )}
+          {gateBlocked && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+              <p className="text-sm font-bold text-amber-800">수리 기록이 완료되지 않아 승인할 수 없습니다.</p>
+              <p className="mt-1 text-xs text-amber-700">미완료 항목: {repairRecord.gates.approvalMissing.join(", ")}</p>
+              {isAdmin && (
+                <input
+                  value={approvalOverrideReason}
+                  onChange={(e) => setApprovalOverrideReason(e.target.value)}
+                  placeholder="관리자 강제 승인 사유 (입력 시에만 승인 가능, 이력에 기록됩니다)"
+                  className="mt-2 w-full rounded-lg border border-amber-300 px-3 py-1.5 text-sm"
+                />
+              )}
+            </div>
+          )}
           <form action={(fd) => handleAction(approveTicketAction, fd)}>
             <input type="hidden" name="ticketId" value={ticket.id} />
+            {gateBlocked && isAdmin && <input type="hidden" name="overrideReason" value={approvalOverrideReason} />}
             <button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || (gateBlocked && !(isAdmin && approvalOverrideReason.trim()))}
               className="rounded-lg bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
             >
               최종 승인
@@ -1209,6 +1304,8 @@ export default function TicketDetailForm({
             disabled={isPending}
             onClick={() => {
               setDeviceDisposal("");
+              setCancelResult("");
+              setCancelOverrideReason("");
               setShowCancelModal(true);
             }}
             className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-50"
@@ -1275,6 +1372,31 @@ export default function TicketDetailForm({
               </fieldset>
             )}
 
+            {repairRecord.gates.cancelEnabled && (
+              <fieldset className="mb-5">
+                <legend className="mb-2 text-sm font-semibold text-gray-800">
+                  취소 구분 <span className="text-red-500">*</span>
+                </legend>
+                <div className="flex flex-wrap gap-2">
+                  {CANCEL_RESULTS.map((r) => (
+                    <label key={r} className="flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50">
+                      <input type="radio" name="cancelResult" value={r} checked={cancelResult === r} onChange={() => setCancelResult(r)} className="h-4 w-4 text-blue-600" />
+                      {RESULT_LABEL[r]}
+                    </label>
+                  ))}
+                </div>
+                {!cancelResult && <p className="mt-2 text-xs text-red-500">취소 구분을 선택해야 취소를 진행할 수 있습니다.</p>}
+                {isAdmin && (
+                  <input
+                    value={cancelOverrideReason}
+                    onChange={(e) => setCancelOverrideReason(e.target.value)}
+                    placeholder="(관리자) 적출 부품 미처리 시 강제 취소 사유"
+                    className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                  />
+                )}
+              </fieldset>
+            )}
+
             <div className="flex justify-end gap-2">
               <button
                 type="button"
@@ -1285,13 +1407,18 @@ export default function TicketDetailForm({
               </button>
               <button
                 type="button"
-                disabled={(!isPreReceiptCancel && !deviceDisposal) || isPending}
+                disabled={(!isPreReceiptCancel && !deviceDisposal) || (repairRecord.gates.cancelEnabled && !cancelResult) || isPending}
                 onClick={() => {
                   if (!isPreReceiptCancel && !deviceDisposal) return;
+                  if (repairRecord.gates.cancelEnabled && !cancelResult) return;
                   setShowCancelModal(false);
                   const fd = new FormData();
                   fd.set("ticketId", ticket.id);
                   if (!isPreReceiptCancel) fd.set("deviceDisposal", deviceDisposal);
+                  if (repairRecord.gates.cancelEnabled) {
+                    fd.set("cancelResult", cancelResult);
+                    if (cancelOverrideReason.trim()) fd.set("overrideReason", cancelOverrideReason);
+                  }
                   handleAction(cancelTicketAction, fd);
                 }}
                 className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"

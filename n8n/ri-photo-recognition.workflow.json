@@ -1,0 +1,151 @@
+{
+  "name": "RI 사진 인식 (Phase 9)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ri-photo-recognition",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6f1c2b1e-9a51-4c1e-8f0a-91a000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "6f1c2b1e-9a51-4c1e-8f0a-91a0000000aa",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "<<RI_PHOTO_HEADER_AUTH_CREDENTIAL_ID>>",
+          "name": "<<RI_PHOTO_HEADER_AUTH_CREDENTIAL_NAME>>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 요청 구성 — 앱이 보낸 {request_id, photo_kind, target_label, image} → OpenRouter chat/completions 본문\n// 모델 ID는 기존 기기 라벨 워크플로와 같은 값을 Brad가 채운다 (n8n/README.md). 추측값을 넣지 않는다.\nconst MODEL = '<<OPENROUTER_MODEL_ID>>';\nconst KIND_HINT = {\n  PART: '부품 라벨 또는 칩 마킹 (품번, 칩 윗면 마킹)',\n  BOARD: '메인보드 실크 인쇄 (보드 번호, 예: LA-K091P, NM-D451, BA92-12345A, DA0X8CMB8E0)',\n  DEVICE: '기기 라벨 스티커 (모델 번호·SKU, 예: 15Z90T-GP5HL, NT950QED-KC71S)',\n};\nconst body = $input.first().json.body ?? {};\nif (!KIND_HINT[body.photo_kind] || typeof body.image !== 'string' || !body.image.startsWith('data:image/')) {\n  throw new Error('invalid request');\n}\nconst system = [\n  '너는 수리점 사진에서 인쇄된 번호만 읽는 판독기다.',\n  '사진에 실제로 보이는 품번, 마킹, 보드 번호, 모델 번호만 그대로 옮겨 적는다. 추측하거나 만들어 내지 않는다.',\n  '사람 이름, 전화번호, 주소, 이메일, 시리얼 번호, 바코드 아래 긴 숫자는 절대 출력하지 않는다.',\n  '반드시 JSON 하나만 출력한다: {\"readings\":[{\"text\":\"...\",\"type\":\"PART_NUMBER|MARKING|BOARD_NUMBER|MODEL_NUMBER|OTHER\",\"confidence\":0.0-1.0,\"note\":\"짧은 설명\"}]}',\n  'readings는 최대 10개. 읽을 것이 없으면 {\"readings\":[]}.',\n].join('\\n');\nreturn [{\n  json: {\n    openrouter: {\n      model: MODEL,\n      temperature: 0,\n      max_tokens: 800,\n      response_format: { type: 'json_object' },\n      messages: [\n        { role: 'system', content: system },\n        {\n          role: 'user',\n          content: [\n            { type: 'text', text: `사진 종류: ${KIND_HINT[body.photo_kind]}\\n대상(참고): ${String(body.target_label ?? '').slice(0, 150)}` },\n            { type: 'image_url', image_url: { url: body.image } },\n          ],\n        },\n      ],\n    },\n  },\n}];\n"
+      },
+      "id": "6f1c2b1e-9a51-4c1e-8f0a-91a000000002",
+      "name": "요청 구성",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.openrouter) }}",
+        "options": {
+          "timeout": 50000
+        }
+      },
+      "id": "6f1c2b1e-9a51-4c1e-8f0a-91a000000003",
+      "name": "OpenRouter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "<<OPENROUTER_CREDENTIAL_ID>>",
+          "name": "<<OPENROUTER_CREDENTIAL_NAME>>"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 응답 검증 — 모델 출력에서 형식에 맞는 판독만 남긴다. 최종 검증(개인정보·길이·중복)은 DB 함수 ai_photo_propose가 다시 한다.\nconst TYPES = ['PART_NUMBER', 'MARKING', 'BOARD_NUMBER', 'MODEL_NUMBER', 'OTHER'];\nconst res = $input.first().json;\nlet content = res?.choices?.[0]?.message?.content ?? '';\nif (Array.isArray(content)) content = content.map((p) => p?.text ?? '').join('');\nconst cleaned = String(content).trim().replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '');\nconst parsed = JSON.parse(cleaned); // 형식 오류 → 오류 출력(502)\nconst readings = (Array.isArray(parsed?.readings) ? parsed.readings : [])\n  .filter((r) => r && typeof r.text === 'string' && r.text.trim() !== '')\n  .slice(0, 10)\n  .map((r) => ({\n    text: r.text.trim().slice(0, 150),\n    type: TYPES.includes(r.type) ? r.type : 'OTHER',\n    confidence: Math.min(1, Math.max(0, Number(r.confidence) || 0)),\n    note: typeof r.note === 'string' && r.note.trim() !== '' ? r.note.trim().slice(0, 300) : null,\n  }));\nreturn [{ json: { readings, model: String(res?.model ?? '').slice(0, 100), execution_id: String($execution.id) } }];\n"
+      },
+      "id": "6f1c2b1e-9a51-4c1e-8f0a-91a000000004",
+      "name": "응답 검증",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 0],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "6f1c2b1e-9a51-4c1e-8f0a-91a000000005",
+      "name": "응답 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [880, -100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\": \"AI 호출 또는 응답 해석에 실패했습니다.\"}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "6f1c2b1e-9a51-4c1e-8f0a-91a000000006",
+      "name": "응답 502",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [880, 120]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"error\": \"요청 형식이 올바르지 않습니다.\"}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "6f1c2b1e-9a51-4c1e-8f0a-91a000000007",
+      "name": "응답 400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, 220]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "요청 구성", "type": "main", "index": 0 }]]
+    },
+    "요청 구성": {
+      "main": [
+        [{ "node": "OpenRouter", "type": "main", "index": 0 }],
+        [{ "node": "응답 400", "type": "main", "index": 0 }]
+      ]
+    },
+    "OpenRouter": {
+      "main": [
+        [{ "node": "응답 검증", "type": "main", "index": 0 }],
+        [{ "node": "응답 502", "type": "main", "index": 0 }]
+      ]
+    },
+    "응답 검증": {
+      "main": [
+        [{ "node": "응답 200", "type": "main", "index": 0 }],
+        [{ "node": "응답 502", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": false
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

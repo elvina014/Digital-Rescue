@@ -93,9 +93,11 @@ export function StatisticsClient({
   const [cancelStats, setCancelStats] = useState(initialCancelStats);
   const [refundStats, setRefundStats] = useState(initialRefundStats);
 
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  async function fetchData(year: number, month: number) {
+  // 조회 실패(로그인 만료·권한 없음) 시 이전 기간과 데이터를 그대로 두고 메시지만 표시한다
+  async function fetchData(year: number, month: number, prevYear: number, prevMonth: number) {
     startTransition(async () => {
       const [
         newAnnual,
@@ -116,25 +118,38 @@ export function StatisticsClient({
         getCancelStats(year, month),
         getRefundStats(year, month),
       ]);
-      setAnnualRevenue(newAnnual);
-      setDailyRevenue(newDaily);
-      setTechRevenue(newTechRevenue);
-      setTechPerformance(newTechPerf);
-      setStatusBreakdown(newStatus);
-      setReceiptTypeBreakdown(newReceiptType);
-      setCancelStats(newCancel);
-      setRefundStats(newRefund);
+      if (
+        "error" in newAnnual || "error" in newDaily || "error" in newTechRevenue || "error" in newTechPerf ||
+        "error" in newStatus || "error" in newReceiptType || "error" in newCancel || "error" in newRefund
+      ) {
+        const failed = [newAnnual, newDaily, newTechRevenue, newTechPerf, newStatus, newReceiptType, newCancel, newRefund].find(
+          (r) => "error" in r
+        );
+        setError(failed && "error" in failed ? failed.error : "통계를 불러오지 못했습니다.");
+        setSelectedYear(prevYear);
+        setSelectedMonth(prevMonth);
+        return;
+      }
+      setError(null);
+      setAnnualRevenue(newAnnual.data);
+      setDailyRevenue(newDaily.data);
+      setTechRevenue(newTechRevenue.data);
+      setTechPerformance(newTechPerf.data);
+      setStatusBreakdown(newStatus.data);
+      setReceiptTypeBreakdown(newReceiptType.data);
+      setCancelStats(newCancel.data);
+      setRefundStats(newRefund.data);
     });
   }
 
   function handleYearChange(year: number) {
     setSelectedYear(year);
-    fetchData(year, selectedMonth);
+    fetchData(year, selectedMonth, selectedYear, selectedMonth);
   }
 
   function handleMonthChange(month: number) {
     setSelectedMonth(month);
-    fetchData(selectedYear, month);
+    fetchData(selectedYear, month, selectedYear, selectedMonth);
   }
 
   const totalAnnual = annualRevenue.reduce((s, d) => s + d.revenue, 0);
@@ -185,6 +200,8 @@ export function StatisticsClient({
           </span>
         )}
       </div>
+
+      {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
       {/* 로딩 오버레이 래퍼 */}
       <div className={`space-y-6 transition-opacity duration-200 ${isPending ? "opacity-50 pointer-events-none" : "opacity-100"}`}>

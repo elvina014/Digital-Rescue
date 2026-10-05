@@ -17,6 +17,7 @@ interface InventoryItemRow {
   category_name: string;
   spec_name: string;
   product_name: string;
+  label_code?: string;
 }
 
 interface CategoryOption {
@@ -93,6 +94,7 @@ export default function AddMaterialCard({
     parts.push(`(${item.condition === "NEW" ? "신품" : "중고"})`);
     parts.push(`— ${item.base_estimate.toLocaleString()}원`);
     parts.push(item.quantity <= 0 ? `[재고 0]` : `[재고: ${item.quantity}]`);
+    if (item.label_code) parts.push(`· ${item.label_code}`);
     return parts.join(" ");
   }
 

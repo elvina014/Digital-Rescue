@@ -4,6 +4,11 @@ import { useState, useMemo, useTransition, useCallback, useRef } from "react";
 import { startRepairAction, lookupPastEvaluatedValue, analyzeDeviceLabelAction } from "../actions";
 import type { DeviceModelLookupResult } from "../actions";
 import { DeviceType } from "@/types";
+import DeviceModelPicker from "@/components/catalog/DeviceModelPicker";
+import type { PickedModel } from "@/components/catalog/DeviceModelPicker";
+import type { DeviceTypeValue } from "@/app/(admin)/catalog/actions";
+import BoardPicker from "@/components/catalog/BoardPicker";
+import type { PickedBoard } from "@/components/catalog/BoardPicker";
 
 // ─── 타입 ───
 
@@ -19,6 +24,7 @@ interface InventoryItemRow {
   category_name: string;
   spec_name: string;
   product_name: string;
+  label_code?: string;
 }
 
 interface CategoryOption {
@@ -38,6 +44,9 @@ interface EstimateCardProps {
   currentDeviceModel: string | null;
   currentTagInfo?: string | null;
   currentReleaseYear?: string | null;
+  /** 기기 마스터 현재 연결 (Phase 1) */
+  currentCatalogModel?: PickedModel | null;
+  currentCatalogBoard?: PickedBoard | null;
   categories: CategoryOption[];
   inventoryItems: InventoryItemRow[];
   globalSettings: GlobalSettingsData;
@@ -59,6 +68,8 @@ export default function EstimateCard({
   currentDeviceModel,
   currentTagInfo,
   currentReleaseYear,
+  currentCatalogModel,
+  currentCatalogBoard,
   categories,
   inventoryItems,
   globalSettings,
@@ -68,6 +79,8 @@ export default function EstimateCard({
 
   // 기기 정보
   const [deviceType, setDeviceType] = useState<string>(DeviceType.NOTEBOOK);
+  const [catalogModel, setCatalogModel] = useState<PickedModel | null>(currentCatalogModel ?? null);
+  const [catalogBoard, setCatalogBoard] = useState<PickedBoard | null>(currentCatalogBoard ?? null);
   const [deviceBrand, setDeviceBrand] = useState(currentDeviceBrand ?? "");
   const [deviceModel, setDeviceModel] = useState(currentDeviceModel ?? "");
   const [tagInfo, setTagInfo] = useState(currentTagInfo ?? "");
@@ -251,6 +264,9 @@ export default function EstimateCard({
     fd.set("minimumEstimate", String(minimumEstimate));
     fd.set("confirmedEstimate", String(ce));
     fd.set("materials", JSON.stringify(materials));
+    fd.set("catalogModelId", catalogModel?.modelId ?? "");
+    fd.set("catalogVariantId", catalogModel?.variantId ?? "");
+    fd.set("catalogBoardId", catalogBoard?.boardId ?? "");
 
     startTransition(async () => {
       const result = await startRepairAction(fd);
@@ -270,6 +286,7 @@ export default function EstimateCard({
     } else {
       parts.push(`[재고: ${item.quantity}]`);
     }
+    if (item.label_code) parts.push(`· ${item.label_code}`);
     return parts.join(" ");
   }
 
@@ -428,6 +445,23 @@ export default function EstimateCard({
         {autoFillHint && (
           <p className="mt-2 text-xs text-blue-600">{autoFillHint}</p>
         )}
+
+        {/* 3행: 기기 마스터 연결 (선택사항) */}
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <span className="mb-1 block text-xs font-medium text-gray-600">표준 모델 (선택)</span>
+            <DeviceModelPicker
+              value={catalogModel}
+              onChange={setCatalogModel}
+              defaultBrand={deviceBrand}
+              deviceType={deviceType as DeviceTypeValue}
+            />
+          </div>
+          <div>
+            <span className="mb-1 block text-xs font-medium text-gray-600">메인보드 (선택)</span>
+            <BoardPicker value={catalogBoard} onChange={setCatalogBoard} />
+          </div>
+        </div>
       </div>
 
       {/* ─── 주요 수리 부위 (카테고리 체크박스) ─── */}

@@ -6,6 +6,10 @@ import type { TicketStatus } from "@/types";
 import { daysSince } from "@/lib/date";
 import type { RefundMaterialAdjustment } from "@/types/database";
 import TicketDetailForm from "./TicketDetailForm";
+import { loadRepairRecord } from "./repair-record/loadRepairRecord";
+import { DONOR_STAFF_ROLES } from "@/app/(admin)/donors/labels";
+import DeviceKnowledgePanel from "@/components/knowledge/DeviceKnowledgePanel";
+import { NOTE_WRITER_ROLES } from "@/components/knowledge/labels";
 
 interface TicketDetailPageProps {
   params: Promise<{ id: string }>;
@@ -32,6 +36,10 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
       material_cost_details, final_price, is_approved, has_admin_message, images,
       payment_status, payment_method, cash_receipt_issued, refunded_amount, completed_at,
       cancel_device_disposal, dispose_confirmed_at, received_at, created_at, updated_at,
+      catalog_model_id, catalog_variant_id, catalog_board_id,
+      catalog_models!repair_tickets_catalog_model_fk ( name, catalog_brands ( name ) ),
+      catalog_variants!repair_tickets_catalog_variant_fk ( name ),
+      catalog_boards!repair_tickets_catalog_board_fk ( board_number, manufacturer ),
       customers ( name, phone, address ),
       employees:assignee_id ( id, name )
     `
@@ -42,6 +50,14 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
   if (error || !ticket) {
     notFound();
   }
+
+  // 수리 기록 (Phase 2)
+  const repairRecord = await loadRepairRecord(id, ticket.status);
+
+  // Donor 전환 여부 (Phase 4) — 폐기로 취소된 접수건만 해당
+  const { data: donor } = ticket.status === "CANCELED"
+    ? await supabase.from("donor_devices").select("id, donor_no").eq("source_ticket_id", id).maybeSingle()
+    : { data: null };
 
   // 담당기사 배정용: TECHNICIAN + EXPERT_REPAIR 직급 중 배정 가능(is_assignable) 직원 목록 조회
   const { data: assignableTechnicians } = await supabase
@@ -77,7 +93,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     .from("inventory_items")
     .select(`
       id, category_id, spec_id, product_id,
-      capacity, condition, quantity, base_estimate,
+      capacity, condition, quantity, base_estimate, label_code,
       inventory_categories ( name ),
       inventory_specs ( name ),
       inventory_products ( name )
@@ -143,6 +159,13 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     .eq("id", true)
     .single();
 
+  // 구매 요청 확인 (Phase 6) — 기본 OFF
+  const { data: purchaseGuardFlag } = await supabase
+    .from("global_settings")
+    .select("ri_purchase_guard_enabled")
+    .eq("id", true)
+    .single();
+
   // 해당 티켓의 ticket_materials 조회
   const { data: ticketMaterialsRaw } = await supabase
     .from("ticket_materials")
@@ -172,6 +195,7 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     category_name: (item.inventory_categories as unknown as { name: string })?.name ?? "",
     spec_name: (item.inventory_specs as unknown as { name: string })?.name ?? "",
     product_name: (item.inventory_products as unknown as { name: string })?.name ?? "",
+    label_code: item.label_code,
   }));
 
   const globalSettingsData = globalSettings ?? {
@@ -216,6 +240,11 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     };
   });
 
+  // 기기 마스터 연결 (Phase 1)
+  const catalogModel = ticket.catalog_models as unknown as { name: string; catalog_brands: { name: string } | null } | null;
+  const catalogVariant = ticket.catalog_variants as unknown as { name: string } | null;
+  const catalogBoard = ticket.catalog_boards as unknown as { board_number: string; manufacturer: string | null } | null;
+
   // Supabase 조인 결과 타입 정리
   const ticketData = {
     id: ticket.id,
@@ -247,6 +276,21 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
     received_at: (ticket as Record<string, unknown>).received_at as string | null ?? null,
     created_at: ticket.created_at,
     updated_at: ticket.updated_at,
+    catalog_model:
+      ticket.catalog_model_id && catalogModel
+        ? {
+            modelId: ticket.catalog_model_id as string,
+            variantId: (ticket.catalog_variant_id as string | null) ?? null,
+            label: [catalogModel.catalog_brands?.name, catalogModel.name, catalogVariant?.name].filter(Boolean).join(" · "),
+          }
+        : null,
+    catalog_board:
+      ticket.catalog_board_id && catalogBoard
+        ? {
+            boardId: ticket.catalog_board_id as string,
+            label: catalogBoard.board_number + (catalogBoard.manufacturer ? ` (${catalogBoard.manufacturer})` : ""),
+          }
+        : null,
     customer: ticket.customers as unknown as {
       name: string;
       phone: string;
@@ -271,6 +315,37 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
 
       <h1 className="mb-6 text-2xl font-bold text-gray-900">접수건 상세</h1>
 
+      {donor && (
+        <p className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          Donor 전환됨 ·{" "}
+          {DONOR_STAFF_ROLES.includes(employee.role) ? (
+            <Link href={`/donors/${donor.id}`} className="font-mono font-semibold underline">{donor.donor_no}</Link>
+          ) : (
+            <span className="font-mono font-semibold">{donor.donor_no}</span>
+          )}
+          <span className="ml-2 text-xs text-amber-700">고객의 소유권 포기 동의를 확인하고 부품 공급원(Donor)으로 전환한 기기입니다.</span>
+        </p>
+      )}
+
+      {(ticket.catalog_model_id || ticket.catalog_board_id) && (
+        <details className="mb-4 rounded-lg border border-gray-200 bg-white px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold text-gray-800">이 기기 지식 (메모 · 과거 사례 · Donor)</summary>
+          <div className="mt-3">
+            <DeviceKnowledgePanel
+              target={{
+                modelId: (ticket.catalog_model_id as string | null) ?? null,
+                variantId: (ticket.catalog_variant_id as string | null) ?? null,
+                boardId: (ticket.catalog_board_id as string | null) ?? null,
+              }}
+              excludeTicketId={id}
+              canWriteNotes={NOTE_WRITER_ROLES.includes(employee.role)}
+              canOpenDonors={DONOR_STAFF_ROLES.includes(employee.role)}
+              authorName={employee.name}
+            />
+          </div>
+        </details>
+      )}
+
       <TicketDetailForm
         ticket={ticketData}
         currentEmployee={employee}
@@ -290,6 +365,8 @@ export default async function TicketDetailPage({ params }: TicketDetailPageProps
         ticketMaterials={ticketMaterialRows}
         refunds={refundRows}
         daysSinceCompleted={daysSinceCompleted}
+        repairRecord={repairRecord}
+        purchaseGuardEnabled={purchaseGuardFlag?.ri_purchase_guard_enabled ?? false}
       />
     </div>
   );

@@ -13,7 +13,7 @@ const CAN_MANAGE: EmployeeRole[] = [
 ];
 
 function requireAuth(employee: { role: EmployeeRole } | null) {
-  if (!employee) return { error: "로그인이 필요합니다." } as const;
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." } as const;
   return null;
 }
 
@@ -613,6 +613,34 @@ export async function updateGlobalSettings(settings: {
   if (error) return { error: error.message };
 
   revalidatePath("/inventory");
+  return { success: true };
+}
+
+// 수리 기록 필수 확인(게이트) 설정 — 관리자 전용, 기본 OFF
+export async function updateRepairGateFlags(flags: {
+  approvalEnabled: boolean;
+  cancelEnabled: boolean;
+  purchaseGuardEnabled: boolean;
+}) {
+  const employee = await getCurrentEmployee();
+  const authErr = requireAuth(employee);
+  if (authErr) return authErr;
+  const permErr = requireAdmin(employee!);
+  if (permErr) return permErr;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("global_settings")
+    .update({
+      ri_approval_gate_enabled: flags.approvalEnabled,
+      ri_cancel_gate_enabled: flags.cancelEnabled,
+      ri_purchase_guard_enabled: flags.purchaseGuardEnabled,
+    })
+    .eq("id", true);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/inventory/settings");
   return { success: true };
 }
 

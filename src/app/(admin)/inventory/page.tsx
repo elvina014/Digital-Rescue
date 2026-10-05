@@ -8,6 +8,8 @@ import InventoryClient from "./InventoryClient";
 import MaterialDispatchWidget from "@/components/common/MaterialDispatchWidget";
 import MaterialReturnWidget from "@/components/common/MaterialReturnWidget";
 import ReturnMaterialInboundWidget from "@/components/common/ReturnMaterialInboundWidget";
+import RemovedPartInboundSection from "@/components/common/RemovedPartInboundSection";
+import DonorExtractRequestSection from "@/components/common/DonorExtractRequestSection";
 
 const CAN_ACCESS: EmployeeRole[] = [EmployeeRole.ADMIN, EmployeeRole.MANAGER];
 
@@ -26,7 +28,8 @@ export default async function InventoryPage() {
       *,
       inventory_categories(name),
       inventory_specs(name),
-      inventory_products(name)
+      inventory_products(name),
+      storage_locations(code)
     `
       )
       .order("updated_at", { ascending: false }),
@@ -150,6 +153,8 @@ export default async function InventoryPage() {
       <MaterialDispatchWidget requests={materialWidgetData} />
       <MaterialReturnWidget requests={returnWidgetData} />
       <ReturnMaterialInboundWidget items={inboundReturnWidgetData} />
+      <RemovedPartInboundSection />
+      <DonorExtractRequestSection />
       <InventoryClient
         items={items ?? []}
         transactions={transactionRows}

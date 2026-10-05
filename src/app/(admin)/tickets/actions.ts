@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { getCurrentEmployee } from "@/lib/auth";
 import { EmployeeRole } from "@/types";
+import { toUuidOrNull } from "@/lib/catalogErrors";
 import sharp from "sharp";
 
 // ----- 신규 접수 생성 권한 -----
@@ -35,6 +36,9 @@ export async function createTicketAction(formData: FormData) {
   const deviceBrand = (formData.get("deviceBrand") as string)?.trim();
   const deviceModel = (formData.get("deviceModel") as string)?.trim() || null;
   const symptoms = (formData.get("symptoms") as string)?.trim();
+  // 기기 마스터 표준 모델 (선택사항, Phase 1)
+  const catalogModelId = toUuidOrNull(formData.get("catalogModelId"));
+  const catalogVariantId = catalogModelId ? toUuidOrNull(formData.get("catalogVariantId")) : null;
   // 테스트 접수 플래그는 ADMIN/MANAGER만 설정 가능 (UI는 RECEPTION에 숨겨져 있지만 서버에서도 강제)
   const canMarkAsTest =
     employee.role === EmployeeRole.ADMIN || employee.role === EmployeeRole.MANAGER;
@@ -86,6 +90,8 @@ export async function createTicketAction(formData: FormData) {
       device_model: deviceModel,
       symptoms,
       is_test: isTest,
+      catalog_model_id: catalogModelId,
+      catalog_variant_id: catalogVariantId,
     })
     .select("id")
     .single();
@@ -202,6 +208,13 @@ export type DeviceModelLookupResult = {
   releaseYear?: number | null;
 };
 
+const LOOKUP_EVALUATED_VALUE_ROLES: EmployeeRole[] = [
+  EmployeeRole.ADMIN,
+  EmployeeRole.MANAGER,
+  EmployeeRole.TECHNICIAN,
+  EmployeeRole.EXPERT_REPAIR,
+];
+
 export async function lookupPastEvaluatedValue(
   deviceType: string,
   deviceBrand: string,
@@ -210,6 +223,8 @@ export async function lookupPastEvaluatedValue(
 ): Promise<{ data: DeviceModelLookupResult | null; multipleResults?: boolean }> {
   const employee = await getCurrentEmployee();
   if (!employee) return { data: null };
+  // 견적 산출 카드(EstimateCard)를 쓰는 역할만 — 접수처·CS는 조회하지 않는다 (Phase 0.6.1 D2)
+  if (!LOOKUP_EVALUATED_VALUE_ROLES.includes(employee.role)) return { data: null };
 
   const adminSupa = createAdminClient();
   const brand = deviceBrand?.trim() ?? "";
@@ -327,7 +342,7 @@ export async function lookupPastEvaluatedValue(
 // 접수처/팀장/관리자 또는 해당 건 배정 담당기사
 export async function markReceivedAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
@@ -380,7 +395,7 @@ export async function markReceivedAction(formData: FormData) {
 // ----- 수리 진행 시작 + 견적 산출 (TECHNICIAN / EXPERT_REPAIR) -----
 export async function startRepairAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const deviceType = formData.get("deviceType") as string;
@@ -392,6 +407,10 @@ export async function startRepairAction(formData: FormData) {
   const minimumEstimate = parseInt(formData.get("minimumEstimate") as string, 10) || 0;
   const confirmedEstimate = parseInt(formData.get("confirmedEstimate") as string, 10) || 0;
   const materialsJson = formData.get("materials") as string;
+  // 기기 마스터 연결 (선택사항, Phase 1) — 선택기는 현재 값으로 채워져 있으므로 그대로 저장
+  const catalogModelId = toUuidOrNull(formData.get("catalogModelId"));
+  const catalogVariantId = catalogModelId ? toUuidOrNull(formData.get("catalogVariantId")) : null;
+  const catalogBoardId = toUuidOrNull(formData.get("catalogBoardId"));
 
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
   if (!deviceType) return { error: "기기 종류를 선택해 주세요." };
@@ -441,6 +460,9 @@ export async function startRepairAction(formData: FormData) {
       confirmed_estimate: confirmedEstimate,
       expected_estimate: confirmedEstimate,
       status: "IN_PROGRESS",
+      catalog_model_id: catalogModelId,
+      catalog_variant_id: catalogVariantId,
+      catalog_board_id: catalogBoardId,
     })
     .eq("id", ticketId);
 
@@ -507,7 +529,7 @@ export async function startRepairAction(formData: FormData) {
 // ----- 자재비 항목 추가 (TECHNICIAN / EXPERT_REPAIR) -----
 export async function addMaterialCostAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const description = (formData.get("description") as string)?.trim();
@@ -572,7 +594,7 @@ export async function updateMaterialCostAction(
   amount: number
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   if (!ticketId || !Number.isInteger(index) || index < 0) {
     return { error: "잘못된 요청입니다." };
@@ -651,7 +673,7 @@ export async function addTicketMaterialsAction(
   materials: { inventory_item_id: string; quantity: number; request_type?: string }[]
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
   if (!Array.isArray(materials) || materials.length === 0) {
@@ -710,7 +732,7 @@ export async function addTicketMaterialsAction(
 // ----- 견적 입력 및 승인 요청 (TECHNICIAN / EXPERT_REPAIR) -----
 export async function submitEstimateAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const finalPrice = parseInt(formData.get("finalPrice") as string, 10);
@@ -812,7 +834,7 @@ export async function submitEstimateAction(formData: FormData) {
 // ----- 상태 변경 (TECHNICIAN: IN_PROGRESS 등) -----
 export async function updateTicketStatusAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const newStatus = formData.get("status") as string;
@@ -867,10 +889,49 @@ export async function updateTicketStatusAction(formData: FormData) {
   redirect(`/tickets/${ticketId}`);
 }
 
+// ----- 수리 기록 필수 확인(게이트) — global_settings 플래그가 켜져 있을 때만 동작 -----
+async function checkRepairGate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ticketId: string,
+  gate: "APPROVAL" | "CANCEL",
+  role: EmployeeRole,
+  overrideReasonRaw: FormDataEntryValue | null,
+  cancelResultRaw?: FormDataEntryValue | null
+): Promise<{ error?: string; overrideLog?: string }> {
+  const { data: flags } = await supabase
+    .from("global_settings")
+    .select("ri_approval_gate_enabled, ri_cancel_gate_enabled")
+    .eq("id", true)
+    .single();
+  const enabled = gate === "APPROVAL" ? flags?.ri_approval_gate_enabled : flags?.ri_cancel_gate_enabled;
+  if (!enabled) return {};
+
+  if (gate === "CANCEL") {
+    const cancelResult = typeof cancelResultRaw === "string" ? cancelResultRaw : "";
+    if (!cancelResult) return { error: "취소 구분(수리불가/고객포기/단순취소)을 선택해 주세요." };
+    const { error: resultError } = await supabase.rpc("repair_set_cancel_result", { p_ticket_id: ticketId, p_result: cancelResult });
+    if (resultError) return { error: resultError.message };
+  }
+
+  const { data: check, error: checkError } = await supabase.rpc("repair_gate_check", { p_ticket_id: ticketId, p_gate: gate });
+  if (checkError) return { error: checkError.message };
+  const result = check as { ok: boolean; missing: string[] } | null;
+  if (!result || result.ok) return {};
+
+  const label = gate === "APPROVAL" ? "승인" : "취소";
+  const reason = typeof overrideReasonRaw === "string" ? overrideReasonRaw.trim() : "";
+  if (role !== EmployeeRole.ADMIN || !reason) {
+    return { error: `수리 기록이 완료되지 않아 ${label}할 수 없습니다: ${result.missing.join(", ")}` };
+  }
+  const { error: overrideError } = await supabase.rpc("repair_gate_override", { p_ticket_id: ticketId, p_gate: gate, p_reason: reason });
+  if (overrideError) return { error: overrideError.message };
+  return { overrideLog: `시스템: 수리 기록 미완료 상태로 강제 ${label} (사유: ${reason} / 미완료: ${result.missing.join(", ")})` };
+}
+
 // ----- 최종 승인 (MANAGER, ADMIN) -----
 export async function approveTicketAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   // MANAGER, ADMIN만 승인 가능
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
@@ -898,6 +959,10 @@ export async function approveTicketAction(formData: FormData) {
     return { error: "최종 견적이 입력되지 않은 접수건은 승인할 수 없습니다." };
   }
 
+  // 수리 기록 필수 확인 (설정이 꺼져 있으면 기존 동작 그대로)
+  const approvalGate = await checkRepairGate(supabase, ticketId, "APPROVAL", employee.role, formData.get("overrideReason"));
+  if (approvalGate.error) return { error: approvalGate.error };
+
   const now = new Date().toISOString();
   const { error } = await supabase
     .from("repair_tickets")
@@ -922,6 +987,9 @@ export async function approveTicketAction(formData: FormData) {
     employee_id: employee.id,
     message: "시스템: 최종 승인 및 완료 처리되었습니다.",
   });
+  if (approvalGate.overrideLog) {
+    await adminSupa.from("ticket_logs").insert({ ticket_id: ticketId, employee_id: employee.id, message: approvalGate.overrideLog });
+  }
 
   revalidatePath(`/tickets/${ticketId}`);
   revalidatePath("/tickets");
@@ -931,7 +999,7 @@ export async function approveTicketAction(formData: FormData) {
 // ----- 처리 현황 로그 추가 (인증된 직원 누구나) -----
 export async function addTicketLogAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const message = (formData.get("message") as string)?.trim();
@@ -984,7 +1052,7 @@ export async function addTicketLogAction(formData: FormData) {
  */
 export async function dismissAdminMessageAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
@@ -1010,7 +1078,7 @@ export async function dismissAdminMessageAction(formData: FormData) {
  */
 export async function cancelTicketAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   if (!ticketId) return { error: "접수건 ID가 필요합니다." };
@@ -1052,6 +1120,10 @@ export async function cancelTicketAction(formData: FormData) {
     deviceDisposal = deviceDisposalRaw as "RETURN" | "DISPOSE";
   }
 
+  // 취소 구분·적출 부품 필수 확인 (설정이 꺼져 있으면 기존 동작 그대로)
+  const cancelGate = await checkRepairGate(supabase, ticketId, "CANCEL", employee.role, formData.get("overrideReason"), formData.get("cancelResult"));
+  if (cancelGate.error) return { error: cancelGate.error };
+
   const { error } = await supabase
     .from("repair_tickets")
     .update({
@@ -1075,6 +1147,9 @@ export async function cancelTicketAction(formData: FormData) {
     employee_id: employee.id,
     message: cancelLogMsg,
   });
+  if (cancelGate.overrideLog) {
+    await supabase.from("ticket_logs").insert({ ticket_id: ticketId, employee_id: employee.id, message: cancelGate.overrideLog });
+  }
 
   // 승인 완료된 자재가 있으면 cancel_requested로 일괄 전환 (관리자 반환 확인 대기)
   const adminSupa = createAdminClient();
@@ -1116,7 +1191,7 @@ export async function addTicketImagesAction(
   newImages: { path: string; url: string; description?: string; uploaded_by?: string; uploader_name?: string; uploaded_at?: string; is_customer?: boolean }[]
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   if (!ticketId || newImages.length === 0) {
     return { error: "업로드 데이터가 없습니다." };
@@ -1176,7 +1251,7 @@ export async function uploadTicketImageAction(
   error?: string;
 }> {
   const employee = await getCurrentEmployee();
-  if (!employee) return { uploaded: null, error: "인증이 필요합니다." };
+  if (!employee) return { uploaded: null, error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const ticketId = formData.get("ticketId") as string;
   const file = formData.get("file") as File | null;
@@ -1272,7 +1347,7 @@ export async function removeTicketImageAction(
   imagePath: string
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const supabase = await createClient();
 
@@ -1306,7 +1381,7 @@ export async function removeTicketImageAction(
 // ----- 자재 출고 요청 (기사) -----
 export async function requestMaterialDispatchAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   // anon client로는 RLS에 의해 TECHNICIAN이 UPDATE 불가 → adminClient 사용
   const adminSupa = createAdminClient();
@@ -1327,6 +1402,16 @@ export async function requestMaterialDispatchAction(materialId: string) {
 
   if (!mat) return { error: "자재 항목을 찾을 수 없습니다." };
   if (mat.request_status !== "pending") return { error: "이미 출고 요청 중이거나 승인된 항목입니다." };
+
+  // 구매 요청 확인(Phase 6)이 켜져 있으면 구매는 확인 창(requestPurchaseWithGuardAction)으로만 요청한다
+  if (mat.request_type === "purchase") {
+    const { data: flags } = await adminSupa
+      .from("global_settings")
+      .select("ri_purchase_guard_enabled")
+      .eq("id", true)
+      .single();
+    if (flags?.ri_purchase_guard_enabled) return { error: "구매 사유 확인이 필요합니다.", guard: true };
+  }
 
   const { error } = await adminSupa
     .from("ticket_materials")
@@ -1363,7 +1448,7 @@ export async function requestMaterialDispatchAction(materialId: string) {
 // ----- 자재 출고 승인 (관리자/팀장) — DB RPC 호출 -----
 export async function approveMaterialDispatchAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "승인 권한이 없습니다." };
   }
@@ -1397,24 +1482,27 @@ export async function approveMaterialDispatchAction(materialId: string) {
     .single();
 
   if (mat) {
-    // inventory_transactions에 OUTBOUND 기록 (RPC가 구버전이라 미기록된 경우 보완)
-    const { count } = await adminSupa
-      .from("inventory_transactions")
-      .select("id", { count: "exact", head: true })
-      .eq("ticket_id", mat.ticket_id)
-      .eq("item_id", mat.inventory_item_id)
-      .eq("transaction_type", "OUTBOUND")
-      .gte("created_at", new Date(Date.now() - 10000).toISOString()); // 10초 이내
+    // 구매 요청은 재고가 움직이지 않으므로 출고(OUTBOUND) 기록을 남기지 않는다
+    if (mat.request_type !== "purchase") {
+      // inventory_transactions에 OUTBOUND 기록 (RPC가 구버전이라 미기록된 경우 보완)
+      const { count } = await adminSupa
+        .from("inventory_transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("ticket_id", mat.ticket_id)
+        .eq("item_id", mat.inventory_item_id)
+        .eq("transaction_type", "OUTBOUND")
+        .gte("created_at", new Date(Date.now() - 10000).toISOString()); // 10초 이내
 
-    if (!count || count === 0) {
-      await adminSupa.from("inventory_transactions").insert({
-        item_id: mat.inventory_item_id,
-        user_id: mat.created_by ?? employee.id, // 요청자 우선, 없으면 승인자
-        transaction_type: "OUTBOUND",
-        quantity_changed: mat.quantity,
-        ticket_id: mat.ticket_id,
-        notes: "자재 출고 승인",
-      });
+      if (!count || count === 0) {
+        await adminSupa.from("inventory_transactions").insert({
+          item_id: mat.inventory_item_id,
+          user_id: mat.created_by ?? employee.id, // 요청자 우선, 없으면 승인자
+          transaction_type: "OUTBOUND",
+          quantity_changed: mat.quantity,
+          ticket_id: mat.ticket_id,
+          notes: "자재 출고 승인",
+        });
+      }
     }
 
     // 자재비 합계 재계산 (재고 자재 단가 조정 + 수동 비용)
@@ -1446,7 +1534,7 @@ export async function approveMaterialDispatchAction(materialId: string) {
 // ----- 자재 출고 요청 대기 목록 조회 (관리자/팀장) -----
 export async function getPendingMaterialRequests() {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다.", data: [] };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요.", data: [] };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "권한이 없습니다.", data: [] };
   }
@@ -1478,7 +1566,7 @@ export async function getPendingMaterialRequests() {
 // ----- 자재 출고/구매 거부 (관리자/팀장) -----
 export async function rejectMaterialDispatchAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "거부 권한이 없습니다." };
   }
@@ -1533,7 +1621,7 @@ export async function rejectMaterialDispatchAction(materialId: string) {
 // ----- 자재 출고 취소 요청 (기사 → 관리자 반환 확인 대기) -----
 export async function cancelMaterialDispatchAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const adminSupa = createAdminClient();
 
@@ -1589,7 +1677,7 @@ export async function cancelMaterialDispatchAction(materialId: string) {
 // ----- 자재 반환 대기 목록 조회 (관리자/팀장) -----
 export async function getCancelRequestedMaterials() {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다.", data: [] };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요.", data: [] };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "권한이 없습니다.", data: [] };
   }
@@ -1620,99 +1708,19 @@ export async function getCancelRequestedMaterials() {
 // ----- 자재 반환 확인 (관리자/팀장 — 재고 복구 + 자재비 차감) -----
 export async function confirmMaterialReturnAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "반환 확인 권한이 없습니다." };
   }
 
-  const adminSupa = createAdminClient();
+  // 상태 변경 + 재고 복구 + 입출고 기록 + 자재비 재계산 + 로그를 단일 트랜잭션 RPC로 처리
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("confirm_material_return", { p_material_id: materialId });
+  if (error) return { error: "반환 처리 실패: " + error.message };
+  const res = data as { error?: string; ticket_id?: string } | null;
+  if (res?.error) return { error: res.error };
 
-  // 1) 자재 레코드 조회
-  const { data: mat } = await adminSupa
-    .from("ticket_materials")
-    .select(`
-      ticket_id, request_type, request_status, quantity, inventory_item_id,
-      inventory_items (
-        capacity,
-        inventory_categories ( name ),
-        inventory_specs ( name ),
-        inventory_products ( name )
-      )
-    `)
-    .eq("id", materialId)
-    .single();
-
-  if (!mat) return { error: "자재 항목을 찾을 수 없습니다." };
-  if (mat.request_status !== "cancel_requested") {
-    return { error: "반환 대기 상태가 아닙니다. (현재: " + mat.request_status + ")" };
-  }
-
-  // 2) 상태를 cancelled로 최종 변경
-  const { error: updateError } = await adminSupa
-    .from("ticket_materials")
-    .update({ request_status: "cancelled" })
-    .eq("id", materialId)
-    .eq("request_status", "cancel_requested");
-
-  if (updateError) return { error: "반환 처리 실패: " + updateError.message };
-
-  // 3) dispatch 타입이면 재고 복구 + 입출고 로그 생성
-  if (mat.request_type === "dispatch") {
-    const { data: invItem } = await adminSupa
-      .from("inventory_items")
-      .select("quantity")
-      .eq("id", mat.inventory_item_id)
-      .single();
-
-    if (invItem) {
-      const { error: invError } = await adminSupa
-        .from("inventory_items")
-        .update({
-          quantity: invItem.quantity + mat.quantity,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", mat.inventory_item_id);
-
-      if (invError) {
-        // 재고 복구 실패 시 롤백
-        await adminSupa
-          .from("ticket_materials")
-          .update({ request_status: "cancel_requested" })
-          .eq("id", materialId);
-        return { error: "재고 복구 실패: " + invError.message };
-      }
-
-      // 입출고 기록 생성 (접수 취소로 인한 자재 원복)
-      await adminSupa.from("inventory_transactions").insert({
-        item_id: mat.inventory_item_id,
-        user_id: employee.id,
-        transaction_type: "INBOUND",
-        quantity_changed: mat.quantity,
-        ticket_id: mat.ticket_id,
-        notes: "접수 취소로 인한 자재 원복",
-      });
-    }
-  }
-
-  // 4) 티켓 자재비 합계 재계산 (재고 자재 단가 조정 + 수동 비용)
-  await adminSupa.rpc("recalc_ticket_material_cost", { p_ticket_id: mat.ticket_id });
-
-  // 5) 로그
-  const returnLabel = mat.request_type === "purchase" ? "자재 구매" : "자재 출고";
-  const invReturn = mat.inventory_items as unknown as {
-    capacity: string | null;
-    inventory_categories: { name: string } | null;
-    inventory_specs: { name: string } | null;
-    inventory_products: { name: string } | null;
-  } | null;
-  const returnItemLabel = [invReturn?.inventory_categories?.name, invReturn?.inventory_specs?.name, invReturn?.inventory_products?.name, invReturn?.capacity].filter(Boolean).join(" / ");
-  await adminSupa.from("ticket_logs").insert({
-    ticket_id: mat.ticket_id,
-    employee_id: employee.id,
-    message: `시스템: ${returnLabel} 반환이 확인되었습니다. (${returnItemLabel}) (재고 복구 완료)`,
-  });
-
-  revalidatePath(`/tickets/${mat.ticket_id}`);
+  revalidatePath(`/tickets/${res?.ticket_id}`);
   revalidatePath("/dashboard");
   revalidatePath("/inventory");
   return { success: true };
@@ -1729,45 +1737,24 @@ export async function registerReturnMaterialAction(
   returnCapacity: string | null = null
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
-  const adminSupa = createAdminClient();
-
-  const { data: mat } = await adminSupa
-    .from("ticket_materials")
-    .select("ticket_id, request_status, is_return_registered")
-    .eq("id", materialId)
-    .single();
-
-  if (!mat) return { error: "자재 항목을 찾을 수 없습니다." };
-  if (mat.is_return_registered) return { error: "이미 반환 등록된 항목입니다." };
-  if (mat.request_status !== "approved" && mat.request_status !== "cancel_requested" && mat.request_status !== "cancelled") {
-    return { error: "승인/취소 상태의 자재만 반환 등록이 가능합니다." };
-  }
-
-  const { error: updateError } = await adminSupa
-    .from("ticket_materials")
-    .update({
-      is_return_registered: true,
-      return_category_id: returnCategoryId,
-      return_spec: returnSpec.trim(),
-      return_name: returnName.trim(),
-      return_condition: returnCondition,
-      return_quantity: Math.max(1, returnQuantity),
-      return_capacity: returnCapacity ?? null,
-      return_status: "pending",
-    })
-    .eq("id", materialId);
-
-  if (updateError) return { error: "반환 등록 실패: " + updateError.message };
-
-  await adminSupa.from("ticket_logs").insert({
-    ticket_id: mat.ticket_id,
-    employee_id: employee.id,
-    message: `시스템: 적출 자재가 등록되었습니다. (${returnSpec} / ${returnName}${returnCapacity ? ` / ${returnCapacity}` : ""} / ${returnCondition} × ${Math.max(1, returnQuantity)}개)`,
+  // 권한·상태 확인 + 등록 + 로그를 단일 트랜잭션 RPC로 처리
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("register_return_material", {
+    p_material_id: materialId,
+    p_category_id: returnCategoryId,
+    p_spec: returnSpec,
+    p_name: returnName,
+    p_condition: returnCondition,
+    p_quantity: returnQuantity,
+    p_capacity: returnCapacity ?? undefined,
   });
+  if (error) return { error: "반환 등록 실패: " + error.message };
+  const res = data as { error?: string; ticket_id?: string } | null;
+  if (res?.error) return { error: res.error };
 
-  revalidatePath(`/tickets/${mat.ticket_id}`);
+  revalidatePath(`/tickets/${res?.ticket_id}`);
   revalidatePath("/dashboard");
   return { success: true };
 }
@@ -1775,7 +1762,7 @@ export async function registerReturnMaterialAction(
 // ----- 적출/반환 자재 입고 대기 목록 조회 (관리자/팀장) -----
 export async function getPendingReturnMaterials() {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다.", data: [] };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요.", data: [] };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "권한이 없습니다.", data: [] };
   }
@@ -1812,187 +1799,19 @@ export async function getPendingReturnMaterials() {
 // ----- 적출/반환 자재 입고 승인 (관리자/팀장 — 재고 등록) -----
 export async function approveReturnMaterialAction(materialId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "입고 승인 권한이 없습니다." };
   }
 
-  const adminSupa = createAdminClient();
+  // 상태 변경 + 스펙/제품/재고 조회·생성 + 입출고 기록 + 로그를 단일 트랜잭션 RPC로 처리
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("approve_return_material", { p_material_id: materialId });
+  if (error) return { error: "입고 승인 실패: " + error.message };
+  const res = data as { error?: string; ticket_id?: string } | null;
+  if (res?.error) return { error: res.error };
 
-  // 1) 자재 레코드 조회
-  const { data: mat } = await adminSupa
-    .from("ticket_materials")
-    .select(`
-      ticket_id, is_return_registered, return_category_id, return_spec, return_name, return_condition, return_status, return_quantity, return_capacity,
-      inventory_items (
-        category_id,
-        inventory_categories ( id, name )
-      ),
-      repair_tickets:ticket_id (
-        assignee_id
-      )
-    `)
-    .eq("id", materialId)
-    .single();
-
-  if (!mat) return { error: "자재 항목을 찾을 수 없습니다." };
-  if (!mat.is_return_registered || mat.return_status !== "pending") {
-    return { error: "입고 대기 상태가 아닙니다." };
-  }
-
-  const inv = mat.inventory_items as unknown as {
-    category_id: string;
-    inventory_categories: { id: string; name: string } | null;
-  };
-  // return_category_id가 있으면 사용, 없으면 원본 자재의 category_id 사용 (하위 호환)
-  const categoryId = (mat as Record<string, unknown>).return_category_id as string | null ?? inv?.category_id;
-  if (!categoryId) return { error: "반환 자재의 카테고리를 찾을 수 없습니다." };
-
-  const returnSpec = mat.return_spec!;
-  const returnName = mat.return_name!;
-  const returnCondition = "USED"; // 적출품은 모두 중고로 입고
-  const returnQty = (mat as Record<string, unknown>).return_quantity as number | null ?? 1;
-  const returnCapacity = (mat as Record<string, unknown>).return_capacity as string | null ?? null;
-
-  // 담당 기사 ID 조회 (트랜잭션 담당자로 기록)
-  const ticket = mat.repair_tickets as unknown as { assignee_id: string | null } | null;
-  const technicianUserId = ticket?.assignee_id ?? employee.id;
-
-  // 2) return_status → approved
-  const { error: statusError } = await adminSupa
-    .from("ticket_materials")
-    .update({ return_status: "approved" })
-    .eq("id", materialId)
-    .eq("return_status", "pending");
-
-  if (statusError) return { error: "승인 상태 변경 실패: " + statusError.message };
-
-  // 3) spec 조회 또는 생성
-  let specId: string;
-  const { data: existingSpec } = await adminSupa
-    .from("inventory_specs")
-    .select("id")
-    .eq("category_id", categoryId)
-    .eq("name", returnSpec)
-    .single();
-
-  if (existingSpec) {
-    specId = existingSpec.id;
-  } else {
-    const { data: newSpec, error: specErr } = await adminSupa
-      .from("inventory_specs")
-      .insert({ category_id: categoryId, name: returnSpec })
-      .select("id")
-      .single();
-    if (specErr || !newSpec) {
-      await adminSupa.from("ticket_materials").update({ return_status: "pending" }).eq("id", materialId);
-      return { error: "스펙 생성 실패: " + (specErr?.message ?? "알 수 없는 오류") };
-    }
-    specId = newSpec.id;
-  }
-
-  // 4) product 조회 또는 생성
-  let productId: string;
-  const { data: existingProduct } = await adminSupa
-    .from("inventory_products")
-    .select("id")
-    .eq("spec_id", specId)
-    .eq("name", returnName)
-    .single();
-
-  if (existingProduct) {
-    productId = existingProduct.id;
-  } else {
-    const { data: newProduct, error: prodErr } = await adminSupa
-      .from("inventory_products")
-      .insert({ spec_id: specId, name: returnName })
-      .select("id")
-      .single();
-    if (prodErr || !newProduct) {
-      await adminSupa.from("ticket_materials").update({ return_status: "pending" }).eq("id", materialId);
-      return { error: "제품 생성 실패: " + (prodErr?.message ?? "알 수 없는 오류") };
-    }
-    productId = newProduct.id;
-  }
-
-  // 5) inventory_items: 완전 일치 → 수량+1, 없으면 insert (기초견적 0원)
-  const { data: existingItem } = await adminSupa
-    .from("inventory_items")
-    .select("id, quantity")
-    .eq("category_id", categoryId)
-    .eq("spec_id", specId)
-    .eq("product_id", productId)
-    .eq("condition", returnCondition)
-    .single();
-
-  let inboundItemId: string | null = null;
-
-  if (existingItem) {
-    const { error: updateErr } = await adminSupa
-      .from("inventory_items")
-      .update({
-        quantity: existingItem.quantity + returnQty,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existingItem.id);
-
-    if (updateErr) {
-      await adminSupa.from("ticket_materials").update({ return_status: "pending" }).eq("id", materialId);
-      return { error: "재고 수량 업데이트 실패: " + updateErr.message };
-    }
-    inboundItemId = existingItem.id;
-  } else {
-    const { data: newItem, error: insertErr } = await adminSupa
-      .from("inventory_items")
-      .insert({
-        category_id: categoryId,
-        spec_id: specId,
-        product_id: productId,
-        capacity: null,
-        condition: returnCondition,
-        quantity: returnQty,
-        base_estimate: 0,
-      })
-      .select("id")
-      .single();
-
-    if (insertErr || !newItem) {
-      await adminSupa.from("ticket_materials").update({ return_status: "pending" }).eq("id", materialId);
-      return { error: "재고 신규 등록 실패: " + (insertErr?.message ?? "알 수 없는 오류") };
-    }
-    inboundItemId = newItem.id;
-  }
-
-  // 6) 카테고리 이름 조회 (반환 카테고리가 원본과 다를 수 있음)
-  let categoryName = inv?.inventory_categories?.name ?? "카테고리";
-  if (categoryId !== inv?.category_id) {
-    const { data: returnCat } = await adminSupa
-      .from("inventory_categories")
-      .select("name")
-      .eq("id", categoryId)
-      .single();
-    if (returnCat) categoryName = returnCat.name;
-  }
-
-  // inventory_transactions INBOUND 기록 (적출품 반환 입고)
-  if (inboundItemId) {
-    await adminSupa.from("inventory_transactions").insert({
-      item_id: inboundItemId,
-      user_id: technicianUserId,
-      transaction_type: "INBOUND",
-      quantity_changed: returnQty,
-      ticket_id: mat.ticket_id,
-      notes: "적출품 반환 입고",
-    });
-  }
-
-  await adminSupa.from("ticket_logs").insert({
-    ticket_id: mat.ticket_id,
-    employee_id: employee.id,
-    message: `시스템: 적출 자재 입고 승인 완료 (${categoryName} / ${returnSpec} / ${returnName}${returnCapacity ? ` / ${returnCapacity}` : ""} / ${mat.return_condition})`,
-  });
-
-  revalidatePath(`/tickets/${mat.ticket_id}`);
+  revalidatePath(`/tickets/${res?.ticket_id}`);
   revalidatePath("/dashboard");
   revalidatePath("/inventory");
   return { success: true };
@@ -2016,7 +1835,7 @@ export async function analyzeDeviceLabelAction(payload: {
   brand?: string;
 }): Promise<{ data?: DeviceLabelAnalysisResult; error?: string }> {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const webhookUrl = process.env.N8N_DEVICE_WEBHOOK_URL;
   if (!webhookUrl) return { error: "AI 분석 서비스가 설정되지 않았습니다." };
@@ -2111,7 +1930,7 @@ export async function getDisposalPendingTickets() {
  */
 export async function confirmDisposalAction(ticketId: string) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "폐기 확인 권한이 없습니다." };
   }
@@ -2150,7 +1969,7 @@ const VALID_RECEIPT_TYPES = Object.keys(RECEIPT_TYPE_LABELS);
 
 export async function updateReceiptTypeAction(formData: FormData) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const canUpdate = [EmployeeRole.ADMIN, EmployeeRole.MANAGER, EmployeeRole.RECEPTION, EmployeeRole.TECHNICIAN, EmployeeRole.EXPERT_REPAIR];
   if (!canUpdate.includes(employee.role)) {
@@ -2254,7 +2073,7 @@ export async function requestRefundAction(input: {
   )[];
 }) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const supabase = await createClient();
 
@@ -2311,7 +2130,7 @@ async function transitionRefund(
   cashReceiptCanceled?: boolean
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
 
   const supabase = await createClient();
 
@@ -2447,7 +2266,7 @@ export async function restoreCanceledTicketAction(
   note: string
 ) {
   const employee = await getCurrentEmployee();
-  if (!employee) return { error: "인증이 필요합니다." };
+  if (!employee) return { error: "로그인이 필요합니다. 다시 로그인해 주세요." };
   if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
     return { error: "취소 복원 권한이 없습니다. 관리자 또는 팀장만 가능합니다." };
   }
