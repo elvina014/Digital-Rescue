@@ -787,7 +787,7 @@ export async function submitEstimateAction(formData: FormData) {
   let cashReceiptIssued: boolean | null = null;
   if (paymentMethod === "BANK_TRANSFER") {
     if (cashReceiptRaw !== "Y" && cashReceiptRaw !== "N") {
-      return { error: "현금영수증 발급 여부를 선택해 주세요." };
+      return { error: "현금영수증·세금계산서 발급 여부를 선택해 주세요." };
     }
     cashReceiptIssued = cashReceiptRaw === "Y";
   }
@@ -848,7 +848,7 @@ export async function submitEstimateAction(formData: FormData) {
   }
   logParts.push(`결제 방식: ${PAYMENT_LABELS[paymentMethod] ?? paymentMethod}`);
   if (cashReceiptIssued !== null) {
-    logParts.push(`현금영수증: ${cashReceiptIssued ? "발급" : "미발급"}`);
+    logParts.push(`현금영수증·세금계산서: ${cashReceiptIssued ? "발급" : "미발급"}`);
   }
 
   await adminSupa.from("ticket_logs").insert({

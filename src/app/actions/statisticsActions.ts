@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { getCurrentEmployee } from "@/lib/auth";
 import { EmployeeRole } from "@/types";
+import { kstMonthStart, kstParts } from "@/lib/date";
 
 // ─── 접근 확인 (로그인 + ADMIN/MANAGER) ───────────────────────
 export type StatsResult<T> = { data: T } | { error: string };
@@ -16,29 +17,19 @@ async function requireStatsAccess(): Promise<string | null> {
   return null;
 }
 
-// ─── 공통 날짜 헬퍼 ───────────────────────────────────────────
+// ─── 공통 날짜 헬퍼 (한국시간 기준 경계) ─────────────────────
 function yearRange(year: number) {
   return {
-    start: new Date(year, 0, 1).toISOString(),
-    end:   new Date(year + 1, 0, 1).toISOString(),
+    start: kstMonthStart(year, 1).toISOString(),
+    end:   kstMonthStart(year + 1, 1).toISOString(),
   };
 }
 function monthRange(year: number, month: number) {
   return {
-    start: new Date(year, month - 1, 1).toISOString(),
-    end:   new Date(year, month, 1).toISOString(),
+    start: kstMonthStart(year, month).toISOString(),
+    end:   kstMonthStart(year, month + 1).toISOString(),
   };
 }
-
-const REFUND_REASON_LABELS: Record<string, string> = {
-  QUALITY: "수리 품질 하자",
-  REPAIR_FAILED: "수리 실패",
-  OVERCHARGE: "과다·오청구",
-  DUPLICATE: "중복 결제",
-  COMPLAINT: "고객 불만",
-  CHANGE_MIND: "고객 단순 변심",
-  OTHER: "기타",
-};
 
 /**
  * 접수건의 실매출 = 최종 견적 − 누적 환불액.
@@ -49,7 +40,7 @@ function netRevenue(t: { final_price: number | null; refunded_amount?: number | 
 }
 
 /**
- * 접수건의 순수익 = 실매출 − 자재비(material_cost: 재고 자재 + 수동 추가 비용).
+ * 접수건의 순매출 = 실매출 − 자재비(material_cost: 재고 자재 + 수동 추가 비용).
  * 완료 후 추가된 비용(A/S·누락 비용)도 material_cost에 합산되므로 원래 완료월에서 차감된다.
  */
 function netProfit(t: { final_price: number | null; refunded_amount?: number | null; material_cost?: number | null }): number {
@@ -64,14 +55,35 @@ export interface MonthlyRevenueData {
   revenue: number;
   /** 자재비 합계 (재고 자재 + 수동 추가 비용) */
   cost: number;
-  /** 순수익 = 실매출 − 자재비 */
+  /** 순매출 = 실매출 − 자재비 */
   profit: number;
+  /** 순매출 중 계좌이체 + 증빙(현금영수증·세금계산서) 미발급 */
+  unissued: number;
+  /** 순매출 중 계좌이체 + 증빙 발급 여부 미기록 (기능 도입 이전 건) */
+  unknown: number;
+  /** 순매출 중 나머지 (과세대상) */
+  taxable: number;
 }
 
-export interface DailyRevenueData {
+export interface DailyIntakeData {
   day: number;
   label: string;
-  revenue: number;
+  count: number;
+}
+
+export interface ReceiveRate {
+  /** 접수 건수 (created_at 기준) */
+  total: number;
+  /** 그중 입고된 건수 (received_at 있음 — 이후 취소 건 포함) */
+  received: number;
+  /** 입고율 % */
+  rate: number;
+}
+
+export interface IntakeStatsData {
+  daily: DailyIntakeData[];
+  annual: ReceiveRate;
+  monthly: ReceiveRate;
 }
 
 export interface TechnicianRevenueData {
@@ -88,33 +100,10 @@ export interface TechnicianPerformanceData {
   totalRevenue: number;
   /** 자재비 합계 (재고 자재 + 수동 추가 비용) */
   totalCost: number;
-  /** 순수익 = 실매출 − 자재비 */
+  /** 순매출 = 실매출 − 자재비 */
   netProfit: number;
   upsellAmount: number;
   upsellCount: number;
-}
-
-export interface RefundReasonBreakdown {
-  code: string;
-  label: string;
-  count: number;
-  amount: number;
-}
-
-export interface RefundStatsData {
-  /** 환불 전 총매출 (완료건 final_price 합계) */
-  grossRevenue: number;
-  /** 환불액 합계 */
-  refundedAmount: number;
-  /** 실매출 */
-  netRevenue: number;
-  /** 환불율 (%) — 환불액 ÷ 총매출 */
-  refundRate: number;
-  /** 환불이 발생한 접수건 수 */
-  refundedTicketCount: number;
-  /** 해당 월 완료건 수 */
-  completedCount: number;
-  byReason: RefundReasonBreakdown[];
 }
 
 export interface BrandBreakdownData {
@@ -202,65 +191,91 @@ export async function getAnnualRevenue(year: number): Promise<StatsResult<Monthl
 
   const { data } = await supabase
     .from("repair_tickets")
-    .select("final_price, refunded_amount, material_cost, completed_at")
+    .select("final_price, refunded_amount, material_cost, completed_at, payment_method, cash_receipt_issued")
     .eq("is_test", false)
     .eq("status", "COMPLETED")
-    .gte("completed_at", start) as unknown as { data: { final_price: number | null; refunded_amount: number | null; material_cost: number | null; completed_at: string | null }[] | null };
+    .gte("completed_at", start) as unknown as { data: { final_price: number | null; refunded_amount: number | null; material_cost: number | null; completed_at: string | null; payment_method: string | null; cash_receipt_issued: boolean | null }[] | null };
 
-  const monthMap: Record<number, { revenue: number; cost: number }> = {};
+  type MonthAcc = { revenue: number; cost: number; unissued: number; unknown: number; taxable: number };
+  const monthMap: Record<number, MonthAcc> = {};
   for (const t of data ?? []) {
     if (!t.completed_at) continue;
-    const m = new Date(t.completed_at).getMonth() + 1;
+    const { year: y, month: m } = kstParts(t.completed_at);
     // 해당 연도 데이터만 포함
-    if (new Date(t.completed_at).getFullYear() !== year) continue;
-    if (!monthMap[m]) monthMap[m] = { revenue: 0, cost: 0 };
+    if (y !== year) continue;
+    if (!monthMap[m]) monthMap[m] = { revenue: 0, cost: 0, unissued: 0, unknown: 0, taxable: 0 };
     monthMap[m].revenue += netRevenue(t);
     monthMap[m].cost += t.material_cost ?? 0;
+    // 계좌이체 건만 증빙(현금영수증·세금계산서) 발급 여부로 과세 구분한다. 카드·간편결제는 과세대상.
+    const profit = netProfit(t);
+    if (t.payment_method === "BANK_TRANSFER" && t.cash_receipt_issued === false) monthMap[m].unissued += profit;
+    else if (t.payment_method === "BANK_TRANSFER" && t.cash_receipt_issued === null) monthMap[m].unknown += profit;
+    else monthMap[m].taxable += profit;
   }
 
   return { data: Array.from({ length: 12 }, (_, i) => {
-    const v = monthMap[i + 1] ?? { revenue: 0, cost: 0 };
+    const v = monthMap[i + 1] ?? { revenue: 0, cost: 0, unissued: 0, unknown: 0, taxable: 0 };
     return {
       month: i + 1,
       label: `${i + 1}월`,
       revenue: v.revenue,
       cost: v.cost,
       profit: v.revenue - v.cost,
+      unissued: v.unissued,
+      unknown: v.unknown,
+      taxable: v.taxable,
     };
   }) };
 }
 
+function receiveRate(rows: { received_at: string | null }[]): ReceiveRate {
+  const total = rows.length;
+  const received = rows.filter((t) => t.received_at).length;
+  return { total, received, rate: total > 0 ? Math.round((received / total) * 1000) / 10 : 0 };
+}
+
 /**
- * 선택 연/월 기준 일별 매출 집계 — completed_at 기준
+ * 선택 연/월 기준 접수 현황 — created_at 기준
+ * 일별 접수 건수 + 연간/월간 접수 대비 입고율
  */
-export async function getMonthlyDailyRevenue(year: number, month: number): Promise<StatsResult<DailyRevenueData[]>> {
+export async function getIntakeStats(year: number, month: number): Promise<StatsResult<IntakeStatsData>> {
   const denied = await requireStatsAccess();
   if (denied) return { error: denied };
 
   const supabase = await createClient();
-  const { start, end } = monthRange(year, month);
+  const { start, end } = yearRange(year);
+  const { start: monthStart, end: monthEnd } = monthRange(year, month);
 
   const { data } = await supabase
     .from("repair_tickets")
-    .select("final_price, refunded_amount, completed_at")
+    .select("created_at, received_at")
     .eq("is_test", false)
-    .eq("status", "COMPLETED")
-    .gte("completed_at", start)
-    .lt("completed_at", end) as unknown as { data: { final_price: number | null; refunded_amount: number | null; completed_at: string | null }[] | null };
+    .gte("created_at", start)
+    .lt("created_at", end) as unknown as { data: { created_at: string; received_at: string | null }[] | null };
 
-  const daysInMonth = new Date(year, month, 0).getDate();
+  const all = data ?? [];
+  const [ms, me] = [Date.parse(monthStart), Date.parse(monthEnd)];
+  const monthly = all.filter((t) => {
+    const ts = Date.parse(t.created_at);
+    return ts >= ms && ts < me;
+  });
+
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const dayMap: Record<number, number> = {};
-  for (const t of data ?? []) {
-    if (!t.completed_at) continue;
-    const day = new Date(t.completed_at).getDate();
-    dayMap[day] = (dayMap[day] ?? 0) + netRevenue(t);
+  for (const t of monthly) {
+    const { day } = kstParts(t.created_at);
+    dayMap[day] = (dayMap[day] ?? 0) + 1;
   }
 
-  return { data: Array.from({ length: daysInMonth }, (_, i) => ({
-    day: i + 1,
-    label: `${i + 1}일`,
-    revenue: dayMap[i + 1] ?? 0,
-  })) };
+  return { data: {
+    daily: Array.from({ length: daysInMonth }, (_, i) => ({
+      day: i + 1,
+      label: `${i + 1}일`,
+      count: dayMap[i + 1] ?? 0,
+    })),
+    annual: receiveRate(all),
+    monthly: receiveRate(monthly),
+  } };
 }
 
 /**
@@ -348,7 +363,32 @@ export async function getTechnicianPerformance(year: number, month: number): Pro
 }
 
 /**
- * 선택 연/월 기준 브랜드별 접수 건수 Top 5 — created_at 기준
+ * 브랜드 표기 통합 — 정규화 키(소문자·공백 제거) → 표시 이름.
+ * 접수 데이터는 그대로 두고 집계할 때만 묶는다.
+ */
+const BRAND_ALIASES: Record<string, string> = {
+  삼성: "삼성", 삼성전자: "삼성", samsung: "삼성",
+  애플: "애플", apple: "애플",
+  마이크로소프트: "마이크로소프트", microsoft: "마이크로소프트", ms: "마이크로소프트",
+  서피스: "마이크로소프트", surface: "마이크로소프트", ms서피스: "마이크로소프트", mssurface: "마이크로소프트",
+  레노버: "레노버", lenovo: "레노버",
+  asus: "ASUS", 아수스: "ASUS", 에이수스: "ASUS",
+  lg: "LG", 엘지: "LG", lg전자: "LG",
+  hp: "HP",
+  델: "델", dell: "델",
+  msi: "MSI",
+  한성: "한성", 한성컴퓨터: "한성",
+  에이서: "에이서", acer: "에이서",
+};
+
+/** "MSI[1][5]"처럼 붙은 대괄호 숫자와 공백을 빼고 소문자로 맞춘다 */
+function brandKey(raw: string): string {
+  return raw.replace(/\[\d+\]/g, "").replace(/\s+/g, "").toLowerCase();
+}
+
+/**
+ * 브랜드별 접수 건수 Top 5 — 전체 접수 기준
+ * 한글/영문 별칭과 영문 대소문자는 같은 브랜드로 묶는다.
  */
 export async function getBrandBreakdown(): Promise<StatsResult<BrandBreakdownData[]>> {
   const denied = await requireStatsAccess();
@@ -363,14 +403,18 @@ export async function getBrandBreakdown(): Promise<StatsResult<BrandBreakdownDat
     .not("device_brand", "is", null)
     .neq("device_brand", "");
 
-  const map: Record<string, number> = {};
+  // 별칭에 없는 브랜드는 정규화 키로 묶고, 처음 본 표기를 표시 이름으로 쓴다
+  const map: Record<string, { brand: string; count: number }> = {};
   for (const t of data ?? []) {
-    const brand = (t.device_brand as string).trim();
-    if (brand) map[brand] = (map[brand] ?? 0) + 1;
+    const raw = t.device_brand as string;
+    const key = brandKey(raw);
+    if (!key) continue;
+    const group = BRAND_ALIASES[key] ?? key;
+    if (!map[group]) map[group] = { brand: BRAND_ALIASES[key] ?? raw.replace(/\[\d+\]/g, "").trim(), count: 0 };
+    map[group].count += 1;
   }
 
-  return { data: Object.entries(map)
-    .map(([brand, count]) => ({ brand, count }))
+  return { data: Object.values(map)
     .sort((a, b) => b.count - a.count)
     .slice(0, 5) };
 }
@@ -556,67 +600,4 @@ export async function getCancelStats(year: number, month: number): Promise<Stats
     receivedCount,
     byTechnician,
   } };
-}
-
-/**
- * 선택 연/월 기준 환불율 분석 — 접수건의 completed_at 기준
- *
- * 매출 집계와 같은 기준을 쓴다: 환불은 원 매출이 잡힌 월에서 차감되므로,
- * 그 달에 완료된 접수건의 누적 환불액을 그 달의 환불로 본다.
- */
-export async function getRefundStats(year: number, month: number): Promise<StatsResult<RefundStatsData>> {
-  const denied = await requireStatsAccess();
-  if (denied) return { error: denied };
-
-  const supabase = await createClient();
-  const { start, end } = monthRange(year, month);
-
-  const { data: tickets } = await supabase
-    .from("repair_tickets")
-    .select("id, final_price, refunded_amount")
-    .eq("is_test", false)
-    .eq("status", "COMPLETED")
-    .gte("completed_at", start)
-    .lt("completed_at", end) as unknown as {
-      data: { id: string; final_price: number | null; refunded_amount: number | null }[] | null;
-    };
-
-  const rows = tickets ?? [];
-  const grossRevenue = rows.reduce((sum, t) => sum + (t.final_price ?? 0), 0);
-  const refundedAmount = rows.reduce((sum, t) => sum + (t.refunded_amount ?? 0), 0);
-  const refundedTicketIds = rows.filter((t) => (t.refunded_amount ?? 0) > 0).map((t) => t.id);
-
-  const empty: RefundStatsData = {
-    grossRevenue,
-    refundedAmount,
-    netRevenue: grossRevenue - refundedAmount,
-    refundRate: grossRevenue > 0 ? Math.round((refundedAmount / grossRevenue) * 1000) / 10 : 0,
-    refundedTicketCount: refundedTicketIds.length,
-    completedCount: rows.length,
-    byReason: [],
-  };
-
-  if (refundedTicketIds.length === 0) return { data: empty };
-
-  // 사유별 분포는 환불이 실제로 있는 건만 조회한다
-  const { data: refunds } = await supabase
-    .from("ticket_refunds")
-    .select("reason_code, amount")
-    .eq("status", "COMPLETED")
-    .in("ticket_id", refundedTicketIds) as unknown as {
-      data: { reason_code: string; amount: number }[] | null;
-    };
-
-  const reasonMap: Record<string, { count: number; amount: number }> = {};
-  for (const r of refunds ?? []) {
-    if (!reasonMap[r.reason_code]) reasonMap[r.reason_code] = { count: 0, amount: 0 };
-    reasonMap[r.reason_code].count += 1;
-    reasonMap[r.reason_code].amount += r.amount ?? 0;
-  }
-
-  const byReason = Object.entries(reasonMap)
-    .map(([code, v]) => ({ code, label: REFUND_REASON_LABELS[code] ?? code, ...v }))
-    .sort((a, b) => b.amount - a.amount);
-
-  return { data: { ...empty, byReason } };
 }

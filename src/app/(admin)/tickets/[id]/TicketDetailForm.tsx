@@ -923,10 +923,10 @@ export default function TicketDetailForm({
               </div>
             </fieldset>
 
-            {/* 현금영수증 발급 여부 (계좌이체 전용 — 환불 시 취소 처리 판단 근거) */}
+            {/* 증빙(현금영수증·세금계산서) 발급 여부 (계좌이체 전용 — 환불 시 취소 처리·과세 구분 통계 근거) */}
             {selectedPaymentMethod === "BANK_TRANSFER" && (
               <fieldset>
-                <legend className="mb-2 text-sm font-medium text-gray-700">현금영수증 발급 여부</legend>
+                <legend className="mb-2 text-sm font-medium text-gray-700">현금영수증·세금계산서 발급 여부</legend>
                 <div className="flex flex-wrap gap-4">
                   {([
                     { value: "Y", label: "발급" },
@@ -939,7 +939,7 @@ export default function TicketDetailForm({
                   ))}
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
-                  환불이 발생하면 발급 건은 현금영수증 취소 처리가 필요합니다.
+                  둘 중 하나라도 발급했으면 &lsquo;발급&rsquo;을 선택하세요. 환불이 발생하면 발급 건은 취소 처리가 필요합니다.
                 </p>
               </fieldset>
             )}
@@ -1034,7 +1034,7 @@ export default function TicketDetailForm({
             </div>
             {ticket.payment_method === "BANK_TRANSFER" && (
               <div>
-                <dt className="text-xs font-medium text-gray-500">현금영수증</dt>
+                <dt className="text-xs font-medium text-gray-500">현금영수증·세금계산서</dt>
                 <dd className="mt-0.5 text-sm text-gray-900">
                   {ticket.cash_receipt_issued === true ? (
                     "발급"

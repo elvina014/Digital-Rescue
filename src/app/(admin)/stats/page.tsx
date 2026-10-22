@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import { getCurrentEmployee } from "@/lib/auth";
+import { kstParts } from "@/lib/date";
 import {
   getAnnualRevenue,
-  getMonthlyDailyRevenue,
+  getIntakeStats,
   getTechnicianMonthlyRevenue,
   getTechnicianPerformance,
   getBrandBreakdown,
   getStatusBreakdown,
   getReceiptTypeBreakdown,
   getCancelStats,
-  getRefundStats,
 } from "@/app/actions/statisticsActions";
 import { StatisticsClient } from "./StatisticsClient";
 
@@ -20,28 +20,26 @@ export default async function StatisticsPage() {
     redirect("/dashboard");
   }
 
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
+  // 서버(Vercel=UTC) 시간대와 무관하게 한국시간 기준 현재 연/월
+  const { year: currentYear, month: currentMonth } = kstParts(new Date());
 
-  const [annualRevenue, dailyRevenue, techRevenue, techPerformance, brandBreakdown, statusBreakdown, receiptTypeBreakdown, cancelStats, refundStats] =
+  const [annualRevenue, intakeStats, techRevenue, techPerformance, brandBreakdown, statusBreakdown, receiptTypeBreakdown, cancelStats] =
     await Promise.all([
       getAnnualRevenue(currentYear),
-      getMonthlyDailyRevenue(currentYear, currentMonth),
+      getIntakeStats(currentYear, currentMonth),
       getTechnicianMonthlyRevenue(currentYear, currentMonth),
       getTechnicianPerformance(currentYear, currentMonth),
       getBrandBreakdown(),
       getStatusBreakdown(currentYear, currentMonth),
       getReceiptTypeBreakdown(currentYear, currentMonth),
       getCancelStats(currentYear, currentMonth),
-      getRefundStats(currentYear, currentMonth),
     ]);
 
   // 위에서 ADMIN/MANAGER만 통과하므로 거부는 그 사이 세션·역할이 바뀐 경우뿐이다
   if (
-    "error" in annualRevenue || "error" in dailyRevenue || "error" in techRevenue || "error" in techPerformance ||
+    "error" in annualRevenue || "error" in intakeStats || "error" in techRevenue || "error" in techPerformance ||
     "error" in brandBreakdown || "error" in statusBreakdown || "error" in receiptTypeBreakdown ||
-    "error" in cancelStats || "error" in refundStats
+    "error" in cancelStats
   ) {
     redirect("/dashboard");
   }
@@ -57,14 +55,13 @@ export default async function StatisticsPage() {
 
       <StatisticsClient
         annualRevenue={annualRevenue.data}
-        dailyRevenue={dailyRevenue.data}
+        intakeStats={intakeStats.data}
         techRevenue={techRevenue.data}
         techPerformance={techPerformance.data}
         brandBreakdown={brandBreakdown.data}
         statusBreakdown={statusBreakdown.data}
         receiptTypeBreakdown={receiptTypeBreakdown.data}
         cancelStats={cancelStats.data}
-        refundStats={refundStats.data}
         currentYear={currentYear}
         currentMonth={currentMonth}
       />

@@ -4,8 +4,6 @@ import { useState, useTransition } from "react";
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -18,36 +16,33 @@ import {
 } from "recharts";
 import type {
   MonthlyRevenueData,
-  DailyRevenueData,
+  IntakeStatsData,
   TechnicianRevenueData,
   TechnicianPerformanceData,
   BrandBreakdownData,
   StatusBreakdownData,
   ReceiptTypeBreakdownData,
   CancelStatsData,
-  RefundStatsData,
 } from "@/app/actions/statisticsActions";
 import {
   getAnnualRevenue,
-  getMonthlyDailyRevenue,
+  getIntakeStats,
   getTechnicianMonthlyRevenue,
   getTechnicianPerformance,
   getStatusBreakdown,
   getReceiptTypeBreakdown,
   getCancelStats,
-  getRefundStats,
 } from "@/app/actions/statisticsActions";
 
 interface Props {
   annualRevenue: MonthlyRevenueData[];
-  dailyRevenue: DailyRevenueData[];
+  intakeStats: IntakeStatsData;
   techRevenue: TechnicianRevenueData[];
   techPerformance: TechnicianPerformanceData[];
   brandBreakdown: BrandBreakdownData[];
   statusBreakdown: StatusBreakdownData[];
   receiptTypeBreakdown: ReceiptTypeBreakdownData[];
   cancelStats: CancelStatsData;
-  refundStats: RefundStatsData;
   currentYear: number;
   currentMonth: number;
 }
@@ -62,12 +57,7 @@ function formatWonFull(value: number) {
   return `${value.toLocaleString()}원`;
 }
 
-const revenueTooltipFormatter = (value: unknown) => [
-  `${Number(value ?? 0).toLocaleString()}원`,
-  "매출",
-];
-
-// 매출·자재비·순수익을 함께 그리는 차트용 (시리즈 이름은 Bar의 name을 그대로 사용)
+// 매출·자재비·순매출을 함께 그리는 차트용 (시리즈 이름은 Bar의 name을 그대로 사용)
 const amountTooltipFormatter = (value: unknown, name: unknown) => [
   `${Number(value ?? 0).toLocaleString()}원`,
   String(name ?? ""),
@@ -75,14 +65,13 @@ const amountTooltipFormatter = (value: unknown, name: unknown) => [
 
 export function StatisticsClient({
   annualRevenue: initialAnnualRevenue,
-  dailyRevenue: initialDailyRevenue,
+  intakeStats: initialIntakeStats,
   techRevenue: initialTechRevenue,
   techPerformance: initialTechPerformance,
   brandBreakdown: initialBrandBreakdown,
   statusBreakdown: initialStatusBreakdown,
   receiptTypeBreakdown: initialReceiptTypeBreakdown,
   cancelStats: initialCancelStats,
-  refundStats: initialRefundStats,
   currentYear,
   currentMonth,
 }: Props) {
@@ -90,14 +79,13 @@ export function StatisticsClient({
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
 
   const [annualRevenue, setAnnualRevenue] = useState(initialAnnualRevenue);
-  const [dailyRevenue, setDailyRevenue] = useState(initialDailyRevenue);
+  const [intakeStats, setIntakeStats] = useState(initialIntakeStats);
   const [techRevenue, setTechRevenue] = useState(initialTechRevenue);
   const [techPerformance, setTechPerformance] = useState(initialTechPerformance);
   const [brandBreakdown, setBrandBreakdown] = useState(initialBrandBreakdown);
   const [statusBreakdown, setStatusBreakdown] = useState(initialStatusBreakdown);
   const [receiptTypeBreakdown, setReceiptTypeBreakdown] = useState(initialReceiptTypeBreakdown);
   const [cancelStats, setCancelStats] = useState(initialCancelStats);
-  const [refundStats, setRefundStats] = useState(initialRefundStats);
 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -107,28 +95,26 @@ export function StatisticsClient({
     startTransition(async () => {
       const [
         newAnnual,
-        newDaily,
+        newIntake,
         newTechRevenue,
         newTechPerf,
         newStatus,
         newReceiptType,
         newCancel,
-        newRefund,
       ] = await Promise.all([
         getAnnualRevenue(year),
-        getMonthlyDailyRevenue(year, month),
+        getIntakeStats(year, month),
         getTechnicianMonthlyRevenue(year, month),
         getTechnicianPerformance(year, month),
         getStatusBreakdown(year, month),
         getReceiptTypeBreakdown(year, month),
         getCancelStats(year, month),
-        getRefundStats(year, month),
       ]);
       if (
-        "error" in newAnnual || "error" in newDaily || "error" in newTechRevenue || "error" in newTechPerf ||
-        "error" in newStatus || "error" in newReceiptType || "error" in newCancel || "error" in newRefund
+        "error" in newAnnual || "error" in newIntake || "error" in newTechRevenue || "error" in newTechPerf ||
+        "error" in newStatus || "error" in newReceiptType || "error" in newCancel
       ) {
-        const failed = [newAnnual, newDaily, newTechRevenue, newTechPerf, newStatus, newReceiptType, newCancel, newRefund].find(
+        const failed = [newAnnual, newIntake, newTechRevenue, newTechPerf, newStatus, newReceiptType, newCancel].find(
           (r) => "error" in r
         );
         setError(failed && "error" in failed ? failed.error : "통계를 불러오지 못했습니다.");
@@ -138,13 +124,12 @@ export function StatisticsClient({
       }
       setError(null);
       setAnnualRevenue(newAnnual.data);
-      setDailyRevenue(newDaily.data);
+      setIntakeStats(newIntake.data);
       setTechRevenue(newTechRevenue.data);
       setTechPerformance(newTechPerf.data);
       setStatusBreakdown(newStatus.data);
       setReceiptTypeBreakdown(newReceiptType.data);
       setCancelStats(newCancel.data);
-      setRefundStats(newRefund.data);
     });
   }
 
@@ -159,11 +144,19 @@ export function StatisticsClient({
   }
 
   const totalAnnual = annualRevenue.reduce((s, d) => s + d.revenue, 0);
-  const totalMonthly = dailyRevenue.reduce((s, d) => s + d.revenue, 0);
-  // 선택 월 자재비·순수익 (완료월 기준, 완료 후 추가된 비용 포함)
+  // 선택 월 매출·자재비·순매출 (완료월 기준, 완료 후 추가된 비용 포함)
   const selectedMonthData = annualRevenue.find((d) => d.month === selectedMonth);
+  const totalMonthly = selectedMonthData?.revenue ?? 0;
   const monthlyCost = selectedMonthData?.cost ?? 0;
   const monthlyProfit = selectedMonthData?.profit ?? 0;
+  const annualProfit = annualRevenue.reduce((s, d) => s + d.profit, 0);
+  // 순매출 과세 구분 (연간 / 선택 월)
+  const taxSplitRows = [
+    { label: "계좌이체 · 증빙 미발급", key: "unissued", className: "text-rose-600" },
+    { label: "계좌이체 · 발급 여부 미확인", key: "unknown", className: "text-amber-600" },
+    { label: "과세대상", key: "taxable", className: "text-gray-900" },
+  ] as const;
+  const totalIntakeThisMonth = intakeStats.daily.reduce((s, d) => s + d.count, 0);
   const totalTickets = statusBreakdown.reduce((s, d) => s + d.count, 0);
 
   // Generate year options: current year -3 to current year
@@ -216,7 +209,7 @@ export function StatisticsClient({
       {/* 로딩 오버레이 래퍼 */}
       <div className={`space-y-6 transition-opacity duration-200 ${isPending ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
         {/* 요약 카드 */}
-        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
           <SummaryCard
             label={`${selectedYear}년 연간 매출`}
             value={formatWonFull(totalAnnual)}
@@ -233,7 +226,12 @@ export function StatisticsClient({
             color="orange"
           />
           <SummaryCard
-            label={`${selectedMonth}월 순수익`}
+            label={`${selectedYear}년 연간 순매출`}
+            value={formatWonFull(annualProfit)}
+            color="teal"
+          />
+          <SummaryCard
+            label={`${selectedMonth}월 순매출`}
             value={formatWonFull(monthlyProfit)}
             color="teal"
           />
@@ -249,9 +247,9 @@ export function StatisticsClient({
           {/* 연간 월별 매출 */}
           <div className="rounded-xl border bg-white p-6 shadow-sm">
             <h2 className="mb-1 text-base font-semibold text-gray-900">
-              {selectedYear}년 월별 매출·수익 추이
+              {selectedYear}년 월별 매출·순매출 추이
             </h2>
-            <p className="mb-4 text-xs text-gray-400">수리 완료월 기준 · 순수익 = 실매출 − 자재비(완료 후 추가 비용 포함)</p>
+            <p className="mb-4 text-xs text-gray-400">수리 완료월 기준 · 순매출 = 실매출 − 자재비(완료 후 추가 비용 포함)</p>
             {totalAnnual === 0 ? (
               <EmptyChart />
             ) : (
@@ -264,38 +262,102 @@ export function StatisticsClient({
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} name="매출" />
                   <Bar dataKey="cost" fill="#f97316" radius={[4, 4, 0, 0]} name="자재비" />
-                  <Bar dataKey="profit" fill="#14b8a6" radius={[4, 4, 0, 0]} name="순수익" />
+                  <Bar dataKey="profit" fill="#14b8a6" radius={[4, 4, 0, 0]} name="순매출" />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
 
-          {/* 선택 월 일별 매출 */}
+          {/* 선택 월 일별 접수 건수 */}
           <div className="rounded-xl border bg-white p-6 shadow-sm">
             <h2 className="mb-1 text-base font-semibold text-gray-900">
-              {selectedMonth}월 일별 매출 흐름
+              {selectedMonth}월 일별 접수 건수
             </h2>
-            <p className="mb-4 text-xs text-gray-400">일자별 완료 매출</p>
-            {totalMonthly === 0 ? (
+            <p className="mb-4 text-xs text-gray-400">
+              접수일 기준 · 총 {totalIntakeThisMonth.toLocaleString()}건
+            </p>
+            {totalIntakeThisMonth === 0 ? (
               <EmptyChart />
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={dailyRevenue} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <BarChart data={intakeStats.daily} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={4} />
-                  <YAxis tickFormatter={formatWon} tick={{ fontSize: 11 }} width={48} />
-                  <Tooltip formatter={revenueTooltipFormatter as never} />
-                  <Line
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    dot={false}
-                    name="매출"
-                  />
-                </LineChart>
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={36} />
+                  <Tooltip formatter={(value: unknown) => [`${Number(value ?? 0)}건`, "접수 건수"] as never} />
+                  <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="접수 건수" />
+                </BarChart>
               </ResponsiveContainer>
             )}
+          </div>
+        </div>
+
+        {/* 섹션 1-1: 순매출 과세 구분 + 접수 대비 입고율 */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* 순매출 과세 구분 */}
+          <div className="rounded-xl border bg-white p-6 shadow-sm">
+            <h2 className="mb-1 text-base font-semibold text-gray-900">순매출 과세 구분</h2>
+            <p className="mb-4 text-xs text-gray-400">
+              수리 완료월 기준 · 증빙 = 현금영수증·세금계산서 · 카드·간편결제는 과세대상
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-xs font-medium text-gray-500">
+                    <th className="py-2 pr-4">구분</th>
+                    <th className="py-2 pr-4 text-right">{selectedYear}년 연간</th>
+                    <th className="py-2 text-right">{selectedMonth}월</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {taxSplitRows.map((row) => (
+                    <tr key={row.key} className="border-b">
+                      <td className="py-2 pr-4 text-gray-800">{row.label}</td>
+                      <td className={`py-2 pr-4 text-right tabular-nums font-medium ${row.className}`}>
+                        {formatWonFull(annualRevenue.reduce((s, d) => s + d[row.key], 0))}
+                      </td>
+                      <td className={`py-2 text-right tabular-nums font-medium ${row.className}`}>
+                        {formatWonFull(selectedMonthData?.[row.key] ?? 0)}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td className="py-2 pr-4 font-semibold text-gray-900">순매출 합계</td>
+                    <td className="py-2 pr-4 text-right tabular-nums font-semibold text-teal-700">
+                      {formatWonFull(annualProfit)}
+                    </td>
+                    <td className="py-2 text-right tabular-nums font-semibold text-teal-700">
+                      {formatWonFull(monthlyProfit)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-3 text-xs text-gray-400">
+              미확인 = 발급 여부 입력 기능 도입 전(2026년 9월 이전) 완료된 계좌이체 건
+            </p>
+          </div>
+
+          {/* 접수 대비 입고율 */}
+          <div className="rounded-xl border bg-white p-6 shadow-sm">
+            <h2 className="mb-1 text-base font-semibold text-gray-900">접수건 대비 입고율</h2>
+            <p className="mb-4 text-xs text-gray-400">
+              접수일 기준 · 입고 후 취소된 건도 입고로 집계
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              {([
+                { label: `${selectedYear}년 연간 입고율`, v: intakeStats.annual },
+                { label: `${selectedMonth}월 입고율`, v: intakeStats.monthly },
+              ]).map(({ label, v }) => (
+                <div key={label} className="rounded-lg bg-gray-50 p-4 text-center">
+                  <p className="text-xs text-gray-500">{label}</p>
+                  <p className="mt-1 text-3xl font-bold text-teal-600">{v.rate}%</p>
+                  <p className="mt-1 text-xs text-gray-400">
+                    입고 {v.received.toLocaleString()}건 / 접수 {v.total.toLocaleString()}건
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -342,7 +404,7 @@ export function StatisticsClient({
             기사별 최소견적 대비 성과 ⭐
           </h2>
           <p className="mb-4 text-xs text-gray-400">
-            {selectedYear}년 {selectedMonth}월 완료 기준 · 순수익 = 실매출 − 자재비 · 추가수익 = 확정견적 − 최소견적 합산
+            {selectedYear}년 {selectedMonth}월 완료 기준 · 순매출 = 실매출 − 자재비 · 추가수익 = 확정견적 − 최소견적 합산
           </p>
           {techPerformance.length === 0 ? (
             <p className="py-8 text-center text-sm text-gray-400">데이터가 없습니다.</p>
@@ -355,7 +417,7 @@ export function StatisticsClient({
                     <th className="py-3 pr-4 text-right">완료 건수</th>
                     <th className="py-3 pr-4 text-right">총매출</th>
                     <th className="py-3 pr-4 text-right">자재비</th>
-                    <th className="py-3 pr-4 text-right">순수익</th>
+                    <th className="py-3 pr-4 text-right">순매출</th>
                     <th className="py-3 pr-4 text-right">추가수익액</th>
                     <th className="py-3 text-right">추가수익 건수</th>
                   </tr>
@@ -466,84 +528,6 @@ export function StatisticsClient({
                 </p>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* 섹션 4-1: 환불율 분석 */}
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <h2 className="mb-1 text-base font-semibold text-gray-900">환불율 분석</h2>
-          <p className="mb-4 text-xs text-gray-400">
-            {selectedYear}년 {selectedMonth}월 완료건 기준 · 환불액 ÷ 총매출
-          </p>
-
-          <div className="grid gap-4 sm:grid-cols-4">
-            <div className="rounded-lg bg-gray-50 p-4 text-center">
-              <p className="text-xs text-gray-500">환불율</p>
-              <p className="mt-1 text-3xl font-bold text-rose-500">{refundStats.refundRate}%</p>
-              <p className="mt-1 text-xs text-gray-400">
-                {refundStats.refundedTicketCount.toLocaleString()}건 / 완료 {refundStats.completedCount.toLocaleString()}건
-              </p>
-            </div>
-            <div className="rounded-lg bg-gray-50 p-4 text-center">
-              <p className="text-xs text-gray-500">총매출</p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-gray-700">
-                {refundStats.grossRevenue.toLocaleString()}원
-              </p>
-              <p className="mt-1 text-xs text-gray-400">환불 반영 전</p>
-            </div>
-            <div className="rounded-lg bg-gray-50 p-4 text-center">
-              <p className="text-xs text-gray-500">환불액</p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-rose-600">
-                {refundStats.refundedAmount > 0 ? `-${refundStats.refundedAmount.toLocaleString()}` : "0"}원
-              </p>
-              <p className="mt-1 text-xs text-gray-400">완료 처리된 환불</p>
-            </div>
-            <div className="rounded-lg bg-gray-50 p-4 text-center">
-              <p className="text-xs text-gray-500">실매출</p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-gray-900">
-                {refundStats.netRevenue.toLocaleString()}원
-              </p>
-              <p className="mt-1 text-xs text-gray-400">통계에 반영되는 금액</p>
-            </div>
-          </div>
-
-          {/* 사유별 분포 — 품질 문제를 조기에 잡는 용도 */}
-          <div className="mt-5">
-            <h3 className="mb-2 text-sm font-semibold text-gray-700">환불 사유별 분포</h3>
-            {refundStats.byReason.length === 0 ? (
-              <p className="py-6 text-center text-sm text-gray-400">해당 월 환불 내역이 없습니다.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs font-medium text-gray-500">
-                      <th className="py-2 pr-4">사유</th>
-                      <th className="py-2 pr-4 text-right">건수</th>
-                      <th className="py-2 pr-4 text-right">환불액</th>
-                      <th className="py-2 text-right">비중</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {refundStats.byReason.map((r) => (
-                      <tr key={r.code} className="border-b last:border-0">
-                        <td className="py-2 pr-4 text-gray-800">{r.label}</td>
-                        <td className="py-2 pr-4 text-right tabular-nums text-gray-600">
-                          {r.count.toLocaleString()}건
-                        </td>
-                        <td className="py-2 pr-4 text-right tabular-nums font-medium text-rose-600">
-                          {r.amount.toLocaleString()}원
-                        </td>
-                        <td className="py-2 text-right tabular-nums text-gray-500">
-                          {refundStats.refundedAmount > 0
-                            ? `${Math.round((r.amount / refundStats.refundedAmount) * 1000) / 10}%`
-                            : "-"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </div>
         </div>
 

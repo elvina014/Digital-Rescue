@@ -45,7 +45,20 @@
       "Bash(grep -rn \"bodySizeLimit\\\\|serverActions\" next.config.*)",
       "Bash(node -e \"const s=require\\('./package.json'\\).scripts; console.log\\(JSON.stringify\\(s,null,2\\)\\)\")",
       "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\)\")",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Read(//c/Users/BRAD/.claude/projects/C--Users-BRAD-Documents-workspace-Digital-Rescue/memory/**)",
+      "Bash(sed -i 's#^- \\\\[Supabase 마이그레이션 워크플로\\\\]\\(reference_supabase_migration_workflow.md\\) — .*#- [Supabase 마이그레이션 워크플로]\\(reference_supabase_migration_workflow.md\\) — 운영 wnddkgeohcgcidoklrps는 SELECT 전용, 개발은 로컬 Docker\\(Phase 0.1 baseline\\), 운영 적용은 Brad#' MEMORY.md)",
+      "Bash(npm i *)",
+      "Bash(npx supabase *)",
+      "Bash(git check-ignore *)",
+      "PowerShell(\\([Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\) + \";\" + [Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\)\\) -split \";\" | Where-Object { $_ -match \"Docker\" })",
+      "Bash(git commit -q docs/repair-intelligence -m 'docs\\(repair-intelligence\\): Phase 0.1 approval conditions, KI-3 verified, KI-7 storage *)",
+      "Bash(cat \"/c/Users/BRAD/AppData/Local/Temp/claude/C--Users-BRAD-Documents-workspace-Digital-Rescue/6d43fe3f-c6e5-4399-a3b1-38adc0be7575/scratchpad/parity_summary.sql\")",
+      "Bash(node \"/c/Users/BRAD/AppData/Local/Temp/claude/C--Users-BRAD-Documents-workspace-Digital-Rescue/6d43fe3f-c6e5-4399-a3b1-38adc0be7575/scratchpad/typediff.js\" \"C:/Users/BRAD/Documents/workspace/Digital-Rescue\")",
+      "Bash(node C:/Users/BRAD/AppData/Local/Temp/claude/C--Users-BRAD-Documents-workspace-Digital-Rescue/6d43fe3f-c6e5-4399-a3b1-38adc0be7575/scratchpad/typediff.js C:/Users/BRAD/Documents/workspace/Digital-Rescue C:/Users/BRAD/AppData/Local/Temp/claude/C--Users-BRAD-Documents-workspace-Digital-Rescue/6d43fe3f-c6e5-4399-a3b1-38adc0be7575/scratchpad)",
+      "Bash(sed -i 's/^## Phase 0.1 — Migration baseline \\(마이그레이션 기준점 정리\\)$/## Phase 0.1 — Migration baseline \\(마이그레이션 기준점 정리\\) ✅ \\(report: `phases\\\\/phase-0.1-report.md`\\)/' docs/repair-intelligence/02-roadmap.md)",
+      "Bash(sed -i 's/^Status: \\\\*\\\\*APPROVED 2026-09-27\\\\*\\\\* with conditions:/Status: **APPROVED 2026-09-27 — EXECUTED 2026-09-27** \\(see `phase-0.1-report.md`\\). Conditions:/' docs/repair-intelligence/phases/phase-0.1-plan.md)",
+      "Bash(git commit -q package.json package-lock.json supabase src/types/supabase.ts docs/repair-intelligence -m 'chore\\(db\\): Phase 0.1 migration baseline, local Supabase, seed, generated types *)"
     ]
   }
 }
