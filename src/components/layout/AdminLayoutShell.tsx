@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import type { EmployeeRole } from "@/types";
 import { AdminSidebar } from "./AdminSidebar";
 import { MyPageModal } from "./MyPageModal";
@@ -32,6 +33,14 @@ export function AdminLayoutShell({
   const [myPageOpen, setMyPageOpen] = useState(false);
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  const pathname = usePathname();
+
+  // 로그인 액션이 세션 쿠키를 설정하면 Next.js 가 현재 경로(/login)를 다시 렌더링하는데,
+  // 이때 레이아웃은 이미 로그인 상태라 사이드바 + 로그인 폼이 잠깐 함께 보인다.
+  // /login 은 항상 셸 없이 렌더링해 대시보드로 이동하기 전의 깜빡임을 막는다.
+  if (pathname === "/login") {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">

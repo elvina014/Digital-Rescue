@@ -232,6 +232,9 @@ export default function TicketDetailForm({
       ticket.status === "IN_PROGRESS" &&
       !ticket.is_approved);
 
+  // 완료 후 추가 비용 등록 (A/S·누락 비용): ADMIN/MANAGER만. 통계는 완료월 기준으로 반영된다.
+  const canAddPostCompletionCost = (isAdmin || isManager) && ticket.status === "COMPLETED";
+
   // 접수방식 변경 가능: 모든 직원 + 수리 시작 전(NEW/ASSIGNED/RECEIVED) 상태
   const canEditReceiptType =
     (isReception || isManager || isAdmin || isTechnician || isExpertRepair) &&
@@ -798,46 +801,12 @@ export default function TicketDetailForm({
           )}
 
           {/* 수동 자재비 추가 폼 */}
-          <form
-            action={(fd) => handleAction(addMaterialCostAction, fd)}
-            className="mb-4 flex items-end gap-3"
-          >
-            <input type="hidden" name="ticketId" value={ticket.id} />
-            <div className="flex-1">
-              <label htmlFor="mcDescription" className="mb-1 block text-sm font-medium text-gray-700">
-                추가 비용 내용
-              </label>
-              <input
-                id="mcDescription"
-                name="description"
-                type="text"
-                required
-                placeholder="예: 부품 수급비"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-            <div className="w-36">
-              <label htmlFor="mcAmount" className="mb-1 block text-sm font-medium text-gray-700">
-                금액 (원)
-              </label>
-              <input
-                id="mcAmount"
-                name="amount"
-                type="number"
-                min={1}
-                required
-                placeholder="금액"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="whitespace-nowrap rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
-            >
-              비용 추가
-            </button>
-          </form>
+          <ManualCostAddForm
+            ticketId={ticket.id}
+            idPrefix="mc"
+            disabled={isPending}
+            onSubmit={(fd) => handleAction(addMaterialCostAction, fd)}
+          />
 
           {/* 수동 자재비 목록 */}
           {manualCosts.length > 0 && (
@@ -1088,6 +1057,21 @@ export default function TicketDetailForm({
               </dd>
             </div>
           </dl>
+
+          {canAddPostCompletionCost && (
+            <div className="mt-4 rounded-lg border border-teal-100 bg-teal-50/50 p-3">
+              <h3 className="mb-1 text-xs font-semibold text-teal-800">완료 후 추가 비용 (A/S·누락 비용)</h3>
+              <p className="mb-3 text-xs text-teal-700">
+                등록한 비용은 자재비 합계에 더해지고, 통계에는 이 건의 완료월 비용으로 반영됩니다.
+              </p>
+              <ManualCostAddForm
+                ticketId={ticket.id}
+                idPrefix="pcc"
+                disabled={isPending}
+                onSubmit={(fd) => handleAction(addMaterialCostAction, fd)}
+              />
+            </div>
+          )}
 
           {/* 자재비 상세 목록 (자재는 읽기 전용, 수동 비용은 권한자 편집 가능) */}
           {(materials.length > 0 || manualCosts.length > 0) && (
@@ -1613,6 +1597,62 @@ function ReturnMaterialForm({
 }
 
 // ─── 수동 추가 비용 편집 행 ───
+
+// ----- 수동 추가 비용 입력 폼 (수리 중: 자재비 섹션 / 완료 후: 견적 정보 섹션) -----
+function ManualCostAddForm({
+  ticketId,
+  idPrefix,
+  disabled,
+  onSubmit,
+}: {
+  ticketId: string;
+  idPrefix: string;
+  disabled: boolean;
+  onSubmit: (formData: FormData) => void;
+}) {
+  return (
+    <form
+      action={onSubmit}
+      className="mb-4 flex items-end gap-3"
+    >
+      <input type="hidden" name="ticketId" value={ticketId} />
+      <div className="flex-1">
+        <label htmlFor={`${idPrefix}Description`} className="mb-1 block text-sm font-medium text-gray-700">
+          추가 비용 내용
+        </label>
+        <input
+          id={`${idPrefix}Description`}
+          name="description"
+          type="text"
+          required
+          placeholder="예: 부품 수급비"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        />
+      </div>
+      <div className="w-36">
+        <label htmlFor={`${idPrefix}Amount`} className="mb-1 block text-sm font-medium text-gray-700">
+          금액 (원)
+        </label>
+        <input
+          id={`${idPrefix}Amount`}
+          name="amount"
+          type="number"
+          min={1}
+          required
+          placeholder="금액"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        />
+      </div>
+      <button
+        type="submit"
+        disabled={disabled}
+        className="whitespace-nowrap rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+      >
+        비용 추가
+      </button>
+    </form>
+  );
+}
 
 function ManualCostRow({
   ticketId,

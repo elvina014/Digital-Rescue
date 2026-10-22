@@ -1429,7 +1429,10 @@ isOneToOne: false
                 }
           }
           Functions: {
-            "ai_candidate_approve":
+            "add_ticket_manual_cost":
+{ Args: { "p_amount": number,"p_description": string,"p_ticket_id": string }; Returns: number
+                           },
+"ai_candidate_approve":
 { Args: { "p_approve_as"?: string,"p_candidate_id": string,"p_note"?: string,"p_reference"?: string }; Returns: Json
                            },
 "ai_candidate_reject":
@@ -1658,7 +1661,10 @@ isOneToOne: false
         to: "ticket_refunds"
         isOneToOne: true
         isSetofReturn: false
-      } }
+      } },
+"update_ticket_manual_cost":
+{ Args: { "p_amount": number,"p_description": string,"p_index": number,"p_ticket_id": string }; Returns: number
+                           }
           }
           Enums: {
             "device_type": "노트북"|"데스크탑"|"서버"|"나스"|"기타저장장치"|"태블릿","employee_role": "ADMIN"|"MANAGER"|"RECEPTION"|"TECHNICIAN"|"EXPERT_REPAIR"|"CS","inventory_condition": "NEW"|"GOOD"|"DEFECTIVE"|"SURPLUS","inventory_transaction_type": "INBOUND"|"OUTBOUND"|"ADJUSTMENT","item_condition": "NEW"|"USED","material_request_status": "pending"|"requested"|"approved"|"rejected"|"cancelled"|"cancel_requested","parts_recovery": "RECOVERED"|"NOT_RECOVERED"|"NONE","payment_status": "PENDING"|"PAID"|"PARTIALLY_REFUNDED"|"REFUNDED","receipt_type": "VISIT"|"DELIVERY"|"WALK_IN"|"QUICK"|"PARCEL"|"미정","refund_method": "CARD_CANCEL"|"CARD_PARTIAL_CANCEL"|"BANK_REFUND"|"CASH","refund_reason": "QUALITY"|"REPAIR_FAILED"|"OVERCHARGE"|"DUPLICATE"|"COMPLAINT"|"CHANGE_MIND"|"OTHER","refund_status": "REQUESTED"|"APPROVED"|"COMPLETED"|"REJECTED"|"VOID","ticket_status": "NEW"|"ASSIGNED"|"RECEIVED"|"IN_PROGRESS"|"WAITING_APPROVAL"|"COMPLETED"|"CANCELED"

@@ -48,12 +48,24 @@ function netRevenue(t: { final_price: number | null; refunded_amount?: number | 
   return (t.final_price ?? 0) - (t.refunded_amount ?? 0);
 }
 
+/**
+ * 접수건의 순수익 = 실매출 − 자재비(material_cost: 재고 자재 + 수동 추가 비용).
+ * 완료 후 추가된 비용(A/S·누락 비용)도 material_cost에 합산되므로 원래 완료월에서 차감된다.
+ */
+function netProfit(t: { final_price: number | null; refunded_amount?: number | null; material_cost?: number | null }): number {
+  return netRevenue(t) - (t.material_cost ?? 0);
+}
+
 // ─── 타입 정의 ────────────────────────────────────────────────
 
 export interface MonthlyRevenueData {
   month: number;
   label: string;
   revenue: number;
+  /** 자재비 합계 (재고 자재 + 수동 추가 비용) */
+  cost: number;
+  /** 순수익 = 실매출 − 자재비 */
+  profit: number;
 }
 
 export interface DailyRevenueData {
@@ -74,6 +86,10 @@ export interface TechnicianPerformanceData {
   name: string;
   completedCount: number;
   totalRevenue: number;
+  /** 자재비 합계 (재고 자재 + 수동 추가 비용) */
+  totalCost: number;
+  /** 순수익 = 실매출 − 자재비 */
+  netProfit: number;
   upsellAmount: number;
   upsellCount: number;
 }
@@ -186,25 +202,32 @@ export async function getAnnualRevenue(year: number): Promise<StatsResult<Monthl
 
   const { data } = await supabase
     .from("repair_tickets")
-    .select("final_price, refunded_amount, completed_at")
+    .select("final_price, refunded_amount, material_cost, completed_at")
     .eq("is_test", false)
     .eq("status", "COMPLETED")
-    .gte("completed_at", start) as unknown as { data: { final_price: number | null; refunded_amount: number | null; completed_at: string | null }[] | null };
+    .gte("completed_at", start) as unknown as { data: { final_price: number | null; refunded_amount: number | null; material_cost: number | null; completed_at: string | null }[] | null };
 
-  const monthMap: Record<number, number> = {};
+  const monthMap: Record<number, { revenue: number; cost: number }> = {};
   for (const t of data ?? []) {
     if (!t.completed_at) continue;
     const m = new Date(t.completed_at).getMonth() + 1;
     // 해당 연도 데이터만 포함
     if (new Date(t.completed_at).getFullYear() !== year) continue;
-    monthMap[m] = (monthMap[m] ?? 0) + netRevenue(t);
+    if (!monthMap[m]) monthMap[m] = { revenue: 0, cost: 0 };
+    monthMap[m].revenue += netRevenue(t);
+    monthMap[m].cost += t.material_cost ?? 0;
   }
 
-  return { data: Array.from({ length: 12 }, (_, i) => ({
-    month: i + 1,
-    label: `${i + 1}월`,
-    revenue: monthMap[i + 1] ?? 0,
-  })) };
+  return { data: Array.from({ length: 12 }, (_, i) => {
+    const v = monthMap[i + 1] ?? { revenue: 0, cost: 0 };
+    return {
+      month: i + 1,
+      label: `${i + 1}월`,
+      revenue: v.revenue,
+      cost: v.cost,
+      profit: v.revenue - v.cost,
+    };
+  }) };
 }
 
 /**
@@ -287,7 +310,7 @@ export async function getTechnicianPerformance(year: number, month: number): Pro
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any)
     .from("repair_tickets")
-    .select("final_price, refunded_amount, minimum_estimate, assignee_id, employees:assignee_id ( name )")
+    .select("final_price, refunded_amount, material_cost, minimum_estimate, assignee_id, employees:assignee_id ( name )")
     .eq("is_test", false)
     .eq("status", "COMPLETED")
     .not("assignee_id", "is", null)
@@ -296,21 +319,23 @@ export async function getTechnicianPerformance(year: number, month: number): Pro
 
   const map: Record<
     string,
-    { name: string; completedCount: number; totalRevenue: number; upsellAmount: number; upsellCount: number }
+    { name: string; completedCount: number; totalRevenue: number; totalCost: number; netProfit: number; upsellAmount: number; upsellCount: number }
   > = {};
 
-  for (const t of (data ?? []) as { final_price: number | null; refunded_amount: number | null; minimum_estimate: number | null; assignee_id: string; employees: { name: string } | { name: string }[] | null }[]) {
+  for (const t of (data ?? []) as { final_price: number | null; refunded_amount: number | null; material_cost: number | null; minimum_estimate: number | null; assignee_id: string; employees: { name: string } | { name: string }[] | null }[]) {
     const id = t.assignee_id;
     const emp2 = Array.isArray(t.employees) ? t.employees[0] : t.employees;
     const name = (emp2 as { name: string } | null)?.name ?? "미지정";
     if (!map[id]) {
-      map[id] = { name, completedCount: 0, totalRevenue: 0, upsellAmount: 0, upsellCount: 0 };
+      map[id] = { name, completedCount: 0, totalRevenue: 0, totalCost: 0, netProfit: 0, upsellAmount: 0, upsellCount: 0 };
     }
     // 환불된 금액은 성과로 잡지 않는다 (전액 환불 건은 매출·초과달성 모두 0)
     const fp = netRevenue(t);
     const me = t.minimum_estimate ?? 0;
     map[id].completedCount += 1;
     map[id].totalRevenue += fp;
+    map[id].totalCost += t.material_cost ?? 0;
+    map[id].netProfit += netProfit(t);
     if (me > 0 && fp > me) {
       map[id].upsellAmount += fp - me;
       map[id].upsellCount += 1;

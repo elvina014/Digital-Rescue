@@ -67,6 +67,12 @@ const revenueTooltipFormatter = (value: unknown) => [
   "매출",
 ];
 
+// 매출·자재비·순수익을 함께 그리는 차트용 (시리즈 이름은 Bar의 name을 그대로 사용)
+const amountTooltipFormatter = (value: unknown, name: unknown) => [
+  `${Number(value ?? 0).toLocaleString()}원`,
+  String(name ?? ""),
+];
+
 export function StatisticsClient({
   annualRevenue: initialAnnualRevenue,
   dailyRevenue: initialDailyRevenue,
@@ -154,6 +160,10 @@ export function StatisticsClient({
 
   const totalAnnual = annualRevenue.reduce((s, d) => s + d.revenue, 0);
   const totalMonthly = dailyRevenue.reduce((s, d) => s + d.revenue, 0);
+  // 선택 월 자재비·순수익 (완료월 기준, 완료 후 추가된 비용 포함)
+  const selectedMonthData = annualRevenue.find((d) => d.month === selectedMonth);
+  const monthlyCost = selectedMonthData?.cost ?? 0;
+  const monthlyProfit = selectedMonthData?.profit ?? 0;
   const totalTickets = statusBreakdown.reduce((s, d) => s + d.count, 0);
 
   // Generate year options: current year -3 to current year
@@ -206,7 +216,7 @@ export function StatisticsClient({
       {/* 로딩 오버레이 래퍼 */}
       <div className={`space-y-6 transition-opacity duration-200 ${isPending ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
         {/* 요약 카드 */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <SummaryCard
             label={`${selectedYear}년 연간 매출`}
             value={formatWonFull(totalAnnual)}
@@ -216,6 +226,16 @@ export function StatisticsClient({
             label={`${selectedYear}년 ${selectedMonth}월 매출`}
             value={formatWonFull(totalMonthly)}
             color="green"
+          />
+          <SummaryCard
+            label={`${selectedMonth}월 자재비`}
+            value={formatWonFull(monthlyCost)}
+            color="orange"
+          />
+          <SummaryCard
+            label={`${selectedMonth}월 순수익`}
+            value={formatWonFull(monthlyProfit)}
+            color="teal"
           />
           <SummaryCard
             label={`${selectedMonth}월 접수 건수`}
@@ -229,9 +249,9 @@ export function StatisticsClient({
           {/* 연간 월별 매출 */}
           <div className="rounded-xl border bg-white p-6 shadow-sm">
             <h2 className="mb-1 text-base font-semibold text-gray-900">
-              {selectedYear}년 월별 매출 추이
+              {selectedYear}년 월별 매출·수익 추이
             </h2>
-            <p className="mb-4 text-xs text-gray-400">수리 완료 기준 final_price 합산</p>
+            <p className="mb-4 text-xs text-gray-400">수리 완료월 기준 · 순수익 = 실매출 − 자재비(완료 후 추가 비용 포함)</p>
             {totalAnnual === 0 ? (
               <EmptyChart />
             ) : (
@@ -240,8 +260,11 @@ export function StatisticsClient({
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                   <YAxis tickFormatter={formatWon} tick={{ fontSize: 11 }} width={48} />
-                  <Tooltip formatter={revenueTooltipFormatter as never} />
+                  <Tooltip formatter={amountTooltipFormatter as never} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} name="매출" />
+                  <Bar dataKey="cost" fill="#f97316" radius={[4, 4, 0, 0]} name="자재비" />
+                  <Bar dataKey="profit" fill="#14b8a6" radius={[4, 4, 0, 0]} name="순수익" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -319,7 +342,7 @@ export function StatisticsClient({
             기사별 최소견적 대비 성과 ⭐
           </h2>
           <p className="mb-4 text-xs text-gray-400">
-            {selectedYear}년 {selectedMonth}월 완료 기준 · 추가수익 = 확정견적 − 최소견적 합산
+            {selectedYear}년 {selectedMonth}월 완료 기준 · 순수익 = 실매출 − 자재비 · 추가수익 = 확정견적 − 최소견적 합산
           </p>
           {techPerformance.length === 0 ? (
             <p className="py-8 text-center text-sm text-gray-400">데이터가 없습니다.</p>
@@ -331,6 +354,8 @@ export function StatisticsClient({
                     <th className="py-3 pr-4">기사 이름</th>
                     <th className="py-3 pr-4 text-right">완료 건수</th>
                     <th className="py-3 pr-4 text-right">총매출</th>
+                    <th className="py-3 pr-4 text-right">자재비</th>
+                    <th className="py-3 pr-4 text-right">순수익</th>
                     <th className="py-3 pr-4 text-right">추가수익액</th>
                     <th className="py-3 text-right">추가수익 건수</th>
                   </tr>
@@ -351,6 +376,12 @@ export function StatisticsClient({
                       </td>
                       <td className="py-3 pr-4 text-right text-gray-700">
                         {row.totalRevenue.toLocaleString()}원
+                      </td>
+                      <td className="py-3 pr-4 text-right text-orange-600">
+                        {row.totalCost.toLocaleString()}원
+                      </td>
+                      <td className="py-3 pr-4 text-right font-medium text-teal-700">
+                        {row.netProfit.toLocaleString()}원
                       </td>
                       <td className="py-3 pr-4 text-right font-semibold text-emerald-600">
                         +{row.upsellAmount.toLocaleString()}원
@@ -663,17 +694,21 @@ function SummaryCard({
 }: {
   label: string;
   value: string;
-  color: "blue" | "green" | "purple";
+  color: "blue" | "green" | "purple" | "orange" | "teal";
 }) {
   const colorMap = {
     blue: "bg-blue-50 border-blue-100",
     green: "bg-emerald-50 border-emerald-100",
     purple: "bg-purple-50 border-purple-100",
+    orange: "bg-orange-50 border-orange-100",
+    teal: "bg-teal-50 border-teal-100",
   };
   const textMap = {
     blue: "text-blue-700",
     green: "text-emerald-700",
     purple: "text-purple-700",
+    orange: "text-orange-700",
+    teal: "text-teal-700",
   };
   return (
     <div className={`rounded-xl border p-5 shadow-sm ${colorMap[color]}`}>

@@ -548,7 +548,32 @@ export async function addMaterialCostAction(formData: FormData) {
     .single();
 
   if (!ticket) return { error: "접수건을 찾을 수 없습니다." };
-  if (ticket.status !== "IN_PROGRESS") return { error: "수리 진행 중인 접수건만 자재비를 추가할 수 있습니다." };
+
+  // 완료 건: A/S·누락 비용 사후 등록 (ADMIN/MANAGER). 승인건 보호 트리거를 DB 함수가 통과시킨다.
+  if (ticket.status === "COMPLETED") {
+    if (employee.role !== EmployeeRole.ADMIN && employee.role !== EmployeeRole.MANAGER) {
+      return { error: "완료 건의 추가 비용은 관리자/팀장만 등록할 수 있습니다." };
+    }
+    const { data: totalRaw, error: rpcError } = await supabase.rpc("add_ticket_manual_cost", {
+      p_ticket_id: ticketId,
+      p_description: description,
+      p_amount: amount,
+    });
+    if (rpcError) return { error: "추가 비용 등록에 실패했습니다: " + rpcError.message };
+    const total = (totalRaw as number | null) ?? 0;
+
+    const adminSupa = createAdminClient();
+    await adminSupa.from("ticket_logs").insert({
+      ticket_id: ticketId,
+      employee_id: employee.id,
+      message: `시스템: 완료 후 추가 비용이 등록되었습니다. ${description} ${amount.toLocaleString()}원 (자재비 합계: ${total.toLocaleString()}원)`,
+    });
+
+    revalidatePath(`/tickets/${ticketId}`);
+    return;
+  }
+
+  if (ticket.status !== "IN_PROGRESS") return { error: "수리 진행 중이거나 완료된 접수건만 자재비를 추가할 수 있습니다." };
 
   const isTechOrExpert = employee.role === EmployeeRole.TECHNICIAN || employee.role === EmployeeRole.EXPERT_REPAIR;
   if (isTechOrExpert && ticket.assignee_id !== employee.id) {
@@ -640,19 +665,30 @@ export async function updateMaterialCostAction(
     amount: Math.round(amount),
   };
 
-  // 사용자 세션 클라이언트로 업데이트해야 protect_approved_ticket 트리거가 auth.uid()로
-  // 역할(ADMIN/MANAGER)을 판정해 통과시킨다. service_role(admin) 클라이언트는 auth.uid()=NULL이라 차단됨.
-  // RLS tickets_update: ADMIN/MANAGER는 전체 건, 기사는 본인 배정건만 UPDATE 허용.
-  const { error } = await supabase
-    .from("repair_tickets")
-    .update({ material_cost_details: details })
-    .eq("id", ticketId);
+  let newTotal: number;
+  if (isAdmin || isManager) {
+    // 승인건은 protect_approved_ticket 트리거(KI-9)가 직접 UPDATE를 막으므로 DB 함수로 수정·재계산한다
+    const { data: totalRaw, error: rpcError } = await supabase.rpc("update_ticket_manual_cost", {
+      p_ticket_id: ticketId,
+      p_index: index,
+      p_description: details[index].description,
+      p_amount: details[index].amount,
+    });
+    if (rpcError) return { error: "수동 추가 비용 수정에 실패했습니다: " + rpcError.message };
+    newTotal = (totalRaw as number | null) ?? 0;
+  } else {
+    // RLS tickets_update: 기사는 본인 배정건만 UPDATE 허용 (미승인 건이라 트리거 대상 아님)
+    const { error } = await supabase
+      .from("repair_tickets")
+      .update({ material_cost_details: details })
+      .eq("id", ticketId);
 
-  if (error) return { error: "수동 추가 비용 수정에 실패했습니다: " + error.message };
+    if (error) return { error: "수동 추가 비용 수정에 실패했습니다: " + error.message };
 
-  // 자재비 합계는 DB 함수가 재고 자재(단가 조정 포함) + 수동 비용으로 재계산한다
-  const { data: newTotalRaw } = await supabase.rpc("recalc_ticket_material_cost", { p_ticket_id: ticketId });
-  const newTotal = (newTotalRaw as number | null) ?? 0;
+    // 자재비 합계는 DB 함수가 재고 자재(단가 조정 포함) + 수동 비용으로 재계산한다
+    const { data: newTotalRaw } = await supabase.rpc("recalc_ticket_material_cost", { p_ticket_id: ticketId });
+    newTotal = (newTotalRaw as number | null) ?? 0;
+  }
 
   const adminSupa = createAdminClient();
   await adminSupa.from("ticket_logs").insert({
