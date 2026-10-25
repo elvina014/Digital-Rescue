@@ -35,7 +35,10 @@ export function MobileCTA({ data = DEFAULT_FOOTER }: MobileCTAProps) {
   const { phoneHref, kakaoHref } = extractContactLinks(data);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white px-4 py-3 md:hidden">
+    <div
+      data-cta-area="mobile_cta"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white px-4 py-3 md:hidden"
+    >
       <div className="flex gap-3">
         <Link
           href={phoneHref}

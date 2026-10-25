@@ -13,6 +13,7 @@ import {
   submitTicketAction,
   type TicketFormState,
 } from "@/app/actions/ticketActions";
+import { trackCta } from "@/lib/ctaTracking";
 
 const DEFAULT_CONTACT_FORM = defaults.contactForm as ContactFormData;
 const DEFAULT_THEME = defaults.theme as ThemeData;
@@ -69,6 +70,7 @@ export function ContactForm({
   useEffect(() => {
     setFormKey((k) => k + 1);
     if (state.success) {
+      trackCta("form_submit", "contact_form");
       setShowToast(true);
       setImageEntries((prev) => {
         prev.forEach((entry) => URL.revokeObjectURL(entry.previewUrl));
