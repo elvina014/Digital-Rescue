@@ -339,6 +339,58 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"cg_ad_visits": {
+                  Row: {
+                    "click_key": string,"client_ip": unknown,"country": string | null,"created_at": string,"device_type": string | null,"host": string | null,"id": number,"ip_prefix": unknown,"ip_version": number | null,"is_bot": boolean,"n_ad": string | null,"n_ad_group": string | null,"n_campaign_type": string | null,"n_keyword": string | null,"n_keyword_id": string | null,"n_match": string | null,"n_media": string | null,"n_query": string | null,"n_rank": number | null,"napm": string | null,"path": string | null,"raw_ip_headers": NonNullable<Json>,"referer": string | null,"session_id": string,"user_agent": string | null
+                  }
+                  Insert: {
+                    "click_key": string,"client_ip"?: unknown,"country"?: string | null,"created_at"?: string,"device_type"?: string | null,"host"?: string | null,"id"?: never,"ip_prefix"?: unknown,"ip_version"?: number | null,"is_bot"?: boolean,"n_ad"?: string | null,"n_ad_group"?: string | null,"n_campaign_type"?: string | null,"n_keyword"?: string | null,"n_keyword_id"?: string | null,"n_match"?: string | null,"n_media"?: string | null,"n_query"?: string | null,"n_rank"?: number | null,"napm"?: string | null,"path"?: string | null,"raw_ip_headers"?: NonNullable<Json>,"referer"?: string | null,"session_id": string,"user_agent"?: string | null
+                  }
+                  Update: {
+                    "click_key"?: string,"client_ip"?: unknown,"country"?: string | null,"created_at"?: string,"device_type"?: string | null,"host"?: string | null,"id"?: never,"ip_prefix"?: unknown,"ip_version"?: number | null,"is_bot"?: boolean,"n_ad"?: string | null,"n_ad_group"?: string | null,"n_campaign_type"?: string | null,"n_keyword"?: string | null,"n_keyword_id"?: string | null,"n_match"?: string | null,"n_media"?: string | null,"n_query"?: string | null,"n_rank"?: number | null,"napm"?: string | null,"path"?: string | null,"raw_ip_headers"?: NonNullable<Json>,"referer"?: string | null,"session_id"?: string,"user_agent"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"cg_engagement": {
+                  Row: {
+                    "conversions": NonNullable<Json>,"dwell_ms": number,"first_seen": string,"interactions": number,"last_seen": string,"max_scroll_pct": number,"pageviews": number,"session_id": string
+                  }
+                  Insert: {
+                    "conversions"?: NonNullable<Json>,"dwell_ms"?: number,"first_seen"?: string,"interactions"?: number,"last_seen"?: string,"max_scroll_pct"?: number,"pageviews"?: number,"session_id": string
+                  }
+                  Update: {
+                    "conversions"?: NonNullable<Json>,"dwell_ms"?: number,"first_seen"?: string,"interactions"?: number,"last_seen"?: string,"max_scroll_pct"?: number,"pageviews"?: number,"session_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"cg_ip_marks": {
+                  Row: {
+                    "client_ip": unknown,"marked_at": string,"marked_by": string | null,"memo": string | null,"status": string,"updated_at": string
+                  }
+                  Insert: {
+                    "client_ip": unknown,"marked_at"?: string,"marked_by"?: string | null,"memo"?: string | null,"status": string,"updated_at"?: string
+                  }
+                  Update: {
+                    "client_ip"?: unknown,"marked_at"?: string,"marked_by"?: string | null,"memo"?: string | null,"status"?: string,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"cg_whitelist": {
+                  Row: {
+                    "cidr": unknown,"created_at": string,"created_by": string | null,"id": number,"reason": string | null
+                  }
+                  Insert: {
+                    "cidr": unknown,"created_at"?: string,"created_by"?: string | null,"id"?: never,"reason"?: string | null
+                  }
+                  Update: {
+                    "cidr"?: unknown,"created_at"?: string,"created_by"?: string | null,"id"?: never,"reason"?: string | null
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"compatibility_evidence": {
                   Row: {
                     "compatibility_id": string,"created_at": string,"created_by": string,"id": string,"kind": string,"limitation_note": string | null,"note": string | null,"observed_status": string,"reference": string | null,"retract_reason": string | null,"retracted_at": string | null,"retracted_by": string | null,"ticket_id": string | null,"ticket_material_id": string | null
@@ -387,6 +439,19 @@ isOneToOne: false
       referencedRelation: "ticket_materials"
       referencedColumns: ["id"]
     }
+                  ]
+                },"cta_click_events": {
+                  Row: {
+                    "ad_keyword": string | null,"ad_source": string | null,"brand_slug": string | null,"created_at": string,"device": string,"event_type": string,"id": number,"location": string,"page_path": string,"referrer_host": string | null,"session_id": string | null
+                  }
+                  Insert: {
+                    "ad_keyword"?: string | null,"ad_source"?: string | null,"brand_slug"?: string | null,"created_at"?: string,"device": string,"event_type": string,"id"?: never,"location": string,"page_path": string,"referrer_host"?: string | null,"session_id"?: string | null
+                  }
+                  Update: {
+                    "ad_keyword"?: string | null,"ad_source"?: string | null,"brand_slug"?: string | null,"created_at"?: string,"device"?: string,"event_type"?: string,"id"?: never,"location"?: string,"page_path"?: string,"referrer_host"?: string | null,"session_id"?: string | null
+                  }
+                  Relationships: [
+                    
                   ]
                 },"customers": {
                   Row: {
@@ -1400,6 +1465,13 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"cta_daily_stats": {
+                  Row: {
+                    "contact": number | null,"day": string | null,"form_submit": number | null,"kakao": number | null,"mobile": number | null,"phone": number | null,"sessions": number | null
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"donor_potential_stock": {
                   Row: {
                     "board_number": string | null,"brand": string | null,"candidate_id": string | null,"candidate_status": string | null,"catalog_model_label": string | null,"category_name": string | null,"condition_estimate": string | null,"created_at": string | null,"description": string | null,"device_type": Database["public"]['Enums']["device_type"] | null,"donor_id": string | null,"donor_no": string | null,"model_text": string | null,"note": string | null,"part_name": string | null,"part_spec_id": string | null,"part_type": string | null,"quantity": number | null,"storage_note": string | null
@@ -1479,6 +1551,15 @@ isOneToOne: false
 { Args: { "p_limit"?: number }; Returns: {
               "brands": (string)[],"norm": string,"raw_strings": (string)[],"suggestions": Json,"test_count": number,"ticket_count": number
             }[]
+                           },
+"cg_purge_old":
+{ Args: { "p_days"?: number }; Returns: Json
+                           },
+"cg_record_engagement":
+{ Args: { "p_conversion"?: string,"p_dwell_ms"?: number,"p_interactions"?: number,"p_max_scroll_pct"?: number,"p_pageview"?: boolean,"p_session_id": string }; Returns: undefined
+                           },
+"cg_record_visit":
+{ Args: { "payload": Json }; Returns: string
                            },
 "confirm_material_return":
 { Args: { "p_material_id": string }; Returns: Json

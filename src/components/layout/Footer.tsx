@@ -88,7 +88,12 @@ export function Footer({ data = DEFAULT_FOOTER, theme = DEFAULT_THEME }: FooterP
           <p className="whitespace-pre-line text-center text-xs leading-relaxed text-slate-500">
             {data.disclaimer ?? ''}
           </p>
-          <p className="mt-4 text-center text-xs text-slate-500">
+          <p className="mt-4 text-center text-xs">
+            <Link href="/privacy" className="font-semibold text-slate-300 hover:text-white">
+              개인정보처리방침
+            </Link>
+          </p>
+          <p className="mt-2 text-center text-xs text-slate-500">
             {copyright}
           </p>
         </div>

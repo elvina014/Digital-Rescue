@@ -3,6 +3,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { MobileCTA } from "@/components/layout/MobileCTA";
 import { CtaTracker } from "@/components/common/CtaTracker";
+import { ClickGuardTracker } from "@/components/click-guard/ClickGuardTracker";
 import { getPageSections } from "@/lib/pageContents";
 import type {
   FooterData,
@@ -48,6 +49,7 @@ export default async function MainLayout({
       <Footer data={footer} theme={theme} />
       <MobileCTA data={footer} />
       <CtaTracker />
+      <ClickGuardTracker />
     </>
   );
 }

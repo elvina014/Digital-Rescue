@@ -79,6 +79,10 @@ export async function submitTicketAction(
     symptoms: raw.symptoms?.trim() ?? "",
   });
 
+  // ── 2-1. 개인정보 수집·이용 동의 (필수) — 폼의 required 체크박스와 별개로 서버에서도 확인 ──
+  const consentError =
+    formData.get("privacyConsent") === "yes" ? null : "개인정보 수집·이용에 동의해 주세요.";
+
   if (!result.success) {
     const fieldErrors: Record<string, string> = {};
     for (const issue of result.error.issues) {
@@ -87,6 +91,7 @@ export async function submitTicketAction(
         fieldErrors[key] = issue.message;
       }
     }
+    if (consentError) fieldErrors.privacyConsent = consentError;
 
     // 에러 난 필드는 값을 비우고, 나머지는 유지
     const preserved: Record<string, string> = {
@@ -108,6 +113,24 @@ export async function submitTicketAction(
       message: "입력 정보를 확인해 주세요.",
       errors: fieldErrors,
       values: preserved,
+    };
+  }
+
+  if (consentError) {
+    return {
+      success: false,
+      message: consentError,
+      errors: { privacyConsent: consentError },
+      values: {
+        name: raw.name?.trim() ?? "",
+        phone: raw.phone?.trim() ?? "",
+        address: raw.address?.trim() ?? "",
+        receiptType: raw.receiptType ?? "",
+        deviceType: raw.deviceType?.trim() ?? "",
+        deviceBrand: raw.deviceBrand?.trim() ?? "",
+        deviceModel: raw.deviceModel?.trim() ?? "",
+        symptoms: raw.symptoms?.trim() ?? "",
+      },
     };
   }
 

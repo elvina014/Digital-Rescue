@@ -414,6 +414,8 @@ export function ContactForm({
               max={cf.maxImages ?? 5}
             />
 
+            <PrivacyConsent theme={theme} error={state.errors?.privacyConsent} />
+
             <div className="pt-2">
               <button
                 type="submit"
@@ -447,6 +449,48 @@ export function ContactForm({
         </div>
       </section>
     </>
+  );
+}
+
+/**
+ * 개인정보 수집·이용 필수 동의 (Click Guard MVP 개인정보 고지).
+ * 브라우저 required + 서버(submitTicketAction) 양쪽에서 미동의 접수를 거부한다.
+ */
+function PrivacyConsent({ theme, error }: { theme: ThemeData; error?: string }) {
+  return (
+    <div
+      className="rounded-2xl border bg-slate-50 p-4 text-xs leading-relaxed text-slate-600 sm:text-[13px]"
+      style={{ borderColor: theme.borderSoft }}
+    >
+      <p className="font-semibold text-slate-700">개인정보 수집·이용 동의 (필수)</p>
+      <ul className="mt-2 list-disc space-y-1 pl-4">
+        <li>수집 항목: 이름, 휴대폰번호, 주소(선택), 접수 방식·방문 일시, 기기 정보, 증상, 첨부 사진(선택)</li>
+        <li>이용 목적: 수리 상담 및 접수 응대</li>
+        <li>보유 기간: 개인정보처리방침에 따름</li>
+        <li>동의를 거부할 수 있으며, 거부 시 온라인 접수가 제한됩니다. 전화·카카오톡 상담은 계속 이용하실 수 있습니다.</li>
+      </ul>
+      <label className="mt-3 flex cursor-pointer items-start gap-2 text-sm font-medium text-slate-800">
+        <input
+          type="checkbox"
+          name="privacyConsent"
+          value="yes"
+          required
+          className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600"
+        />
+        <span>
+          위 내용에 동의합니다.{" "}
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 underline underline-offset-2"
+          >
+            개인정보처리방침 보기
+          </a>
+        </span>
+      </label>
+      {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+    </div>
   );
 }
 

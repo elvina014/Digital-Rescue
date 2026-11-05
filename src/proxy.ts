@@ -1,6 +1,7 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextFetchEvent, type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/utils/supabase/middleware";
 import { canonicalBrandSlug } from "@/lib/brands";
+import { applyClickGuard } from "@/lib/click-guard/server";
 
 /**
  * Proxy (Route Guard) — Next.js 16
@@ -64,7 +65,16 @@ function buildLoginUrlFromEdit(request: NextRequest, params?: Record<string, str
   return url;
 }
 
-export async function proxy(request: NextRequest) {
+/**
+ * Proxy 진입점. 기존 라우팅(routeRequest)이 끝난 응답에 Click Guard 수집 훅만 덧붙인다.
+ * 훅은 광고 유입일 때 cg_sid 쿠키를 붙이고 기록은 event.waitUntil 로 넘긴다 (응답 비차단, 실패 무시).
+ */
+export async function proxy(request: NextRequest, event: NextFetchEvent) {
+  const response = await routeRequest(request);
+  return applyClickGuard(request, event, response);
+}
+
+async function routeRequest(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const { user, supabaseResponse } = await updateSession(request);
 

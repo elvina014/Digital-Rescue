@@ -1,7 +1,8 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { after, type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { CTA_EVENT_TYPES } from "@/lib/ctaTracking";
+import { CG_COOKIE, recordEngagement } from "@/lib/click-guard/server";
 
 /**
  * CTA 클릭 수집 엔드포인트 (랜딩 개편 Phase 0)
@@ -63,6 +64,12 @@ export async function POST(request: NextRequest) {
   });
   if (error) {
     console.error("[api/cta] insert failed:", error.message);
+  }
+
+  // Click Guard: 광고 유입 세션(cg_sid)이면 전환 횟수만 덧붙인다. 응답 후 실행, 실패 무시 (기존 응답 그대로)
+  const cgSessionId = request.cookies.get(CG_COOKIE)?.value;
+  if (cgSessionId) {
+    after(() => recordEngagement(cgSessionId, { conversion: p.eventType }));
   }
 
   return new NextResponse(null, { status: 204 });
