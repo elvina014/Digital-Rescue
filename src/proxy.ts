@@ -21,7 +21,7 @@ import { applyClickGuard } from "@/lib/click-guard/server";
  */
 
 // admin 서브도메인에서만 접근 가능한 경로
-const ADMIN_PATHS = ["/dashboard", "/editor", "/tickets", "/inventory", "/employees", "/stats", "/catalog", "/donors", "/lookup", "/labels", "/scan", "/login"];
+const ADMIN_PATHS = ["/dashboard", "/editor", "/tickets", "/inventory", "/employees", "/stats", "/catalog", "/donors", "/lookup", "/labels", "/scan", "/click-guard", "/login"];
 const LOGIN_PATH = "/login";
 
 // 비활동 세션 만료 설정

@@ -36,6 +36,12 @@ Vercel 수집 → Supabase 저장·계산 → ERP 조회. 외부 API 호출 없�
 - **함수 권한 (2026-11-06 Brad 결정, R10/KI-8):** `REVOKE ALL FROM PUBLIC` → `GRANT EXECUTE TO anon, authenticated, service_role`. 거부는 함수 내부 `(SELECT auth.role()) IS DISTINCT FROM 'service_role'` 검사로 한다. anon/authenticated에서 EXECUTE를 빼앗으면 supautils 버그로 Postgres가 재시작되므로(KI-8) 그 방식은 쓰지 않는다. 테이블 쓰기는 테이블 권한 REVOKE + 쓰기 정책 없음으로 막는다.
 - 보존: `cg_purge_old`를 pg_cron으로 매일 실행(`docs/click-guard/cron.sql`, 대시보드에서 수동 등록).
 
+### ERP 조회 화면 (MVP 2/2, 2026-11-06)
+- `login.` 관리자 영역 `/click-guard` "부정클릭 감시" (ADMIN 전용, 사이드바·proxy `ADMIN_PATHS` 등록)
+- RPC(ADMIN 전용, R10 권한): `cg_suspect_ips`(R1~R5·전환 감점, 임계값은 함수 내 상수), `cg_ad_summary`, `cg_ip_detail`, `cg_mark_ip`, `cg_whitelist_upsert`, `cg_whitelist_delete`
+- 전환 감점은 전화·카톡·접수 완료만 센다 (`contact` 접수 버튼 이동은 제외)
+- 네이버 등록은 사람이 검색광고센터에서 직접 하고, 화면에서는 "등록 완료" 표시만 한다 (API 호출 없음)
+
 ### 개인정보 고지
 `/privacy` 처리방침 페이지, 마케팅 푸터 링크, 문의 폼 필수 동의(클라이언트·서버 양쪽 검사).
 

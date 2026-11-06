@@ -1552,6 +1552,15 @@ isOneToOne: false
               "brands": (string)[],"norm": string,"raw_strings": (string)[],"suggestions": Json,"test_count": number,"ticket_count": number
             }[]
                            },
+"cg_ad_summary":
+{ Args: { "p_hours"?: number }; Returns: Json
+                           },
+"cg_ip_detail":
+{ Args: { "p_days"?: number,"p_ip": unknown }; Returns: Json
+                           },
+"cg_mark_ip":
+{ Args: { "p_ip": unknown,"p_memo"?: string,"p_status": string }; Returns: Json
+                           },
 "cg_purge_old":
 { Args: { "p_days"?: number }; Returns: Json
                            },
@@ -1560,6 +1569,17 @@ isOneToOne: false
                            },
 "cg_record_visit":
 { Args: { "payload": Json }; Returns: string
+                           },
+"cg_suspect_ips":
+{ Args: { "p_hours"?: number,"p_min_score"?: number }; Returns: {
+              "avg_dwell_ms": number,"clicks": number,"client_ip": unknown,"conversions": number,"first_seen": string,"ip_prefix": unknown,"last_seen": string,"mark_memo": string,"mark_status": string,"mobile_ratio": number,"reasons": Json,"score": number,"top_queries": (string)[],"total_interactions": number,"visits": number
+            }[]
+                           },
+"cg_whitelist_delete":
+{ Args: { "p_id": number }; Returns: undefined
+                           },
+"cg_whitelist_upsert":
+{ Args: { "p_cidr": unknown,"p_reason"?: string }; Returns: number
                            },
 "confirm_material_return":
 { Args: { "p_material_id": string }; Returns: Json

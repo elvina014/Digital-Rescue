@@ -107,6 +107,11 @@ const NAV_ITEMS: NavItem[] = [
     href: "/stats/cta",
     roles: ["ADMIN", "MANAGER"] as EmployeeRole[],
   },
+  {
+    label: "부정클릭 감시",
+    href: "/click-guard",
+    roles: ["ADMIN"] as EmployeeRole[],
+  },
 ];
 
 interface AdminSidebarProps {
