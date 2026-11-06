@@ -117,15 +117,15 @@ export default function PrivacyPage() {
                   </tr>
                   <tr>
                     <td className={tdClass}>온라인 접수 정보 (2-①)</td>
-                    <td className={tdClass}><Confirm /></td>
+                    <td className={tdClass}>3년</td>
                   </tr>
                   <tr>
                     <td className={tdClass}>버튼 클릭 기록 (2-③)</td>
-                    <td className={tdClass}><Confirm /></td>
+                    <td className={tdClass}>3년</td>
                   </tr>
                   <tr>
                     <td className={tdClass}>관계 법령에 따라 보존이 필요한 정보</td>
-                    <td className={tdClass}><Confirm /></td>
+                    <td className={tdClass}>성명, 전화번호, 주소, 기타 의뢰 내용 등 — 3년</td>
                   </tr>
                 </tbody>
               </table>
@@ -137,7 +137,7 @@ export default function PrivacyPage() {
               회사는 정보주체의 개인정보를 제1조의 목적 범위 내에서만 처리하며, 정보주체의 동의, 법률의 특별한 규정 등
               「개인정보 보호법」 제17조 및 제18조에 해당하는 경우에만 개인정보를 제3자에게 제공합니다.
             </p>
-            <p>현재 제3자 제공 현황: <Confirm /></p>
+            <p>현재 제3자 제공 현황: 없음</p>
           </Section>
 
           <Section id="outsourcing" title="5. 개인정보 처리업무의 위탁">
@@ -158,10 +158,6 @@ export default function PrivacyPage() {
                   <tr>
                     <td className={tdClass}>Supabase Inc.</td>
                     <td className={tdClass}>데이터베이스 및 첨부 사진 저장</td>
-                  </tr>
-                  <tr>
-                    <td className={tdClass}>접수 알림 자동화 서버 운영 주체 <Confirm /></td>
-                    <td className={tdClass}>신규 접수 알림 (이름·연락처 등 접수 내용 전달)</td>
                   </tr>
                 </tbody>
               </table>
@@ -280,7 +276,9 @@ export default function PrivacyPage() {
               수집될 수 있습니다.
             </p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>수집 목적·항목·보유 기간: <Confirm /></li>
+              <li>수집 목적: 고객관리</li>
+              <li>수집 항목: <Confirm /></li>
+              <li>보유 기간: 3년</li>
               <li>거부 방법: 브라우저의 쿠키 설정(제10조) 또는 Google 광고 설정에서 맞춤 광고를 끌 수 있습니다.</li>
             </ul>
           </Section>
@@ -288,8 +286,8 @@ export default function PrivacyPage() {
           <Section id="officer" title="12. 개인정보 보호책임자">
             <p>회사는 개인정보 처리에 관한 업무를 총괄해서 책임지고, 관련 불만 처리 및 피해 구제를 위하여 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.</p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>성명: <Confirm>[대표 입력]</Confirm></li>
-              <li>직책: <Confirm>[대표 입력]</Confirm></li>
+              <li>성명: 박병환</li>
+              <li>직책: 팀장</li>
               <li>연락처: <Confirm>[대표 입력]</Confirm></li>
             </ul>
             <p>개인정보 관련 문의·불만·피해 구제 요청은 개인정보 보호책임자 또는 대표전화(1544-9814)로 하실 수 있습니다.</p>
@@ -306,7 +304,7 @@ export default function PrivacyPage() {
           </Section>
 
           <Section id="changes" title="14. 개인정보 처리방침의 변경">
-            <p>이 개인정보 처리방침은 <Confirm /> 부터 적용됩니다.</p>
+            <p>이 개인정보 처리방침은 2026년 11월 6일부터 적용됩니다.</p>
           </Section>
         </div>
       </div>
