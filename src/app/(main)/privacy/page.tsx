@@ -4,18 +4,13 @@ import type { Metadata } from "next";
  * 개인정보처리방침 (Click Guard MVP 출시 필수 고지)
  *
  * 목차는 개인정보보호위원회 「개인정보 처리방침 작성지침」의 표준 항목을 따른다.
- * 코드·설정에서 확인되지 않은 사실은 [대표 확인 필요] / [대표 입력]으로 남겨 두었다 — 공개 전에 대표가 채워야 한다.
- * (대상 목록: docs/click-guard/MVP1-REPORT.md "대표 확인 필요")
+ * 모든 항목은 코드·설정 또는 대표 확인 내용을 기준으로 작성했다. 사실이 바뀌면(수탁자·쿠키·보유 기간 등) 함께 고친다.
  */
 
 export const metadata: Metadata = {
   title: "개인정보처리방침 | 디지털레스큐",
   description: "디지털레스큐 개인정보처리방침",
 };
-
-function Confirm({ children = "[대표 확인 필요]" }: { children?: string }) {
-  return <mark className="rounded bg-amber-100 px-1 font-semibold text-amber-800">{children}</mark>;
-}
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
@@ -196,7 +191,7 @@ export default function PrivacyPage() {
                 <tbody>
                   <tr>
                     <td className={tdClass}>텔레그램(Telegram)</td>
-                    <td className={tdClass}><Confirm /></td>
+                    <td className={tdClass}>텔레그램이 서버를 운용하는 국가</td>
                     <td className={tdClass}>온라인 접수 정보 중 알림에 포함되는 항목(이름, 휴대폰번호, 주소, 기기 정보, 고장 증상)</td>
                     <td className={tdClass}>온라인 접수 시 메신저 알림으로 전송</td>
                     <td className={tdClass}>회사 운영자가 알림 메시지를 삭제할 때까지</td>
@@ -204,7 +199,7 @@ export default function PrivacyPage() {
                 </tbody>
               </table>
             </div>
-            <p>국외 이전을 원하지 않는 경우: <Confirm /></p>
+            <p>국외 이전을 원하지 않는 경우: 국외 이전을 거부하실 수 있으나, 이 경우 접수 및 서비스 이용이 불가합니다.</p>
           </Section>
 
           <Section id="destruction" title="7. 개인정보의 파기 절차 및 방법">
