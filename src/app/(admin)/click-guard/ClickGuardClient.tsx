@@ -264,7 +264,7 @@ export default function ClickGuardClient({ tab, summary, suspects, whitelist }: 
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums">{r.conversions}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{Math.round(r.mobile_ratio * 100)}%</td>
-                          <td className="max-w-[180px] truncate px-3 py-2 text-gray-600" title={r.top_queries.join(", ")}>
+                          <td className="min-w-[160px] max-w-[260px] break-keep px-3 py-2 text-gray-600 [overflow-wrap:anywhere]">
                             {r.top_queries.join(", ") || "-"}
                           </td>
                           <td className="whitespace-nowrap px-3 py-2 tabular-nums text-gray-600" title={formatDateTime(r.last_seen)}>
