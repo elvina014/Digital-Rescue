@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { extractClientIp, ipInCidr, ipPrefix, parseIp, formatIp } from "../../src/lib/click-guard/ip.ts";
 import { CLOUDFLARE_IP_RANGES } from "../../src/lib/click-guard/cloudflare-ips.ts";
-import { buildClickKey, CLICK_BUCKET_MS, deviceTypeOf, isBotUserAgent } from "../../src/lib/click-guard/visit.ts";
+import { buildClickKey, CLICK_BUCKET_MS, deviceTypeOf, isBotUserAgent, isDocumentRequest } from "../../src/lib/click-guard/visit.ts";
 import { isNaverAdLanding } from "../../src/lib/naver-ad/isNaverAdLanding.ts";
 
 const headersOf = (obj) => (name) => obj[name] ?? null;
@@ -131,4 +131,12 @@ test("봇 UA 판정과 기기 구분", () => {
   assert.equal(deviceTypeOf("Mozilla/5.0 (Linux; Android 14; SM-S918N) Mobile Safari/537.36"), "mobile");
   assert.equal(deviceTypeOf("Mozilla/5.0 (Linux; Android 14; SM-X710) Safari/537.36"), "tablet");
   assert.equal(deviceTypeOf("Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0"), "desktop");
+});
+
+test("문서 요청만 방문으로 본다 (Sec-Fetch-Dest)", () => {
+  assert.equal(isDocumentRequest("document"), true);
+  assert.equal(isDocumentRequest(null), true);
+  assert.equal(isDocumentRequest(undefined), true);
+  assert.equal(isDocumentRequest("empty"), false); // Next.js RSC fetch
+  assert.equal(isDocumentRequest("iframe"), false);
 });

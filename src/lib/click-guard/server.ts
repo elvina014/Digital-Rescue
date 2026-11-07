@@ -3,7 +3,7 @@ import { createAdminClient } from "@/utils/supabase/admin";
 import { isNaverAdLanding } from "@/lib/naver-ad/isNaverAdLanding";
 import { CLOUDFLARE_IP_RANGES } from "./cloudflare-ips";
 import { extractClientIp } from "./ip";
-import { buildClickKey, deviceTypeOf, isBotUserAgent } from "./visit";
+import { buildClickKey, deviceTypeOf, isBotUserAgent, isDocumentRequest } from "./visit";
 
 /**
  * Click Guard 서버 수집 (docs/click-guard/SPEC.md "MVP SPEC") — 서버 전용(service_role).
@@ -48,10 +48,11 @@ function shouldTrack(request: NextRequest): boolean {
   if (!isAllowedHost(request.headers.get("host"))) return false;
   const { pathname, searchParams } = request.nextUrl;
   if (pathname.startsWith("/_next") || pathname.startsWith("/api") || STATIC_FILE_RE.test(pathname)) return false;
-  // 브라우저 예측 프리페치는 방문이 아니다. (RSC 헤더·_rsc 는 Next가 proxy 전에 지워서 여기서는 구분할 수 없다 —
-  // 사이트 안 링크에는 광고 파라미터가 없으므로 클라이언트 이동이 광고 유입으로 잡히지는 않는다)
+  // 브라우저 예측 프리페치는 방문이 아니다.
   const purpose = `${request.headers.get("sec-purpose") ?? ""} ${request.headers.get("purpose") ?? ""}`;
   if (/prefetch/i.test(purpose)) return false;
+  // Next.js가 광고 페이지를 연 뒤 같은 주소로 보내는 화면 데이터(RSC) 요청은 방문이 아니다.
+  if (!isDocumentRequest(request.headers.get("sec-fetch-dest"))) return false;
   return isNaverAdLanding(searchParams);
 }
 

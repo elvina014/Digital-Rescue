@@ -36,3 +36,12 @@ export function deviceTypeOf(ua: string | null | undefined): "mobile" | "tablet"
   if (/Mobi|iPhone|iPod|Android/i.test(ua)) return "mobile";
   return "desktop";
 }
+
+/**
+ * 사람이 연 페이지(문서 요청)인지. 운영 빌드에서 Next.js는 광고 페이지를 연 뒤 같은 주소로 화면 데이터(RSC)를
+ * 다시 요청하는데, _rsc·RSC 헤더를 proxy 전에 지워 광고 유입처럼 보인다. 브라우저가 붙이는 Sec-Fetch-Dest는
+ * 남으므로 그 값이 document 가 아니면 기록하지 않는다. 헤더가 없는 클라이언트(구형 브라우저·일부 봇)는 기록한다.
+ */
+export function isDocumentRequest(secFetchDest: string | null | undefined): boolean {
+  return !secFetchDest || secFetchDest.toLowerCase() === "document";
+}
