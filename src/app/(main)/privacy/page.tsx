@@ -162,6 +162,11 @@ export default function PrivacyPage() {
                     <td className={tdClass}>데이터베이스 및 첨부 사진 저장</td>
                     <td className={tdClass}>대한민국(서울)</td>
                   </tr>
+                  <tr>
+                    <td className={tdClass}>텔레그램(Telegram)</td>
+                    <td className={tdClass}>온라인 접수 알림을 회사 운영자에게 전달</td>
+                    <td className={tdClass}>국외 (제6조)</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -174,9 +179,32 @@ export default function PrivacyPage() {
 
           <Section id="overseas" title="6. 개인정보의 국외 이전">
             <p>
-              회사는 정보주체의 개인정보를 국외로 이전하지 않습니다. 제5조의 수탁자는 국외 법인이나, 회사가 이용하는 서버는
-              모두 대한민국(서울)에 위치하며 개인정보는 이 서버에 저장·처리됩니다.
+              회사의 홈페이지와 데이터베이스 서버는 모두 대한민국(서울)에 위치합니다(제5조의 Vercel Inc., Supabase Inc.).
+              다만 온라인 접수 알림을 회사 운영자에게 전달하기 위하여 다음과 같이 개인정보를 국외로 이전합니다.
             </p>
+            <div className="overflow-x-auto">
+              <table className={tableClass}>
+                <thead>
+                  <tr>
+                    <th className={thClass}>이전받는 자</th>
+                    <th className={thClass}>이전 국가</th>
+                    <th className={thClass}>이전 항목</th>
+                    <th className={thClass}>이전 일시·방법</th>
+                    <th className={thClass}>보유·이용 기간</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className={tdClass}>텔레그램(Telegram)</td>
+                    <td className={tdClass}><Confirm /></td>
+                    <td className={tdClass}>온라인 접수 정보 중 알림에 포함되는 항목(이름, 휴대폰번호, 주소, 기기 정보, 고장 증상)</td>
+                    <td className={tdClass}>온라인 접수 시 메신저 알림으로 전송</td>
+                    <td className={tdClass}>회사 운영자가 알림 메시지를 삭제할 때까지</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>국외 이전을 원하지 않는 경우: <Confirm /></p>
           </Section>
 
           <Section id="destruction" title="7. 개인정보의 파기 절차 및 방법">
@@ -205,7 +233,6 @@ export default function PrivacyPage() {
             <ul className="list-disc space-y-1 pl-5">
               <li>접근 권한 관리: 개인정보를 처리하는 관리 시스템은 로그인한 직원만 이용할 수 있으며, 직원 역할에 따라 접근 범위를 제한합니다.</li>
               <li>전송 구간 암호화: 홈페이지와 관리 시스템은 암호화 통신(HTTPS)으로 운영합니다.</li>
-              <li>관리적 조치(내부관리계획 수립·시행, 직원 교육 등): <Confirm /></li>
             </ul>
           </Section>
 
@@ -231,11 +258,6 @@ export default function PrivacyPage() {
                     <td className={tdClass}>버튼 클릭 기록과 광고 유입 방문 측정을 위한 임의 식별값·측정값</td>
                     <td className={tdClass}>브라우저 탭을 닫을 때까지</td>
                   </tr>
-                  <tr>
-                    <td className={tdClass}>Google 광고 태그 쿠키</td>
-                    <td className={tdClass}><Confirm /></td>
-                    <td className={tdClass}><Confirm /></td>
-                  </tr>
                 </tbody>
               </table>
             </div>
@@ -248,15 +270,9 @@ export default function PrivacyPage() {
 
           <Section id="behavioral" title="11. 행태정보의 수집·이용 및 거부">
             <p>
-              회사 홈페이지에는 Google LLC의 광고 태그(Google Ads)가 설치되어 있어, 방문 및 이용 기록 등 행태정보가 Google에 의해
-              수집될 수 있습니다.
+              회사는 온라인 맞춤형 광고 등을 위한 행태정보를 수집·이용·제공하지 않으며, 홈페이지에 외부 광고 사업자의 행태정보
+              수집 도구를 설치하지 않습니다. 버튼 클릭 기록과 네이버 검색광고 접속·방문 기록은 제1조~제3조에 적은 목적과 기간으로만 처리합니다.
             </p>
-            <ul className="list-disc space-y-1 pl-5">
-              <li>수집 목적: 고객관리</li>
-              <li>수집 항목: <Confirm /></li>
-              <li>보유 기간: 3년</li>
-              <li>거부 방법: 브라우저의 쿠키 설정(제10조) 또는 Google 광고 설정에서 맞춤 광고를 끌 수 있습니다.</li>
-            </ul>
           </Section>
 
           <Section id="officer" title="12. 개인정보 보호책임자">
@@ -264,7 +280,7 @@ export default function PrivacyPage() {
             <ul className="list-disc space-y-1 pl-5">
               <li>성명: 박병환</li>
               <li>직책: 팀장</li>
-              <li>연락처: <Confirm>[대표 입력]</Confirm></li>
+              <li>연락처: 대표전화 1544-9814</li>
             </ul>
             <p>개인정보 관련 문의·불만·피해 구제 요청은 개인정보 보호책임자 또는 대표전화(1544-9814)로 하실 수 있습니다.</p>
           </Section>
