@@ -34,7 +34,17 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         {/* 로고 */}
-        <Link href="#hero" className="flex items-center gap-2">
+        {/* 다른 페이지에서는 메인으로 이동, 메인에서는 맨 위로 스크롤 ("/#hero"는 Next가 해시를 중복으로 붙여 쓰지 않음) */}
+        <Link
+          href="/"
+          onClick={(e) => {
+            if (window.location.pathname === "/") {
+              e.preventDefault();
+              window.scrollTo({ top: 0 });
+            }
+          }}
+          className="flex items-center gap-2"
+        >
           <span
             className="text-xl font-extrabold tracking-tight"
             style={{ color: theme.textPrimary }}
