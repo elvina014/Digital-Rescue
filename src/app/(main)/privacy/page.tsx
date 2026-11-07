@@ -148,16 +148,19 @@ export default function PrivacyPage() {
                   <tr>
                     <th className={thClass}>수탁자</th>
                     <th className={thClass}>위탁 업무</th>
+                    <th className={thClass}>서버 위치</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td className={tdClass}>Vercel Inc.</td>
                     <td className={tdClass}>홈페이지 호스팅 및 접속 처리</td>
+                    <td className={tdClass}>대한민국(서울)</td>
                   </tr>
                   <tr>
                     <td className={tdClass}>Supabase Inc.</td>
                     <td className={tdClass}>데이터베이스 및 첨부 사진 저장</td>
+                    <td className={tdClass}>대한민국(서울)</td>
                   </tr>
                 </tbody>
               </table>
@@ -170,37 +173,10 @@ export default function PrivacyPage() {
           </Section>
 
           <Section id="overseas" title="6. 개인정보의 국외 이전">
-            <p>회사는 제5조의 위탁 업무 수행을 위하여 다음과 같이 개인정보를 국외 사업자에게 이전(처리위탁·보관)할 수 있습니다.</p>
-            <div className="overflow-x-auto">
-              <table className={tableClass}>
-                <thead>
-                  <tr>
-                    <th className={thClass}>이전받는 자</th>
-                    <th className={thClass}>이전 국가(서버 위치)</th>
-                    <th className={thClass}>이전 항목</th>
-                    <th className={thClass}>이전 일시·방법</th>
-                    <th className={thClass}>보유·이용 기간</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className={tdClass}>Vercel Inc.</td>
-                    <td className={tdClass}><Confirm /></td>
-                    <td className={tdClass}>제2조의 항목</td>
-                    <td className={tdClass}>홈페이지 이용 시 네트워크를 통해 전송</td>
-                    <td className={tdClass}>제3조의 보유 기간 또는 위탁계약 종료 시까지</td>
-                  </tr>
-                  <tr>
-                    <td className={tdClass}>Supabase Inc.</td>
-                    <td className={tdClass}><Confirm /></td>
-                    <td className={tdClass}>제2조의 항목</td>
-                    <td className={tdClass}>접수·방문 기록 저장 시 네트워크를 통해 전송</td>
-                    <td className={tdClass}>제3조의 보유 기간 또는 위탁계약 종료 시까지</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p>국외 이전을 원하지 않는 경우: <Confirm /></p>
+            <p>
+              회사는 정보주체의 개인정보를 국외로 이전하지 않습니다. 제5조의 수탁자는 국외 법인이나, 회사가 이용하는 서버는
+              모두 대한민국(서울)에 위치하며 개인정보는 이 서버에 저장·처리됩니다.
+            </p>
           </Section>
 
           <Section id="destruction" title="7. 개인정보의 파기 절차 및 방법">
