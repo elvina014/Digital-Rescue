@@ -1,13 +1,35 @@
 "use client";
 
-import { useState, type MouseEvent } from "react";
+import { useEffect, useState, useSyncExternalStore, type MouseEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import defaults from "@/data/mainPageData.json";
+import { findBrandRoute } from "@/lib/brands";
 import type { HeaderData, ThemeData } from "@/types/sections";
 
 const DEFAULT_HEADER = defaults.header as HeaderData;
 const DEFAULT_THEME = defaults.theme as ThemeData;
+
+/** 방문자가 처음 들어온 랜딩 페이지("/" 또는 "/samsung" 등). 탭을 닫으면 사라진다. */
+const LANDING_KEY = "dr_landing";
+/** 브랜드 랜딩페이지에 있는 섹션. 이 밖의 섹션 메뉴(회사소개 등)는 브랜드 방문자에게 숨긴다. */
+const BRAND_SECTION_IDS = ["process", "contact"];
+
+/** 지금 경로가 랜딩 페이지면 그 경로("/" 또는 "/samsung"), 아니면 null */
+function landingPathOf(pathname: string): string | null {
+  if (pathname === "/") return "/";
+  const slug = pathname.split("/").filter(Boolean);
+  return slug.length === 1 && findBrandRoute(slug[0]) ? `/${slug[0]}` : null;
+}
+
+const noSubscribe = () => () => {};
+function readStoredLanding(): string | null {
+  try {
+    return sessionStorage.getItem(LANDING_KEY);
+  } catch {
+    return null; // 저장소를 쓸 수 없으면 메인을 홈으로 둔다
+  }
+}
 
 interface HeaderProps {
   data?: HeaderData;
@@ -25,10 +47,27 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  // 메뉴의 "#about" 같은 섹션 링크: 메인이 아니면 메인의 해당 섹션("/#about")으로 보낸다.
-  // 지금 페이지에 같은 섹션이 있으면(메인, 브랜드 페이지의 수리 과정·접수하기) 이 페이지 안에서 직접 스크롤한다
+  // 홈(로고·섹션 메뉴의 목적지): 랜딩 페이지에 있으면 그 페이지, 그 밖(개인정보처리방침 등)에서는
+  // 처음 들어온 랜딩 페이지. 서버 렌더에서는 알 수 없으므로 "/"로 그린 뒤 마운트 후 바꾼다.
+  const currentLanding = landingPathOf(pathname);
+  const storedLanding = useSyncExternalStore(noSubscribe, readStoredLanding, () => null);
+  useEffect(() => {
+    try {
+      if (currentLanding && !sessionStorage.getItem(LANDING_KEY)) sessionStorage.setItem(LANDING_KEY, currentLanding);
+    } catch {
+      // 저장소를 쓸 수 없으면 기록하지 않는다
+    }
+  }, [currentLanding]);
+  const home = currentLanding ?? storedLanding ?? "/";
+  const isBrandHome = home !== "/";
+
+  // 섹션 링크("#process"): 홈이 아닌 페이지에서는 홈의 해당 섹션으로 보낸다.
+  // 지금 페이지에 같은 섹션이 있으면 직접 스크롤한다
   // (Next 링크에 맡기면 다른 페이지에서 넘어온 뒤 주소가 "#services#process"처럼 중복된다).
-  const navHref = (href: string) => (href.startsWith("#") && pathname !== "/" ? `/${href}` : href);
+  const navLinks = (data.navLinks ?? []).filter(
+    (link) => !isBrandHome || !link.href?.startsWith("#") || BRAND_SECTION_IDS.includes(link.href.slice(1))
+  );
+  const navHref = (href: string) => (href.startsWith("#") && pathname !== home ? `${home}${href}` : href);
   const scrollIfOnPage = (e: MouseEvent, href: string) => {
     if (!href.startsWith("#")) return;
     const target = document.getElementById(href.slice(1));
@@ -49,14 +88,14 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
         {/* 로고 */}
-        {/* 다른 페이지에서는 메인으로 이동, 메인에서는 맨 위로 스크롤 ("/#hero"는 Next가 해시를 중복으로 붙여 쓰지 않음) */}
+        {/* 다른 페이지에서는 홈으로 이동, 홈에서는 맨 위로 스크롤 ("/#hero"는 Next가 해시를 중복으로 붙여 쓰지 않음) */}
         <Link
-          href="/"
+          href={home}
           onClick={(e) => {
-            if (window.location.pathname === "/") {
+            if (pathname === home) {
               e.preventDefault();
               window.scrollTo({ top: 0 });
-              window.history.replaceState(null, "", "/");
+              window.history.replaceState(null, "", home);
             }
           }}
           className="flex items-center gap-2"
@@ -72,7 +111,7 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
 
         {/* 데스크톱 네비게이션 */}
         <nav className="hidden items-center gap-1 md:flex">
-          {(data.navLinks ?? []).map((link) => (
+          {navLinks.map((link) => (
             <Link
               key={link.href ?? link.label}
               href={navHref(link.href ?? '#')}
@@ -116,7 +155,7 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
           className="border-t px-4 pb-4 md:hidden"
           style={{ borderColor: theme.borderSoft, background: theme.surface }}
         >
-          {(data.navLinks ?? []).map((link) => (
+          {navLinks.map((link) => (
             <Link
               key={link.href ?? link.label}
               href={navHref(link.href ?? '#')}
