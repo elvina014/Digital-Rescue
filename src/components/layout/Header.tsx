@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import defaults from "@/data/mainPageData.json";
 import type { HeaderData, ThemeData } from "@/types/sections";
 
@@ -22,6 +23,20 @@ interface HeaderProps {
  */
 export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // 메뉴의 "#about" 같은 섹션 링크: 메인이 아니면 메인의 해당 섹션("/#about")으로 보낸다.
+  // 지금 페이지에 같은 섹션이 있으면(메인, 브랜드 페이지의 수리 과정·접수하기) 이 페이지 안에서 직접 스크롤한다
+  // (Next 링크에 맡기면 다른 페이지에서 넘어온 뒤 주소가 "#services#process"처럼 중복된다).
+  const navHref = (href: string) => (href.startsWith("#") && pathname !== "/" ? `/${href}` : href);
+  const scrollIfOnPage = (e: MouseEvent, href: string) => {
+    if (!href.startsWith("#")) return;
+    const target = document.getElementById(href.slice(1));
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView();
+    window.history.replaceState(null, "", href);
+  };
 
   return (
     <header
@@ -41,6 +56,7 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
             if (window.location.pathname === "/") {
               e.preventDefault();
               window.scrollTo({ top: 0 });
+              window.history.replaceState(null, "", "/");
             }
           }}
           className="flex items-center gap-2"
@@ -59,7 +75,8 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
           {(data.navLinks ?? []).map((link) => (
             <Link
               key={link.href ?? link.label}
-              href={link.href ?? '#'}
+              href={navHref(link.href ?? '#')}
+              onClick={(e) => scrollIfOnPage(e, link.href ?? '#')}
               className="rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-slate-100"
               style={{ color: theme.textSecondary }}
             >
@@ -102,8 +119,11 @@ export function Header({ data = DEFAULT_HEADER, theme = DEFAULT_THEME }: HeaderP
           {(data.navLinks ?? []).map((link) => (
             <Link
               key={link.href ?? link.label}
-              href={link.href ?? '#'}
-              onClick={() => setMenuOpen(false)}
+              href={navHref(link.href ?? '#')}
+              onClick={(e) => {
+                setMenuOpen(false);
+                scrollIfOnPage(e, link.href ?? '#');
+              }}
               className="block rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-slate-100"
               style={{ color: theme.textPrimary }}
             >
