@@ -47,6 +47,15 @@ export async function markIpAction(ip: string, status: MarkStatus | null, memo?:
   if (memo && memo.length > 500) return { error: "메모는 500자 이내로 입력해 주세요." };
 
   const supabase = await createClient();
+  // ERP가 네이버 API로 등록한 IP는 표시만 바꾸면 네이버 쪽 차단이 남는다 → 먼저 [차단 해제]를 해야 한다
+  const { data: current } = await supabase
+    .from("cg_ip_marks")
+    .select("status, naver_source")
+    .eq("client_ip", normalized)
+    .maybeSingle();
+  if (current?.status === "naver_blocked" && current.naver_source === "api") {
+    return { error: "네이버에 API로 등록된 IP입니다. 먼저 [차단 해제]를 해 주세요." };
+  }
   const { error } = await supabase.rpc("cg_mark_ip", { p_ip: normalized, p_status: status, p_memo: memo ?? null });
   if (error) return { error: rpcError(error) };
   revalidatePath("/click-guard");

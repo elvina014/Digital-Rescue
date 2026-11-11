@@ -352,6 +352,19 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"cg_block_log": {
+                  Row: {
+                    "action": string,"actor": string | null,"client_ip": unknown,"created_at": string,"detail": NonNullable<Json>,"id": number,"naver_filter_id": string | null,"result": string
+                  }
+                  Insert: {
+                    "action": string,"actor"?: string | null,"client_ip"?: unknown,"created_at"?: string,"detail"?: NonNullable<Json>,"id"?: never,"naver_filter_id"?: string | null,"result": string
+                  }
+                  Update: {
+                    "action"?: string,"actor"?: string | null,"client_ip"?: unknown,"created_at"?: string,"detail"?: NonNullable<Json>,"id"?: never,"naver_filter_id"?: string | null,"result"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"cg_engagement": {
                   Row: {
                     "conversions": NonNullable<Json>,"dwell_ms": number,"first_seen": string,"interactions": number,"last_seen": string,"max_scroll_pct": number,"pageviews": number,"session_id": string
@@ -367,13 +380,13 @@ isOneToOne: false
                   ]
                 },"cg_ip_marks": {
                   Row: {
-                    "client_ip": unknown,"marked_at": string,"marked_by": string | null,"memo": string | null,"status": string,"updated_at": string
+                    "client_ip": unknown,"marked_at": string,"marked_by": string | null,"memo": string | null,"naver_filter_id": string | null,"naver_registered_at": string | null,"naver_source": string | null,"status": string,"updated_at": string
                   }
                   Insert: {
-                    "client_ip": unknown,"marked_at"?: string,"marked_by"?: string | null,"memo"?: string | null,"status": string,"updated_at"?: string
+                    "client_ip": unknown,"marked_at"?: string,"marked_by"?: string | null,"memo"?: string | null,"naver_filter_id"?: string | null,"naver_registered_at"?: string | null,"naver_source"?: string | null,"status": string,"updated_at"?: string
                   }
                   Update: {
-                    "client_ip"?: unknown,"marked_at"?: string,"marked_by"?: string | null,"memo"?: string | null,"status"?: string,"updated_at"?: string
+                    "client_ip"?: unknown,"marked_at"?: string,"marked_by"?: string | null,"memo"?: string | null,"naver_filter_id"?: string | null,"naver_registered_at"?: string | null,"naver_source"?: string | null,"status"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -1558,8 +1571,17 @@ isOneToOne: false
 "cg_ip_detail":
 { Args: { "p_days"?: number,"p_ip": unknown }; Returns: Json
                            },
+"cg_log_block":
+{ Args: { "p_action": string,"p_detail"?: Json,"p_filter_id"?: string,"p_ip": unknown,"p_result": string }; Returns: number
+                           },
 "cg_mark_ip":
 { Args: { "p_ip": unknown,"p_memo"?: string,"p_status": string }; Returns: Json
+                           },
+"cg_mark_naver_registered":
+{ Args: { "p_filter_id": string,"p_ip": unknown,"p_memo"?: string,"p_source"?: string }; Returns: Json
+                           },
+"cg_mark_naver_unregistered":
+{ Args: { "p_ip": unknown }; Returns: boolean
                            },
 "cg_purge_old":
 { Args: { "p_days"?: number }; Returns: Json

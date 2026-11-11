@@ -3,11 +3,11 @@ import { redirect } from "next/navigation";
 import { getCurrentEmployee } from "@/lib/auth";
 import { createClient } from "@/utils/supabase/server";
 import ClickGuardClient from "./ClickGuardClient";
-import { MIN_SCORES, PERIODS, type AdSummary, type SuspectIp, type WhitelistRow } from "./shared";
+import { MIN_SCORES, PERIODS, type AdSummary, type NaverSource, type SuspectIp, type WhitelistRow } from "./shared";
 
 /**
  * 부정클릭 감시 (Click Guard MVP 2/2) — ADMIN 전용.
- * 네이버 광고 유입을 IP별로 점수화해 보여주고, 관리자가 검색광고센터에 직접 등록한 뒤 표시한다.
+ * 네이버 광고 유입을 IP별로 점수화해 보여주고, 관리자가 네이버 광고노출 제한에 등록(API)하거나 직접 등록한 뒤 수동 표시한다.
  * 조회는 로그인한 직원 세션으로 RPC를 호출한다(service role 금지, RPC 안에서 ADMIN 재확인).
  */
 
@@ -26,12 +26,17 @@ export default async function ClickGuardPage({ searchParams }: PageProps) {
   const tab = params.tab === "whitelist" ? "whitelist" : "suspects";
 
   const supabase = await createClient();
-  const [summaryRes, suspectsRes, whitelistRes] = await Promise.all([
+  const [summaryRes, suspectsRes, whitelistRes, marksRes] = await Promise.all([
     supabase.rpc("cg_ad_summary", { p_hours: hours }),
     supabase.rpc("cg_suspect_ips", { p_hours: hours, p_min_score: minScore }),
     supabase.from("cg_whitelist").select("id, cidr, reason, created_at").order("created_at", { ascending: false }),
+    supabase.from("cg_ip_marks").select("client_ip, naver_source").eq("status", "naver_blocked"),
   ]);
-  const loadError = summaryRes.error ?? suspectsRes.error ?? whitelistRes.error;
+  const loadError = summaryRes.error ?? suspectsRes.error ?? whitelistRes.error ?? marksRes.error;
+  // 네이버 등록완료 IP의 등록 구분 (api / manual)
+  const naverSources: Record<string, NaverSource | null> = Object.fromEntries(
+    (marksRes.data ?? []).map((m) => [String(m.client_ip), (m.naver_source as NaverSource | null) ?? null])
+  );
 
   const query = (next: Record<string, string | number>) => {
     const sp = new URLSearchParams({ hours: String(hours), min: String(minScore), tab, ...Object.fromEntries(Object.entries(next).map(([k, v]) => [k, String(v)])) });
@@ -44,7 +49,7 @@ export default async function ClickGuardPage({ searchParams }: PageProps) {
         <div>
           <h1 className="text-xl font-bold text-gray-900">부정클릭 감시</h1>
           <p className="mt-1 text-sm text-gray-500">
-            네이버 파워링크 광고로 들어온 방문을 IP별로 점수화합니다. 차단은 검색광고센터에서 직접 등록한 뒤 여기서 표시해 주세요. (한국시간 기준)
+            네이버 파워링크 광고로 들어온 방문을 IP별로 점수화합니다. [네이버에 차단 등록]으로 광고노출 제한에 바로 등록하거나, 검색광고센터에서 직접 등록한 뒤 수동 표시해 주세요. (한국시간 기준)
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -105,6 +110,7 @@ export default async function ClickGuardPage({ searchParams }: PageProps) {
           summary={summaryRes.data as AdSummary}
           suspects={(suspectsRes.data ?? []) as SuspectIp[]}
           whitelist={(whitelistRes.data ?? []) as WhitelistRow[]}
+          naverSources={naverSources}
         />
       )}
     </div>

@@ -40,7 +40,16 @@ Vercel 수집 → Supabase 저장·계산 → ERP 조회. 외부 API 호출 없�
 - `login.` 관리자 영역 `/click-guard` "부정클릭 감시" (ADMIN 전용, 사이드바·proxy `ADMIN_PATHS` 등록)
 - RPC(ADMIN 전용, R10 권한): `cg_suspect_ips`(R1~R5·전환 감점, 임계값은 함수 내 상수), `cg_ad_summary`, `cg_ip_detail`, `cg_mark_ip`, `cg_whitelist_upsert`, `cg_whitelist_delete`
 - 전환 감점은 전화·카톡·접수 완료만 센다 (`contact` 접수 버튼 이동은 제외)
-- 네이버 등록은 사람이 검색광고센터에서 직접 하고, 화면에서는 "등록 완료" 표시만 한다 (API 호출 없음)
+- 네이버 등록은 사람이 검색광고센터에서 직접 하고, 화면에서는 "등록 완료" 표시만 한다 (API 호출 없음) — 2026-11-11부터 API 직접 등록 추가, 아래 "네이버 광고노출 제한 직접 등록/해제" 참고
+
+### 네이버 광고노출 제한 직접 등록/해제 (2026-11-11)
+사양과 승인 결정은 `docs/click-guard/NAVER-API.md`, 결과는 `docs/click-guard/NAVER-BLOCK-REPORT.md`.
+- **원칙 변경:** ERP 서버 액션이 네이버 검색광고 API(`/tool/ip-exclusions`)를 직접 호출한다. 아래 "후속 단계(보류)"의 "Vercel은 네이버 API를 호출하지 않는다(n8n이 호출)"를 이 기능에 한해 대체한다. 자동 차단은 여전히 없다 — 관리자가 행마다 메모를 쓰고 눌러야 등록된다.
+- 키는 서버 환경변수 `NAVER_SA_API_KEY` / `NAVER_SA_SECRET_KEY` / `NAVER_SA_CUSTOMER_ID` (NEXT_PUBLIC 금지, `lib/naver-sa/client.ts`는 `server-only`).
+- ERP가 등록한 항목의 네이버 메모는 `[CG] YYMMDD <메모 앞 13자>`(25자 제한). `[CG]`로 시작하는 항목만 ERP에서 해제한다. 사람이 직접 등록한 항목과 와일드카드 대역은 건드리지 않는다.
+- IPv4 단일 IP만 등록한다(IPv6는 지원 확인 전까지 거부). ERP 자체 상한 500개.
+- DB: `cg_ip_marks.naver_filter_id / naver_registered_at / naver_source('api'|'manual')`, 감사 로그 `cg_block_log`, RPC `cg_mark_naver_registered`, `cg_mark_naver_unregistered`, `cg_log_block` (ADMIN 전용, R10 권한).
+- 화면: 낙관적 UI를 쓰지 않고 서버 응답 후 반영. 기존 "등록 완료 표시"는 "수동 표시"로 남긴다(API 장애 대비).
 
 ### 개인정보 고지
 `/privacy` 처리방침 페이지, 마케팅 푸터 링크, 문의 폼 필수 동의(클라이언트·서버 양쪽 검사).

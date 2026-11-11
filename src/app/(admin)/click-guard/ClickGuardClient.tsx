@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { formatDateTime, formatShortDateTime } from "@/lib/date";
 import { addWhitelistAction, markIpAction } from "./actions";
+import { markNaverManualAction, registerNaverBlockAction, unregisterNaverBlockAction } from "./naverActions";
+import { NaverStatusDialog, RegisterNaverDialog, UnregisterNaverDialog } from "./NaverBlockDialogs";
 import IpDetailDrawer from "./IpDetailDrawer";
 import WhitelistPanel from "./WhitelistPanel";
 import {
@@ -15,6 +18,7 @@ import {
   isSharedIpRisk,
   type AdSummary,
   type MarkStatus,
+  type NaverSource,
   type SuspectIp,
   type WhitelistRow,
 } from "./shared";
@@ -45,9 +49,12 @@ interface Props {
   summary: AdSummary;
   suspects: SuspectIp[];
   whitelist: WhitelistRow[];
+  /** 네이버 등록완료 IP의 등록 구분 (api / manual) */
+  naverSources: Record<string, NaverSource | null>;
 }
 
-export default function ClickGuardClient({ tab, summary, suspects, whitelist }: Props) {
+export default function ClickGuardClient({ tab, summary, suspects, whitelist, naverSources }: Props) {
+  const router = useRouter();
   const [toast, setToast] = useState<Toast>(null);
   const [filter, setFilter] = useState<StatusFilter>("none");
   // 낙관적 UI: 서버 응답 전 표시 상태 / 숨김(화이트리스트 추가) — 실패하면 되돌린다
@@ -58,6 +65,12 @@ export default function ClickGuardClient({ tab, summary, suspects, whitelist }: 
   const [markTarget, setMarkTarget] = useState<SuspectIp | null>(null);
   const [whitelistTarget, setWhitelistTarget] = useState<SuspectIp | null>(null);
   const [detailIp, setDetailIp] = useState<string | null>(null);
+  // 네이버 등록/해제: 낙관적 UI 없이 서버 응답 후에만 반영한다
+  const [naverOverrides, setNaverOverrides] = useState<Record<string, NaverSource | null>>({});
+  const [registerTarget, setRegisterTarget] = useState<SuspectIp | null>(null);
+  const [unregisterTarget, setUnregisterTarget] = useState<SuspectIp | null>(null);
+  const [naverBusy, setNaverBusy] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   function showToast(type: "success" | "error", message: string) {
@@ -88,6 +101,10 @@ export default function ClickGuardClient({ tab, summary, suspects, whitelist }: 
   const statusOf = (row: SuspectIp): MarkStatus | null =>
     row.client_ip in overrides ? overrides[row.client_ip] : row.mark_status;
 
+  /** 네이버 등록완료 행의 등록 구분. 구분 정보가 없는 예전 표시는 수동으로 본다 */
+  const sourceOf = (row: SuspectIp): NaverSource =>
+    (row.client_ip in naverOverrides ? naverOverrides[row.client_ip] : naverSources[row.client_ip]) ?? "manual";
+
   const visibleRows = suspects.filter((r) => !hidden.has(r.client_ip));
   const counts = FILTERS.reduce<Record<StatusFilter, number>>(
     (acc, f) => ({ ...acc, [f.key]: visibleRows.filter((r) => (statusOf(r) ?? "none") === f.key).length }),
@@ -116,6 +133,76 @@ export default function ClickGuardClient({ tab, summary, suspects, whitelist }: 
         return;
       }
       showToast("success", status ? `${ip}: ${MARK_LABEL[status]}로 표시했습니다.` : `${ip}: 표시를 해제했습니다.`);
+    });
+  }
+
+  /** 수동 표시: 검색광고센터에서 직접 등록한 뒤 누른다 (네이버 호출 없음) */
+  function applyManualMark(row: SuspectIp, memo: string) {
+    const ip = row.client_ip;
+    const had = ip in overrides;
+    const previous = overrides[ip];
+    setOverrides((o) => ({ ...o, [ip]: "naver_blocked" }));
+    setNaverOverrides((o) => ({ ...o, [ip]: "manual" }));
+    setPendingIp(ip);
+    startTransition(async () => {
+      const res = await markNaverManualAction(ip, memo).catch(() => ({ error: NETWORK_ERROR }));
+      setPendingIp(null);
+      if (res.error) {
+        setOverrides((o) => {
+          const next = { ...o };
+          if (had) next[ip] = previous;
+          else delete next[ip];
+          return next;
+        });
+        setNaverOverrides((o) => {
+          const next = { ...o };
+          delete next[ip];
+          return next;
+        });
+        showToast("error", res.error);
+        return;
+      }
+      showToast("success", `${ip}: 수동 등록으로 표시했습니다.`);
+    });
+  }
+
+  function registerNaver(row: SuspectIp, memo: string) {
+    const ip = row.client_ip;
+    setNaverBusy(true);
+    setPendingIp(ip);
+    startTransition(async () => {
+      const res = await registerNaverBlockAction(ip, memo).catch(() => ({ error: NETWORK_ERROR, message: undefined, data: undefined }));
+      setNaverBusy(false);
+      setPendingIp(null);
+      if (res.error) {
+        showToast("error", res.error);
+        return;
+      }
+      setOverrides((o) => ({ ...o, [ip]: "naver_blocked" }));
+      setNaverOverrides((o) => ({ ...o, [ip]: res.data?.source ?? "api" }));
+      setRegisterTarget(null);
+      showToast("success", res.message ?? `${ip}를 네이버에 등록했습니다.`);
+      router.refresh();
+    });
+  }
+
+  function unregisterNaver(row: SuspectIp) {
+    const ip = row.client_ip;
+    setNaverBusy(true);
+    setPendingIp(ip);
+    startTransition(async () => {
+      const res = await unregisterNaverBlockAction(ip).catch(() => ({ error: NETWORK_ERROR, message: undefined }));
+      setNaverBusy(false);
+      setPendingIp(null);
+      if (res.error) {
+        showToast("error", res.error);
+        return;
+      }
+      setOverrides((o) => ({ ...o, [ip]: null }));
+      setNaverOverrides((o) => ({ ...o, [ip]: null }));
+      setUnregisterTarget(null);
+      showToast("success", res.message ?? `${ip}의 차단을 해제했습니다.`);
+      router.refresh();
     });
   }
 
@@ -179,14 +266,23 @@ export default function ClickGuardClient({ tab, summary, suspects, whitelist }: 
                   </button>
                 ))}
               </div>
-              <button
-                type="button"
-                disabled={selected.size === 0}
-                onClick={() => copy([...selected].join("\n"), `선택한 IP ${selected.size}개를`)}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                선택 IP 복사 ({selected.size})
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStatusOpen(true)}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  네이버 등록 현황 확인
+                </button>
+                <button
+                  type="button"
+                  disabled={selected.size === 0}
+                  onClick={() => copy([...selected].join("\n"), `선택한 IP ${selected.size}개를`)}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  선택 IP 복사 ({selected.size})
+                </button>
+              </div>
             </div>
 
             {rows.length === 0 ? (
@@ -216,6 +312,7 @@ export default function ClickGuardClient({ tab, summary, suspects, whitelist }: 
                     {rows.map((r) => {
                       const status = statusOf(r);
                       const busy = pendingIp === r.client_ip;
+                      const naverSource = status === "naver_blocked" ? sourceOf(r) : null;
                       return (
                         <tr key={r.client_ip} className="border-b align-top last:border-0 hover:bg-gray-50">
                           <td className="px-3 py-2">
@@ -272,27 +369,53 @@ export default function ClickGuardClient({ tab, summary, suspects, whitelist }: 
                           </td>
                           <td className="px-3 py-2">
                             <span className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-xs ${MARK_BADGE[status ?? "none"]}`}>
-                              {status ? MARK_LABEL[status] : "미처리"}
+                              {naverSource === "api"
+                                ? "네이버 등록됨(API)"
+                                : naverSource === "manual"
+                                  ? "수동 등록"
+                                  : status
+                                    ? MARK_LABEL[status]
+                                    : "미처리"}
                             </span>
                           </td>
                           <td className="px-3 py-2">
-                            <div className="flex flex-wrap gap-1">
-                              <ActionButton disabled={busy || status === "naver_blocked"} onClick={() => setMarkTarget(r)} tone="red">
-                                네이버 등록 완료
-                              </ActionButton>
-                              <ActionButton disabled={busy || status === "watch"} onClick={() => applyMark(r, "watch")}>
-                                관찰
-                              </ActionButton>
-                              <ActionButton disabled={busy || status === "normal"} onClick={() => applyMark(r, "normal")}>
-                                정상
-                              </ActionButton>
-                              <ActionButton disabled={busy || status === null} onClick={() => applyMark(r, null)}>
-                                표시 해제
-                              </ActionButton>
-                              <ActionButton disabled={busy} onClick={() => setWhitelistTarget(r)}>
-                                화이트리스트 추가
-                              </ActionButton>
-                            </div>
+                            {naverSource === "api" ? (
+                              <div className="flex flex-wrap gap-1">
+                                <ActionButton disabled={busy} onClick={() => setUnregisterTarget(r)}>
+                                  차단 해제
+                                </ActionButton>
+                              </div>
+                            ) : naverSource === "manual" ? (
+                              <div className="space-y-1">
+                                <p className="max-w-[220px] text-xs text-gray-500">
+                                  검색광고센터에서 직접 등록한 IP입니다. 해제도 검색광고센터에서 한 뒤 표시를 해제해 주세요.
+                                </p>
+                                <ActionButton disabled={busy} onClick={() => applyMark(r, null)}>
+                                  표시 해제
+                                </ActionButton>
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap gap-1">
+                                <ActionButton disabled={busy} onClick={() => setRegisterTarget(r)} tone="red">
+                                  네이버에 차단 등록
+                                </ActionButton>
+                                <ActionButton disabled={busy} onClick={() => setMarkTarget(r)}>
+                                  수동 표시
+                                </ActionButton>
+                                <ActionButton disabled={busy || status === "watch"} onClick={() => applyMark(r, "watch")}>
+                                  관찰
+                                </ActionButton>
+                                <ActionButton disabled={busy || status === "normal"} onClick={() => applyMark(r, "normal")}>
+                                  정상
+                                </ActionButton>
+                                <ActionButton disabled={busy || status === null} onClick={() => applyMark(r, null)}>
+                                  표시 해제
+                                </ActionButton>
+                                <ActionButton disabled={busy} onClick={() => setWhitelistTarget(r)}>
+                                  화이트리스트 추가
+                                </ActionButton>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -312,11 +435,31 @@ export default function ClickGuardClient({ tab, summary, suspects, whitelist }: 
           row={markTarget}
           onClose={() => setMarkTarget(null)}
           onConfirm={(memo) => {
-            applyMark(markTarget, "naver_blocked", memo);
+            applyManualMark(markTarget, memo);
             setMarkTarget(null);
           }}
         />
       )}
+
+      {registerTarget && (
+        <RegisterNaverDialog
+          row={registerTarget}
+          busy={naverBusy}
+          onClose={() => setRegisterTarget(null)}
+          onConfirm={(memo) => registerNaver(registerTarget, memo)}
+        />
+      )}
+
+      {unregisterTarget && (
+        <UnregisterNaverDialog
+          ip={unregisterTarget.client_ip}
+          busy={naverBusy}
+          onClose={() => setUnregisterTarget(null)}
+          onConfirm={() => unregisterNaver(unregisterTarget)}
+        />
+      )}
+
+      {statusOpen && <NaverStatusDialog onClose={() => setStatusOpen(false)} />}
 
       {whitelistTarget && (
         <WhitelistDialog
@@ -434,10 +577,10 @@ function MarkNaverDialog({
 }) {
   const [memo, setMemo] = useState(row.mark_memo ?? "");
   return (
-    <Dialog title="네이버 등록 완료 표시" onClose={onClose}>
+    <Dialog title="수동 표시 (네이버 직접 등록 완료)" onClose={onClose}>
       <p className="font-mono text-sm text-gray-900">{row.client_ip}</p>
       <p className="mt-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
-        검색광고센터 &gt; 도구 &gt; 광고노출 제한관리에 이 IP를 직접 등록한 뒤 눌러주세요.
+        검색광고센터 &gt; 도구 &gt; 광고노출 제한관리에 이 IP를 직접 등록한 뒤 눌러주세요. 이 버튼은 네이버에 등록하지 않고 ERP에 표시만 합니다.
       </p>
       {isSharedIpRisk(row) && (
         <p className="mt-2 rounded-lg bg-amber-50 p-3 text-sm font-medium text-amber-800">

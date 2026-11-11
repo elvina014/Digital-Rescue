@@ -27,6 +27,9 @@ export interface SuspectIp {
   mark_memo: string | null;
 }
 
+/** 네이버 등록 구분: api = ERP가 API로 등록, manual = 검색광고센터에서 직접 등록 */
+export type NaverSource = "api" | "manual";
+
 export interface AdSummary {
   visits: number;
   clicks: number;
