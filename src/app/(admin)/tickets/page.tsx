@@ -7,6 +7,7 @@ import { formatDateTime } from "@/lib/date";
 import { TicketStatusBadge } from "@/components/common/TicketStatusBadge";
 import { EmployeeRole } from "@/types";
 import type { TicketStatus } from "@/types";
+import { BRAND_ALIASES, brandGroup, brandKey } from "@/lib/brandAlias";
 import TicketFilters from "./TicketFilters";
 
 /**
@@ -28,6 +29,7 @@ export default async function TicketsPage({
   const endDate = typeof params.endDate === "string" ? params.endDate : undefined;
   const assigneeFilter = typeof params.assignee === "string" ? params.assignee : undefined;
   const searchQuery = typeof params.search === "string" ? params.search.trim() : undefined;
+  const brandFilter = typeof params.brand === "string" ? params.brand : undefined;
   const adminMessageFilter = params.has_admin_message === "true";
   // 테스트 접수 필터: undefined/"" = 실접수만, "include" = 전체, "only" = 테스트만
   // ADMIN/MANAGER만 의미가 있음 — 그 외 직급은 항상 실접수만 보임
@@ -47,12 +49,59 @@ export default async function TicketsPage({
     .in("role", [EmployeeRole.TECHNICIAN, EmployeeRole.EXPERT_REPAIR])
     .order("name");
 
-  // repair_tickets에 고객명, 담당기사명을 조인하여 조회
-  // 검색어가 있으면 customers!inner 조인으로 부모행 필터링
-  const customerJoin = searchQuery
-    ? "customers!inner ( name, phone )"
-    : "customers ( name, phone )";
+  // 브랜드 필터 옵션: 원본 표기(삼성/samsung/삼성전자 …)를 그룹으로 묶어 건수 순으로 표시
+  const { data: brandRows } = await supabase
+    .from("repair_tickets")
+    .select("device_brand")
+    .not("device_brand", "is", null)
+    .neq("device_brand", "");
+  const brandRawByGroup = new Map<string, Set<string>>();
+  const brandCount = new Map<string, number>();
+  for (const r of brandRows ?? []) {
+    const raw = r.device_brand as string;
+    const group = brandGroup(raw);
+    if (!group) continue;
+    if (!brandRawByGroup.has(group)) brandRawByGroup.set(group, new Set());
+    brandRawByGroup.get(group)!.add(raw);
+    brandCount.set(group, (brandCount.get(group) ?? 0) + 1);
+  }
+  const brandOptions = [...brandCount.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([group]) => group);
 
+  // 통합 검색: 접수건 본문 외 테이블(메모·조치·고장·진단·증상 메모)에서 일치한 접수건 ID 수집
+  // 각 테이블의 RLS가 그대로 적용되고, 최종 목록과 교집합이므로 권한 밖 접수건은 나오지 않는다
+  const relatedMatches = new Map<string, Set<string>>(); // ticket_id → 일치 항목 라벨
+  if (searchQuery) {
+    const pattern = `%${searchQuery.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const sources: { label: string; table: string; column: string }[] = [
+      { label: "메모", table: "ticket_logs", column: "message" },
+      { label: "조치", table: "repair_actions", column: "description" },
+      { label: "고장", table: "repair_faults", column: "component" },
+      { label: "고장", table: "repair_faults", column: "description" },
+      { label: "진단", table: "repair_records", column: "diagnosis_summary" },
+      { label: "진단", table: "repair_records", column: "notes" },
+      { label: "증상", table: "ticket_symptoms", column: "note" },
+    ];
+    const results = await Promise.all(
+      sources.map((s) =>
+        supabase
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .from(s.table as any)
+          .select("ticket_id")
+          .ilike(s.column, pattern)
+      )
+    );
+    results.forEach(({ data }, i) => {
+      for (const row of (data ?? []) as unknown as { ticket_id: string }[]) {
+        if (!relatedMatches.has(row.ticket_id)) relatedMatches.set(row.ticket_id, new Set());
+        relatedMatches.get(row.ticket_id)!.add(sources[i].label);
+      }
+    });
+  }
+
+  // repair_tickets에 고객명, 담당기사명을 조인하여 조회
+  // 검색어 필터는 조회 후 아래에서 적용한다 (여러 테이블에 걸친 OR 조건이라 SQL 한 번으로 표현하기 어려움)
   let query = supabase
     .from("repair_tickets")
     .select(
@@ -65,6 +114,7 @@ export default async function TicketsPage({
       device_brand,
       device_model,
       symptoms,
+      tag_info,
       initial_estimate,
       material_cost,
       final_price,
@@ -74,7 +124,7 @@ export default async function TicketsPage({
       received_at,
       created_at,
       updated_at,
-      ${customerJoin},
+      customers ( name, phone ),
       employees:assignee_id ( name )
     `
     )
@@ -88,12 +138,10 @@ export default async function TicketsPage({
   }
   // testMode === "include"는 별도 조건 없음 (전체 조회)
 
-  if (searchQuery) {
-    const safeTerm = searchQuery.replace(/,/g, "");
-    query = query.or(
-      `name.ilike.%${safeTerm}%,phone.ilike.%${safeTerm}%`,
-      { referencedTable: "customers" }
-    );
+  if (brandFilter) {
+    const raws = [...(brandRawByGroup.get(brandFilter) ?? [])];
+    // 해당 브랜드 접수건이 없으면 빈 결과가 되도록 존재하지 않는 값으로 조회
+    query = query.in("device_brand", raws.length > 0 ? raws : ["\u0000"]);
   }
 
   if (statusFilter) {
@@ -120,7 +168,35 @@ export default async function TicketsPage({
     query = query.eq("has_admin_message", true);
   }
 
-  const { data: tickets, error } = await query;
+  const { data: allTickets, error } = await query;
+
+  // 검색어 적용: 접수번호·고객·브랜드(별칭 포함)·모델·증상·태그 + 관련 기록 중 하나라도 일치하면 포함
+  const matchLabels = new Map<string, string[]>();
+  let tickets = allTickets;
+  if (searchQuery && allTickets) {
+    const term = searchQuery.toLowerCase();
+    // 숫자만(하이픈·공백 허용) 3자리 이상이면 하이픈 유무와 무관하게 연락처 비교
+    const termDigits = /^[\d\s-]+$/.test(searchQuery) ? searchQuery.replace(/\D/g, "") : "";
+    // "삼성"으로 검색하면 samsung·삼성전자 표기도 함께 찾는다
+    const termBrand = BRAND_ALIASES[brandKey(searchQuery)];
+    const has = (v: unknown) => typeof v === "string" && v.toLowerCase().includes(term);
+    tickets = allTickets.filter((t) => {
+      const customer = t.customers as unknown as { name: string; phone: string } | null;
+      const labels = new Set<string>();
+      if (has(t.receipt_no)) labels.add("접수번호");
+      if (has(customer?.name)) labels.add("고객명");
+      if (has(customer?.phone) ||
+          (termDigits.length >= 3 && (customer?.phone ?? "").replace(/\D/g, "").includes(termDigits))) labels.add("연락처");
+      if (has(t.device_brand) || (termBrand && brandGroup(t.device_brand) === termBrand)) labels.add("브랜드");
+      if (has(t.device_model)) labels.add("모델명");
+      if (has(t.symptoms)) labels.add("증상");
+      if (has(t.tag_info)) labels.add("태그");
+      for (const l of relatedMatches.get(t.id) ?? []) labels.add(l);
+      if (labels.size === 0) return false;
+      matchLabels.set(t.id, [...labels]);
+      return true;
+    });
+  }
 
   if (error) {
     return (
@@ -156,6 +232,7 @@ export default async function TicketsPage({
           technicians={technicians ?? []}
           showAssigneeFilter={![EmployeeRole.TECHNICIAN, EmployeeRole.EXPERT_REPAIR].includes(employee.role)}
           showTestFilter={canSeeTest}
+          brandOptions={brandOptions}
         />
       </Suspense>
 
@@ -216,6 +293,11 @@ export default async function TicketsPage({
                       >
                         {ticket.receipt_no}
                       </Link>
+                      {matchLabels.has(ticket.id) && (
+                        <span className="mt-0.5 block font-sans text-[11px] text-amber-700">
+                          일치: {matchLabels.get(ticket.id)!.join(" · ")}
+                        </span>
+                      )}
                       {ticket.is_test && (
                         <span className="ml-1.5 inline-flex items-center rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600">
                           TEST

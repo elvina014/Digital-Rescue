@@ -23,8 +23,11 @@ export default function TicketFilters({
   technicians,
   showAssigneeFilter = true,
   showTestFilter = false,
+  brandOptions = [],
 }: {
   technicians: Technician[];
+  /** 표기 통합된 브랜드 그룹 이름 (건수 순) */
+  brandOptions?: string[];
   showAssigneeFilter?: boolean;
   /** ADMIN/MANAGER만 노출되는 "테스트 접수 포함/만" 필터 */
   showTestFilter?: boolean;
@@ -50,11 +53,12 @@ export default function TicketFilters({
     <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-gray-200 bg-white p-4">
       {/* 검색 */}
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-gray-500">고객 검색</label>
+        <label className="text-xs font-medium text-gray-500">통합 검색</label>
         <input
-          type="text"
-          placeholder="이름 또는 연락처"
-          className="w-48 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          type="search"
+          placeholder="고객·모델명·증상·메모·조치 등"
+          title="접수번호, 고객명, 연락처, 브랜드, 모델명, 증상, 태그, 작업 메모, 조치·고장·진단 기록에서 찾습니다"
+          className="w-64 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => {
@@ -62,6 +66,23 @@ export default function TicketFilters({
           }}
           onBlur={() => updateParams("search", searchInput.trim())}
         />
+      </div>
+
+      {/* 브랜드 */}
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-gray-500">브랜드</label>
+        <select
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          value={searchParams.get("brand") ?? ""}
+          onChange={(e) => updateParams("brand", e.target.value)}
+        >
+          <option value="">전체</option>
+          {brandOptions.map((b) => (
+            <option key={b} value={b}>
+              {b}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* 상태 */}
