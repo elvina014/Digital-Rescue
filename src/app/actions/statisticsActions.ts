@@ -125,32 +125,24 @@ export interface ReceiptTypeBreakdownData {
   count: number;
 }
 
+/** 담당기사별 취소율 — 입고된 티켓(received_at 있음)만 대상 */
 export interface TechCancelData {
   technicianId: string;
   name: string;
-  /** 선택 월 */
+  /** 선택 월 접수 중 입고된 건수 */
   totalCount: number;
+  /** 그중 현재 취소 상태인 건수 */
   canceledCount: number;
   cancelRate: number;
-  /** 당월 */
+  /** 선택 월 접수 중 입고된 건수 (당월 취소율 분모) */
   monthlyTotal: number;
+  /** 선택 월에 취소된 입고 건수 (canceled_at 기준) */
   monthlyCanceled: number;
   monthlyCancelRate: number;
 }
 
+/** 취소율 통계 — 홈페이지 접수 단계 취소는 제외하고 입고 후 취소만 집계 */
 export interface CancelStatsData {
-  /** 선택 월 취소 건수 */
-  totalCanceled: number;
-  /** 선택 월 전체 취소율 % (전체 접수 대비) */
-  totalRate: number;
-  /** 당월 취소 건수 (canceled_at 기준) */
-  monthlyCanceled: number;
-  /** 당월 취소율 % (당월 접수 대비) */
-  monthlyRate: number;
-  /** 선택 월 입고 전 취소 건수 (received_at 없음) */
-  preReceiptCanceled: number;
-  /** 입고 전 취소율 % = 입고 전 취소 ÷ 전체 접수 */
-  preReceiptRate: number;
   /** 선택 월 입고 후 취소 건수 (received_at 있음) */
   postReceiptCanceled: number;
   /** 입고 후 취소율 % = 입고 후 취소 ÷ 입고 완료 건수 */
@@ -459,7 +451,8 @@ export async function getReceiptTypeBreakdown(year: number, month: number): Prom
 }
 
 /**
- * 선택 연/월 기준 취소율 통계 — 접수건/담당기사별
+ * 선택 연/월 기준 취소율 통계 — 입고 후 취소만 집계 (전체/담당기사별)
+ * 입고 전(홈페이지 접수 단계) 취소는 의미가 없어 분자·분모 모두에서 제외한다.
  */
 export async function getCancelStats(year: number, month: number): Promise<StatsResult<CancelStatsData>> {
   const denied = await requireStatsAccess();
@@ -476,40 +469,26 @@ export async function getCancelStats(year: number, month: number): Promise<Stats
     )
     .eq("is_test", false) as unknown as { data: { status: string; created_at: string; canceled_at: string | null; received_at: string | null; assignee_id: string | null; employees: { name: string } | { name: string }[] | null }[] | null };
 
-  const all = data ?? [];
+  // 입고된 티켓만 대상 (입고 전 취소는 통계에서 제외)
+  const all = (data ?? []).filter((t) => t.received_at);
 
-  // 선택 월 접수 (created_at 기준)
-  const monthlyAll = all.filter(
+  // 선택 월 접수(created_at 기준) 중 입고 완료된 건수 (입고 후 취소율 분모)
+  const receivedCount = all.filter(
     (t) => t.created_at >= monthStart && t.created_at < monthEnd
-  );
-  const total = monthlyAll.length;
+  ).length;
 
-  // 선택 월 접수 중 입고 완료된 건수 (입고 후 취소율 분모)
-  const receivedCount = monthlyAll.filter((t) => t.received_at).length;
-
-  // 선택 월 취소 (canceled_at 기준)
-  const monthlyCanceledTickets = all.filter(
+  // 선택 월 입고 후 취소 (canceled_at 기준)
+  const postReceiptCanceled = all.filter(
     (t) =>
       t.status === "CANCELED" &&
       t.canceled_at &&
       t.canceled_at >= monthStart &&
       t.canceled_at < monthEnd
-  );
-  const totalCanceled = monthlyCanceledTickets.length;
-  const totalRate = total > 0 ? Math.round((totalCanceled / total) * 1000) / 10 : 0;
-
-  // 입고 전/후 취소 분리 (received_at 유무 기준)
-  const preReceiptCanceled = monthlyCanceledTickets.filter((t) => !t.received_at).length;
-  const postReceiptCanceled = monthlyCanceledTickets.filter((t) => t.received_at).length;
-  // 입고 전 취소율 = 입고 전 취소 ÷ 전체 접수
-  const preReceiptRate = total > 0 ? Math.round((preReceiptCanceled / total) * 1000) / 10 : 0;
+  ).length;
   // 입고 후 취소율 = 입고 후 취소 ÷ 입고 완료 건수
   const postReceiptRate = receivedCount > 0 ? Math.round((postReceiptCanceled / receivedCount) * 1000) / 10 : 0;
 
-  const monthlyCanceled = totalCanceled;
-  const monthlyRate = totalRate;
-
-  // 기사별 집계 (선택 월 내 데이터만)
+  // 기사별 집계 (선택 월 내 입고 데이터만)
   type TechAcc = {
     name: string;
     totalCount: number;
@@ -566,12 +545,6 @@ export async function getCancelStats(year: number, month: number): Promise<Stats
     .sort((a, b) => b.cancelRate - a.cancelRate);
 
   return { data: {
-    totalCanceled,
-    totalRate,
-    monthlyCanceled,
-    monthlyRate,
-    preReceiptCanceled,
-    preReceiptRate,
     postReceiptCanceled,
     postReceiptRate,
     receivedCount,

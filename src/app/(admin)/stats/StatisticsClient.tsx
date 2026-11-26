@@ -503,23 +503,9 @@ export function StatisticsClient({
           <div className="rounded-xl border bg-white p-6 shadow-sm">
             <h2 className="mb-1 text-base font-semibold text-gray-900">취소율 분석</h2>
             <p className="mb-4 text-xs text-gray-400">
-              {selectedYear}년 {selectedMonth}월 · 입고 전/후 취소 구분
+              {selectedYear}년 {selectedMonth}월 · 입고 후 취소만 집계 (입고 전 취소 제외)
             </p>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="rounded-lg bg-gray-50 p-4 text-center">
-                <p className="text-xs text-gray-500">전체 취소율</p>
-                <p className="mt-1 text-3xl font-bold text-red-500">{cancelStats.totalRate}%</p>
-                <p className="mt-1 text-xs text-gray-400">
-                  취소 {cancelStats.totalCanceled.toLocaleString()}건 / 접수 대비
-                </p>
-              </div>
-              <div className="rounded-lg bg-gray-50 p-4 text-center">
-                <p className="text-xs text-gray-500">입고 전 취소율</p>
-                <p className="mt-1 text-3xl font-bold text-amber-500">{cancelStats.preReceiptRate}%</p>
-                <p className="mt-1 text-xs text-gray-400">
-                  {cancelStats.preReceiptCanceled.toLocaleString()}건 / 전체 접수 대비
-                </p>
-              </div>
+            <div>
               <div className="rounded-lg bg-gray-50 p-4 text-center">
                 <p className="text-xs text-gray-500">입고 후 취소율</p>
                 <p className="mt-1 text-3xl font-bold text-orange-500">{cancelStats.postReceiptRate}%</p>
@@ -535,7 +521,7 @@ export function StatisticsClient({
         <div className="rounded-xl border bg-white p-6 shadow-sm">
           <h2 className="mb-1 text-base font-semibold text-gray-900">담당기사별 취소율</h2>
           <p className="mb-4 text-xs text-gray-400">
-            {selectedYear}년 {selectedMonth}월 배정 티켓 기준 취소율
+            {selectedYear}년 {selectedMonth}월 배정 티켓 중 입고된 건 기준 취소율
           </p>
           {cancelStats.byTechnician.length === 0 ? (
             <p className="py-8 text-center text-sm text-gray-400">데이터가 없습니다.</p>
