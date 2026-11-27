@@ -6,6 +6,7 @@ import BoardPicker, { type PickedBoard } from "@/components/catalog/BoardPicker"
 import type { DeviceTypeValue } from "@/app/(admin)/catalog/actions";
 import { updateDonorAction } from "../actions";
 import { DONOR_STATUS_LABEL, PII_HINT } from "../labels";
+import AcquisitionFields from "./AcquisitionFields";
 
 interface DonorInfo {
   id: string;
@@ -18,6 +19,8 @@ interface DonorInfo {
   deviceType: DeviceTypeValue;
   model: PickedModel | null;
   board: PickedBoard | null;
+  /** 매장 보관 Donor만 (Phase 4.1) */
+  acquisition: { note: string; acquiredOn: string; cost: string } | null;
 }
 
 const inputCls = "w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none disabled:bg-gray-50";
@@ -30,11 +33,13 @@ export default function DonorInfoForm({ donor, canEdit }: { donor: DonorInfo; ca
 
   function save() {
     if (!form.brand.trim()) return setMessage({ ok: false, text: "브랜드를 입력해 주세요." });
+    if (form.acquisition && !form.acquisition.note.trim()) return setMessage({ ok: false, text: "취득 경위를 입력해 주세요." });
     startTransition(async () => {
       const res = await updateDonorAction(donor.id, {
         brand: form.brand, modelText: form.modelText, tagInfo: form.tagInfo, status: form.status,
         conditionNote: form.conditionNote, storageNote: form.storageNote,
         catalogModelId: form.model?.modelId ?? null, catalogVariantId: form.model?.variantId ?? null, catalogBoardId: form.board?.boardId ?? null,
+        acquisition: form.acquisition ?? undefined,
       });
       if (res.error) {
         setForm(donor); // 저장 실패 → 서버 값으로 되돌림
@@ -93,6 +98,13 @@ export default function DonorInfoForm({ donor, canEdit }: { donor: DonorInfo; ca
           )}
         </div>
       </div>
+      {form.acquisition && (
+        <AcquisitionFields
+          value={form.acquisition}
+          disabled={!canEdit}
+          onChange={(acquisition) => setForm({ ...form, acquisition })}
+        />
+      )}
       {canEdit && (
         <div className="mt-4 flex items-center justify-end gap-3">
           <span className="text-xs text-gray-400">{PII_HINT}</span>

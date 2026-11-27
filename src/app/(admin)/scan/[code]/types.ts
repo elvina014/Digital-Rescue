@@ -36,9 +36,13 @@ export interface LookupDonor {
   board_number: string | null;
   location: string | null;
   storage_note: string | null;
-  source_receipt_no: string;
-  source_ticket_id: string;
+  /** 매장 보관 Donor(Phase 4.1)는 원 접수건이 없어 null */
+  source_receipt_no: string | null;
+  source_ticket_id: string | null;
   created_at: string;
+  origin: string;
+  acquisition_note: string | null;
+  acquired_on: string | null;
 }
 
 export interface LookupCandidate {

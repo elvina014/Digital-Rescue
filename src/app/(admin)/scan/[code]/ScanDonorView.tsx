@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CANDIDATE_STATUS_LABEL, CONDITION_LABEL, DONOR_STATUS_LABEL } from "@/app/(admin)/donors/labels";
+import { CANDIDATE_STATUS_LABEL, CONDITION_LABEL, DONOR_STATUS_LABEL, ORIGIN_LABEL } from "@/app/(admin)/donors/labels";
 import LocationSelect, { type LocationOption } from "../LocationSelect";
 import type { LookupCandidate, LookupDonor } from "./types";
 
@@ -34,14 +34,23 @@ export default function ScanDonorView({
           <dd>{donor.catalog_model_label ?? "-"}</dd>
           <dt className="text-gray-500">보드</dt>
           <dd className="font-mono">{donor.board_number ?? "-"}</dd>
-          <dt className="text-gray-500">원 접수번호</dt>
-          <dd className="font-mono">
-            {canManage ? (
-              <Link href={`/tickets/${donor.source_ticket_id}`} className="text-blue-700 hover:underline">{donor.source_receipt_no}</Link>
-            ) : (
-              donor.source_receipt_no
-            )}
-          </dd>
+          {donor.origin === "STORE_STOCK" ? (
+            <>
+              <dt className="text-gray-500">출처</dt>
+              <dd>{ORIGIN_LABEL.STORE_STOCK}{donor.acquisition_note ? ` · ${donor.acquisition_note}` : ""}</dd>
+            </>
+          ) : (
+            <>
+              <dt className="text-gray-500">원 접수번호</dt>
+              <dd className="font-mono">
+                {canManage && donor.source_ticket_id ? (
+                  <Link href={`/tickets/${donor.source_ticket_id}`} className="text-blue-700 hover:underline">{donor.source_receipt_no}</Link>
+                ) : (
+                  donor.source_receipt_no ?? "-"
+                )}
+              </dd>
+            </>
+          )}
           <dt className="text-gray-500">보관 메모</dt>
           <dd>{donor.storage_note ?? "-"}</dd>
         </dl>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CANDIDATE_STATUS_LABEL, CONDITION_LABEL, DONOR_STATUS_LABEL } from "./labels";
+import { CANDIDATE_STATUS_LABEL, CONDITION_LABEL, DONOR_STATUS_LABEL, ORIGIN_LABEL } from "./labels";
 
 export interface DonorListRow {
   id: string;
@@ -10,6 +10,7 @@ export interface DonorListRow {
   device: string;
   catalogLabel: string | null;
   status: string;
+  origin: string;
   storageNote: string | null;
   createdAt: string;
   available: number;
@@ -43,10 +44,11 @@ export default function DonorsClient({ donors, parts }: { donors: DonorListRow[]
   const [tab, setTab] = useState<"donors" | "parts">("donors");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("AVAILABLE");
+  const [origin, setOrigin] = useState("");
   const q = query.trim().toLowerCase();
 
   const shownDonors = donors.filter(
-    (d) => (!status || d.status === status) && (!q || includes(q, d.donorNo, d.device, d.catalogLabel, d.storageNote))
+    (d) => (!status || d.status === status) && (!origin || d.origin === origin) && (!q || includes(q, d.donorNo, d.device, d.catalogLabel, d.storageNote))
   );
   const shownParts = parts.filter((p) => !q || includes(q, p.description, p.partLabel, p.device, p.board, p.donorNo));
 
@@ -79,6 +81,14 @@ export default function DonorsClient({ donors, parts }: { donors: DonorListRow[]
             ))}
           </select>
         )}
+        {tab === "donors" && (
+          <select value={origin} onChange={(e) => setOrigin(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm" aria-label="출처">
+            <option value="">전체 출처</option>
+            {Object.entries(ORIGIN_LABEL).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {tab === "donors" ? (
@@ -89,6 +99,7 @@ export default function DonorsClient({ donors, parts }: { donors: DonorListRow[]
               <Link href={`/donors/${d.id}`} className="flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-gray-50">
                 <span className="font-mono font-semibold text-gray-900">{d.donorNo}</span>
                 <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_BADGE[d.status] ?? ""}`}>{DONOR_STATUS_LABEL[d.status] ?? d.status}</span>
+                {d.origin === "STORE_STOCK" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{ORIGIN_LABEL.STORE_STOCK}</span>}
                 <span className="text-gray-800">{d.device}</span>
                 {d.catalogLabel && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-800">{d.catalogLabel}</span>}
                 <span className="ml-auto text-xs text-gray-500">

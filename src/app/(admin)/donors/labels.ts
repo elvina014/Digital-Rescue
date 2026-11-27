@@ -21,6 +21,15 @@ export const CONDITION_LABEL: Record<string, string> = {
 
 export const CONSENT_TEXT = "고객이 기기 소유권 포기(폐기 위임)에 동의했음을 확인했습니다.";
 
+/** Donor 출처 (Phase 4.1) */
+export const ORIGIN_LABEL: Record<string, string> = {
+  TICKET_DISPOSAL: "접수 폐기 전환",
+  STORE_STOCK: "매장 보관",
+};
+
+/** 매장 보관 기기 등록 시 필수 확인 문구 (Phase 4.1 D6) */
+export const OWNED_TEXT = "이 기기는 회사 소유이며 고객이 맡긴 기기가 아님을 확인했습니다.";
+
 export const PII_HINT = "고객 이름·연락처 등 개인정보는 지우고 저장하세요.";
 
 /** 적출 입고 시 기존 재고 분류로 들어갈 값 (적출품 등록과 같은 입력) */

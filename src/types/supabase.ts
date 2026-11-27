@@ -494,13 +494,13 @@ isOneToOne: false
                   ]
                 },"donor_devices": {
                   Row: {
-                    "brand": string,"catalog_board_id": string | null,"catalog_model_id": string | null,"catalog_variant_id": string | null,"condition_note": string | null,"consent_confirmed_at": string,"consent_confirmed_by": string,"created_at": string,"created_by": string | null,"device_type": Database["public"]['Enums']["device_type"],"donor_no": string,"id": string,"model_text": string | null,"source_ticket_id": string,"status": string,"storage_location_id": string | null,"storage_note": string | null,"tag_info": string | null,"updated_at": string
+                    "acquired_on": string | null,"acquisition_cost": number | null,"acquisition_note": string | null,"brand": string,"catalog_board_id": string | null,"catalog_model_id": string | null,"catalog_variant_id": string | null,"condition_note": string | null,"consent_confirmed_at": string,"consent_confirmed_by": string,"created_at": string,"created_by": string | null,"device_type": Database["public"]['Enums']["device_type"],"donor_no": string,"id": string,"model_text": string | null,"origin": string,"source_ticket_id": string | null,"status": string,"storage_location_id": string | null,"storage_note": string | null,"tag_info": string | null,"updated_at": string
                   }
                   Insert: {
-                    "brand": string,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"condition_note"?: string | null,"consent_confirmed_at": string,"consent_confirmed_by": string,"created_at"?: string,"created_by"?: string | null,"device_type": Database["public"]['Enums']["device_type"],"donor_no"?: string,"id"?: string,"model_text"?: string | null,"source_ticket_id": string,"status"?: string,"storage_location_id"?: string | null,"storage_note"?: string | null,"tag_info"?: string | null,"updated_at"?: string
+                    "acquired_on"?: string | null,"acquisition_cost"?: number | null,"acquisition_note"?: string | null,"brand": string,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"condition_note"?: string | null,"consent_confirmed_at": string,"consent_confirmed_by": string,"created_at"?: string,"created_by"?: string | null,"device_type": Database["public"]['Enums']["device_type"],"donor_no"?: string,"id"?: string,"model_text"?: string | null,"origin"?: string,"source_ticket_id"?: string | null,"status"?: string,"storage_location_id"?: string | null,"storage_note"?: string | null,"tag_info"?: string | null,"updated_at"?: string
                   }
                   Update: {
-                    "brand"?: string,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"condition_note"?: string | null,"consent_confirmed_at"?: string,"consent_confirmed_by"?: string,"created_at"?: string,"created_by"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"],"donor_no"?: string,"id"?: string,"model_text"?: string | null,"source_ticket_id"?: string,"status"?: string,"storage_location_id"?: string | null,"storage_note"?: string | null,"tag_info"?: string | null,"updated_at"?: string
+                    "acquired_on"?: string | null,"acquisition_cost"?: number | null,"acquisition_note"?: string | null,"brand"?: string,"catalog_board_id"?: string | null,"catalog_model_id"?: string | null,"catalog_variant_id"?: string | null,"condition_note"?: string | null,"consent_confirmed_at"?: string,"consent_confirmed_by"?: string,"created_at"?: string,"created_by"?: string | null,"device_type"?: Database["public"]['Enums']["device_type"],"donor_no"?: string,"id"?: string,"model_text"?: string | null,"origin"?: string,"source_ticket_id"?: string | null,"status"?: string,"storage_location_id"?: string | null,"storage_note"?: string | null,"tag_info"?: string | null,"updated_at"?: string
                   }
                   Relationships: [
                     {
@@ -1611,6 +1611,9 @@ isOneToOne: false
                            },
 "donor_extract_part":
 { Args: { "p_candidate_id": string,"p_capacity"?: string,"p_category_id"?: string,"p_name"?: string,"p_spec"?: string }; Returns: Json
+                           },
+"donor_register_store_device":
+{ Args: { "p_acquired_on"?: string,"p_acquisition_cost"?: number,"p_acquisition_note": string,"p_brand": string,"p_catalog_board_id"?: string,"p_catalog_model_id"?: string,"p_catalog_variant_id"?: string,"p_condition_note"?: string,"p_device_type": Database["public"]['Enums']["device_type"],"p_model_text"?: string,"p_owned_confirmed": boolean,"p_storage_location_id"?: string,"p_storage_note"?: string,"p_tag_info"?: string }; Returns: Json
                            },
 "get_device_knowledge":
 { Args: { "p_board_id"?: string,"p_exclude_ticket_id"?: string,"p_model_id"?: string,"p_variant_id"?: string }; Returns: Json

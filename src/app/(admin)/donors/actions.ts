@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 import { getCurrentEmployee } from "@/lib/auth";
 import { catalogErrorMessage, toUuidOrNull } from "@/lib/catalogErrors";
 import type { InboundInput } from "./labels";
+import type { DeviceTypeValue } from "@/app/(admin)/catalog/actions";
 
 /**
  * Donor 기기 Server Actions — 항상 세션 클라이언트(createClient)만 사용한다.
@@ -71,21 +72,96 @@ export async function convertToDonorAction(
   return { success: true, donorId: res.donor_id, donorNo: res.donor_no };
 }
 
+// ----- 매장 보관 기기 → Donor 등록, 접수 없음 (관리자/팀장, Phase 4.1) -----
+export interface StoreDonorInput {
+  owned: boolean;
+  deviceType: DeviceTypeValue | "";
+  brand: string;
+  modelText: string;
+  tagInfo: string;
+  catalogModelId: string | null;
+  catalogVariantId: string | null;
+  catalogBoardId: string | null;
+  conditionNote: string;
+  storageNote: string;
+  storageLocationId: string | null;
+  acquisitionNote: string;
+  acquiredOn: string;
+  acquisitionCost: string;
+}
+
+/** 취득가 입력값 → 정수 원. 빈 값은 null, 잘못된 값은 "invalid" */
+function parseCost(v: string): number | null | "invalid" {
+  const t = v.replace(/,/g, "").trim();
+  if (!t) return null;
+  if (!/^\d+$/.test(t)) return "invalid";
+  const n = Number(t);
+  return Number.isSafeInteger(n) && n <= 2147483647 ? n : "invalid";
+}
+
+export async function registerStoreDonorAction(input: StoreDonorInput): Promise<Result & { donorId?: string; donorNo?: string }> {
+  const s = await session();
+  if ("error" in s) return s;
+  if (!input.owned) return { error: "회사 소유 기기임을 확인해 주세요." };
+  if (!input.deviceType) return { error: "기기 종류를 선택해 주세요." };
+  if (!input.brand.trim()) return { error: "브랜드를 입력해 주세요." };
+  if (!input.acquisitionNote.trim()) return { error: "취득 경위를 입력해 주세요." };
+  const cost = parseCost(input.acquisitionCost);
+  if (cost === "invalid") return { error: "취득가는 0원 이상의 숫자로 입력해 주세요." };
+  if (input.acquiredOn && !/^\d{4}-\d{2}-\d{2}$/.test(input.acquiredOn)) return { error: "취득일 형식이 올바르지 않습니다." };
+
+  const { data, error } = await s.supabase.rpc("donor_register_store_device", {
+    p_owned_confirmed: true,
+    p_device_type: input.deviceType,
+    p_brand: input.brand,
+    p_acquisition_note: input.acquisitionNote,
+    p_model_text: text(input.modelText) ?? undefined,
+    p_tag_info: text(input.tagInfo) ?? undefined,
+    p_catalog_model_id: toUuidOrNull(input.catalogModelId) ?? undefined,
+    p_catalog_variant_id: toUuidOrNull(input.catalogVariantId) ?? undefined,
+    p_catalog_board_id: toUuidOrNull(input.catalogBoardId) ?? undefined,
+    p_condition_note: text(input.conditionNote) ?? undefined,
+    p_storage_note: text(input.storageNote) ?? undefined,
+    p_storage_location_id: toUuidOrNull(input.storageLocationId) ?? undefined,
+    p_acquired_on: input.acquiredOn || undefined,
+    p_acquisition_cost: cost ?? undefined,
+  });
+  if (error) return { error: catalogErrorMessage(error) };
+  const res = data as { donor_id: string; donor_no: string };
+  revalidatePath("/donors");
+  revalidatePath("/labels");
+  return { success: true, donorId: res.donor_id, donorNo: res.donor_no };
+}
+
 // ----- Donor 정보 (관리자/팀장) -----
 export async function updateDonorAction(
   donorId: string,
   input: {
     brand: string; modelText: string; tagInfo: string; status: string; conditionNote: string; storageNote: string;
     catalogModelId: string | null; catalogVariantId: string | null; catalogBoardId: string | null;
+    /** 매장 보관 Donor만 전달 (Phase 4.1) */
+    acquisition?: { note: string; acquiredOn: string; cost: string };
   }
 ): Promise<Result> {
   const s = await session();
   if ("error" in s) return s;
   if (!toUuidOrNull(donorId)) return { error: "Donor 기기를 찾을 수 없습니다." };
   if (!input.brand.trim()) return { error: "브랜드를 입력해 주세요." };
+  let acquisition = {};
+  if (input.acquisition) {
+    if (!input.acquisition.note.trim()) return { error: "취득 경위를 입력해 주세요." };
+    const cost = parseCost(input.acquisition.cost);
+    if (cost === "invalid") return { error: "취득가는 0원 이상의 숫자로 입력해 주세요." };
+    acquisition = {
+      acquisition_note: input.acquisition.note.trim(),
+      acquired_on: input.acquisition.acquiredOn || null,
+      acquisition_cost: cost,
+    };
+  }
   const { data, error } = await s.supabase
     .from("donor_devices")
     .update({
+      ...acquisition,
       brand: input.brand.trim(),
       model_text: text(input.modelText),
       tag_info: text(input.tagInfo),
