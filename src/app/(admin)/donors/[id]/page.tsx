@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { toUuidOrNull } from "@/lib/catalogErrors";
 import { PART_TYPE_LABEL } from "@/components/catalog/partLabels";
 import { requireDonorPage } from "../requireDonorPage";
-import { DONOR_EDIT_ROLES, type CandidateRow } from "../labels";
+import { DONOR_EDIT_ROLES, ORIGIN_LABEL, type CandidateRow } from "../labels";
 import DonorInfoForm from "./DonorInfoForm";
 import DonorPhotos from "./DonorPhotos";
 import CandidateList from "./CandidateList";
@@ -32,7 +32,10 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
     supabase.from("donor_photos").select("id, path, description, created_at").eq("donor_id", id).order("created_at"),
     supabase.from("inventory_categories").select("id, name").order("name"),
     // 기사는 배정된 접수건만 조회 가능 (tickets_select) — 보이지 않으면 번호를 표시하지 않는다
-    supabase.from("repair_tickets").select("receipt_no").eq("id", donor.source_ticket_id).maybeSingle(),
+    // 매장 보관 Donor(Phase 4.1)는 원 접수건이 없다
+    donor.source_ticket_id
+      ? supabase.from("repair_tickets").select("receipt_no").eq("id", donor.source_ticket_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   const photos = photosRes.data ?? [];
@@ -57,6 +60,7 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
   const board = donor.catalog_boards as unknown as { board_number: string } | null;
   const canEdit = DONOR_EDIT_ROLES.includes(employee.role);
   const location = (donor.storage_locations as unknown as { code: string } | null)?.code ?? null;
+  const isStore = donor.origin === "STORE_STOCK";
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -66,7 +70,9 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
           <span className="font-mono">{donor.donor_no}</span> · {[donor.brand, donor.model_text].filter(Boolean).join(" ")}
         </h1>
         <p className="mt-1 text-xs text-gray-500">
-          소유권 포기 동의 확인: {(donor.consent as unknown as { name: string } | null)?.name ?? "-"} ·{" "}
+          출처: {ORIGIN_LABEL[donor.origin] ?? donor.origin}
+          {isStore && donor.acquisition_note ? ` · ${donor.acquisition_note}` : ""} ·{" "}
+          {isStore ? "회사 소유 확인" : "소유권 포기 동의 확인"}: {(donor.consent as unknown as { name: string } | null)?.name ?? "-"} ·{" "}
           {new Date(donor.consent_confirmed_at).toLocaleString("ko-KR")}
           {ticketRes.data && (
             <>
@@ -96,6 +102,9 @@ export default async function DonorDetailPage({ params }: { params: Promise<{ id
                 label: [model.catalog_brands?.name, model.name, variant?.name].filter(Boolean).join(" ") }
             : null,
           board: board && donor.catalog_board_id ? { boardId: donor.catalog_board_id, label: board.board_number } : null,
+          acquisition: isStore
+            ? { note: donor.acquisition_note ?? "", acquiredOn: donor.acquired_on ?? "", cost: donor.acquisition_cost?.toString() ?? "" }
+            : null,
         }}
       />
 

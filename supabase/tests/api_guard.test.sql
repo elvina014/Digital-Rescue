@@ -4,6 +4,7 @@
 -- The test runs as postgres, so supautils IS loaded: every refusal below goes through the former crash path.
 -- Seed users: a…01 ADMIN, 02 MANAGER, 03 RECEPTION, 04 TECHNICIAN, 05 EXPERT_REPAIR, 06 CS
 -- The expectation list is generated from the definitions before Phase 0.6 (test-fixtures/phase0.6/functions_before.sql).
+-- Phase 4.1 (2026-11-27): donor_extract_part / label_lookup / ri_purchase_resources bodies changed by the approved plan — md5 updated, old value kept in a comment.
 -- =============================================================
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
@@ -34,10 +35,10 @@ INSERT INTO guard_expect VALUES
   ('catalog_unmapped_model_strings(integer)'::regprocedure, 'definer', '{anon}'::text[], '5bc39dbe8ee19f60f5abef80f5854497'),
   ('confirm_material_return(uuid)'::regprocedure, 'definer', '{anon}'::text[], '13b0acc7669be8627c7390a54690e3ca'),
   ('donor_convert_from_ticket(uuid,boolean,text,text,text,text,text)'::regprocedure, 'definer', '{anon}'::text[], '7826ab087f21905cd721f3e3f1b11530'),
-  ('donor_extract_part(uuid,uuid,text,text,text)'::regprocedure, 'definer', '{anon}'::text[], '741d230036a1342da4989573c24fe642'),
+  ('donor_extract_part(uuid,uuid,text,text,text)'::regprocedure, 'definer', '{anon}'::text[], 'f90313770333039abefda945d825e42f'),  -- Phase 4.1 body (plan §3.5); before: 741d230036a1342da4989573c24fe642
   ('generate_refund_no()'::regprocedure, 'trigger', '{anon,authenticated}'::text[], '0acacb53a475531bd92b6b2300577ef1'),
   ('get_device_knowledge(uuid,uuid,uuid,uuid)'::regprocedure, 'definer', '{anon}'::text[], '093a9bc1a27d1344684fe23847cece93'),
-  ('label_lookup(text)'::regprocedure, 'definer', '{anon}'::text[], '97394cb5abacbfbd34370943314c5ab4'),
+  ('label_lookup(text)'::regprocedure, 'definer', '{anon}'::text[], '5b20c956eb9dcf0ab6b5c874c41a735f'),  -- Phase 4.1 body (plan §3.5); before: 97394cb5abacbfbd34370943314c5ab4
   ('model_note_stamp()'::regprocedure, 'trigger', '{anon,authenticated}'::text[], 'db79ec82248998564a64ee07f421b3da'),
   ('part_set_updated_at()'::regprocedure, 'trigger', '{anon,authenticated}'::text[], '5bdc21b8fa8fb1231bdb021e09a5bc8e'),
   ('part_spec_create(text,text,text,text)'::regprocedure, 'definer', '{anon}'::text[], 'ce22c353a202bc8b0282758e4dcf2a73'),
@@ -62,7 +63,7 @@ INSERT INTO guard_expect VALUES
   ('ri_next_item_label()'::regprocedure, 'definer', '{anon}'::text[], 'cf1c30ec987ed24cf84875b8240f61e1'),
   ('ri_purchase_guard_enforce()'::regprocedure, 'trigger', '{anon,authenticated}'::text[], 'fdd0566e35264d24b559f9dac8d6b007'),
   ('ri_purchase_material_info(uuid,boolean)'::regprocedure, 'invoker', '{anon,authenticated}'::text[], '903127c43ccc5b90c76f9c5ec23cdc56'),
-  ('ri_purchase_resources(uuid)'::regprocedure, 'invoker', '{anon,authenticated}'::text[], 'b6b467d4ff9ad8e3fdaa1004e06db3b3'),
+  ('ri_purchase_resources(uuid)'::regprocedure, 'invoker', '{anon,authenticated}'::text[], '775003c60cf29a51846b76d7fb308d80'),  -- Phase 4.1 body (plan §3.5); before: b6b467d4ff9ad8e3fdaa1004e06db3b3
   ('ri_recompute_compatibility(uuid)'::regprocedure, 'definer', '{anon,authenticated,service_role}'::text[], '25b729294f512c7369b3a4d9803536ed'),
   ('search_devices_for_part(uuid)'::regprocedure, 'invoker', '{anon}'::text[], 'abe5514ad3eef1cf288299aee5bf7835'),
   ('search_parts_for_device(uuid,uuid,uuid)'::regprocedure, 'invoker', '{anon}'::text[], '3ecdb98bcc96779315e8c0febfe20983'),

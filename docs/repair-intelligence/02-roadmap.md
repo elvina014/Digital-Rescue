@@ -239,6 +239,17 @@ creates a normal `inventory_items` row + INBOUND transaction.
 
 ---
 
+## Phase 4.1 — Store devices as Donor without a ticket ✅ local (report: `phases/phase-4.1-report.md`; production deploy pending)
+
+**Scope** (plan `phases/phase-4.1-plan.md`, APPROVED 2026-11-27)
+- `donor_devices.origin` (`TICKET_DISPOSAL` | `STORE_STOCK`) + acquisition note / date / cost (cost record-only).
+- `source_ticket_id` nullable (approved R2 exception) guarded by CHECK `donor_devices_origin_source`.
+- RPC `donor_register_store_device` (ADMIN/MANAGER, company-ownership confirmation); `label_lookup` / `ri_purchase_resources`
+  LEFT JOIN the ticket; `donor_extract_part` notes `적출품 반환 입고 · Donor D-xxxx` for store donors.
+- UI: Donor 기기 → **+ 매장 보관 기기 등록**, origin badge/filter, asset fields on the detail page, QR view.
+
+---
+
 ## Phase 5 — Search & intake pre-check ✅ local (report: `phases/phase-5-report.md`; production deploy pending)
 
 **Scope**
