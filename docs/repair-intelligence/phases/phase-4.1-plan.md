@@ -1,11 +1,19 @@
 # Phase 4.1 — 매장 보관 기기를 Donor로 등록 (접수 기록 없음) — PLAN
 
-Status: **DRAFT — waiting for Brad's "APPROVED" (R1).** Nothing has been implemented.
+Status: **APPROVED by Brad 2026-11-27 (conditions below recorded per R11 before implementation).**
 Branch: `feat/repair-intelligence` (see D0). Dev target: **local Docker Supabase only** (R3). Production: SELECT-only checks (§0); nothing is applied there.
 
-## 승인 조건 (R11)
+## 승인 조건 (Brad, 2026-11-27, R11)
 
-_(APPROVED 메시지의 결정·조건을 구현 전에 여기에 원문 취지 그대로 기록한다.)_
+승인 메시지: "approved" (추가 조건 없음). 아래 본문과 충돌하면 이 절이 우선한다.
+
+- 계획서 본문 그대로 승인. §11 결정 D0–D6은 계획서의 추천안대로 확정된다.
+  - D0: 2026-11-27 Brad의 "fast-forward 후 커밋" 지시로 `feat/repair-intelligence`를 `main`(`83cfc16`)으로 로컬 fast-forward 완료 (push 없음).
+  - D1 Phase 4.1 / D2 취득일·취득가 기록만, 적출 부품 0원 유지 / D3 옛 폐기 확인 기기는 매장 보관 + 취득 경위에 옛 접수번호 /
+    D4 적출 메모 `적출품 반환 입고 · Donor D-xxxx` / D5 관리자·팀장 / D6 체크 문구 "이 기기는 회사 소유이며 고객이 맡긴 기기가 아님을 확인했습니다."
+- §3.2의 R2 예외(`donor_devices.source_ticket_id` NOT NULL 해제)와 §3.5의 기존 함수 3개 변경을 승인 범위로 포함한다.
+- 개발 대상은 로컬 Docker Supabase만. 운영 적용·push·merge·배포는 하지 않는다 (R3, R7).
+- 진행: 구현 → 로컬 검증 → `phase-4.1-report.md` → 로컬 커밋 후 커밋 해시와 브랜치명을 보고하고 멈춘다.
 
 ---
 
