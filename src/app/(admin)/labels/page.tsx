@@ -72,7 +72,7 @@ export default async function LabelsPage({
       <div>
         <h1 className="text-xl font-bold text-gray-900">라벨 인쇄</h1>
         <p className="mt-1 text-sm text-gray-500">
-          신품 재고는 품목(행)당 1장, 적출 부품은 1개 단위로 1장, Donor 기기는 기기당 1장입니다. 라벨 크기 50 × 30 mm.
+          신품 재고는 품목(행)당 1장, 적출 부품은 1개 단위로 1장, Donor 기기는 기기당 1장입니다. 라벨 크기 47 × 26.9 mm (폼텍 3102).
         </p>
       </div>
       <LabelPicker key={`${tab}-${recent}`} tab={tab} recent={recent} rows={rows} />
