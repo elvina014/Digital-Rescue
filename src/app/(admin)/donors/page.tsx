@@ -13,7 +13,7 @@ export default async function DonorsPage() {
     supabase
       .from("donor_devices")
       .select(`id, donor_no, device_type, brand, model_text, status, storage_note, created_at, origin,
-               catalog_models ( name, catalog_brands ( name ) ),
+               catalog_models ( name, catalog_brands ( name ) ), storage_locations ( code ),
                donor_part_candidates ( status )`)
       .order("created_at", { ascending: false }),
     supabase.from("donor_potential_stock").select("*").order("created_at", { ascending: false }),
@@ -30,6 +30,7 @@ export default async function DonorsPage() {
       status: d.status,
       origin: d.origin,
       storageNote: d.storage_note,
+      locationCode: (d.storage_locations as unknown as { code: string } | null)?.code ?? null,
       createdAt: d.created_at,
       available: statuses.filter((s) => s === "AVAILABLE" || s === "REQUESTED").length,
       extracted: statuses.filter((s) => s === "EXTRACTED").length,

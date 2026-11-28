@@ -74,7 +74,7 @@ export default function DonorInfoForm({ donor, canEdit }: { donor: DonorInfo; ca
         </label>
       </div>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {field("storageNote", "보관 위치", 100)}
+        {field("storageNote", "보관 메모", 100)}
         <label className="block text-xs text-gray-600">
           상태 메모
           <input value={form.conditionNote} disabled={!canEdit} onChange={(e) => setForm({ ...form, conditionNote: e.target.value })} className={inputCls} />

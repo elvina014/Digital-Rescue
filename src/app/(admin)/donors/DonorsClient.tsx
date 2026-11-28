@@ -12,6 +12,8 @@ export interface DonorListRow {
   status: string;
   origin: string;
   storageNote: string | null;
+  /** 보관 위치 마스터 코드 (예: B-01-L) */
+  locationCode: string | null;
   createdAt: string;
   available: number;
   extracted: number;
@@ -48,7 +50,7 @@ export default function DonorsClient({ donors, parts }: { donors: DonorListRow[]
   const q = query.trim().toLowerCase();
 
   const shownDonors = donors.filter(
-    (d) => (!status || d.status === status) && (!origin || d.origin === origin) && (!q || includes(q, d.donorNo, d.device, d.catalogLabel, d.storageNote))
+    (d) => (!status || d.status === status) && (!origin || d.origin === origin) && (!q || includes(q, d.donorNo, d.device, d.catalogLabel, d.storageNote, d.locationCode))
   );
   const shownParts = parts.filter((p) => !q || includes(q, p.description, p.partLabel, p.device, p.board, p.donorNo));
 
@@ -102,7 +104,10 @@ export default function DonorsClient({ donors, parts }: { donors: DonorListRow[]
                 {d.origin === "STORE_STOCK" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{ORIGIN_LABEL.STORE_STOCK}</span>}
                 <span className="text-gray-800">{d.device}</span>
                 {d.catalogLabel && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-800">{d.catalogLabel}</span>}
-                <span className="ml-auto text-xs text-gray-500">
+                {d.locationCode && (
+                  <span className="ml-auto rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-700" title="보관 위치">{d.locationCode}</span>
+                )}
+                <span className={`${d.locationCode ? "" : "ml-auto "}text-xs text-gray-500`}>
                   적출 가능 {d.available}건 · 입고 완료 {d.extracted}건{d.storageNote ? ` · ${d.storageNote}` : ""}
                 </span>
               </Link>
